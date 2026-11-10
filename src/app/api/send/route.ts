@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: String(emailError) }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, id: postcard.id });
+    return NextResponse.json({ success: true, id: postcardId });
   } catch (err) {
     console.error("Unexpected error:", err);
     return NextResponse.json({ error: String(err) }, { status: 500 });
