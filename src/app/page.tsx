@@ -232,8 +232,8 @@ export default function Home() {
             }}
           >
             <div style={{
-              width: 32, height: isPortrait ? 42 : 28, borderRadius: 3, background: postcard.bgColor,
-              backgroundImage: postcard.imageUrl ? `url(${postcard.imageUrl})` : undefined,
+              width: 32, height: isPortrait ? 42 : 28, borderRadius: 3,
+              backgroundImage: postcard.imageUrl ? `url(${postcard.imageUrl})` : `linear-gradient(${postcard.bgColor}, ${postcard.bgColor})`,
               backgroundSize: "cover", backgroundPosition: "center",
               border: "1px solid rgba(0,0,0,0.08)",
             }} />
