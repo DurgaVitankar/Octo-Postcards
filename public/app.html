@@ -4,7 +4,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Postcards — Wireframe Flow</title>
+<title>Postcards</title>
+<script>
+  // Load Supabase public config from Next.js env at runtime
+  fetch('/api/env').then(r=>r.json()).then(d=>{
+    if(d.url) document.querySelector('meta[name="sb-url"]').content = d.url;
+    if(d.key) document.querySelector('meta[name="sb-key"]').content = d.key;
+  }).catch(()=>{});
+</script>
+<meta name="sb-url" content="">
+<meta name="sb-key" content="">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -2502,6 +2511,7 @@ body.mobile-mode .inbox-nav-btn { display: none !important; }
   function handlePhotoUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
+    window._uploadedPhotoFile = file;
     const url = URL.createObjectURL(file);
     document.getElementById('photo-img').src = url;
     const thumbImg = document.getElementById('thumb-photo-img');
@@ -3109,11 +3119,43 @@ body.mobile-mode .inbox-nav-btn { display: none !important; }
         // committed — animate to end, then go to posted
         handle.style.left = (4 + max) + 'px';
         mailbox.classList.add('open');
-        setTimeout(() => {
+        setTimeout(async () => {
           // reset for next time
           handle.style.left = '4px';
           label.style.opacity = 1;
           mailbox.classList.remove('open');
+
+          // send via API
+          const recipientEmail = document.getElementById('send-email').value.trim();
+          const msgLandscape = document.getElementById('msg-landscape');
+          const msgPortrait  = document.getElementById('msg-portrait');
+          const message = (msgLandscape && msgLandscape.value) || (msgPortrait && msgPortrait.value) || '';
+
+          let imageUrl = null;
+          if (window._uploadedPhotoFile) {
+            try {
+              const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
+              const sb = createClient(
+                document.querySelector('meta[name="sb-url"]')?.content || '',
+                document.querySelector('meta[name="sb-key"]')?.content || ''
+              );
+              const f = window._uploadedPhotoFile;
+              const path = Date.now() + '.' + f.name.split('.').pop();
+              const { error } = await sb.storage.from('postcard-images').upload(path, f);
+              if (!error) {
+                imageUrl = sb.storage.from('postcard-images').getPublicUrl(path).data.publicUrl;
+              }
+            } catch(err) { console.warn('Image upload failed', err); }
+          }
+
+          try {
+            await fetch('/api/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ recipientEmail, message, imageUrl, orientation: typeof orientation !== 'undefined' ? orientation : 'landscape' })
+            });
+          } catch(err) { console.warn('Send failed', err); }
+
           go('s-posted');
         }, 380);
       } else {
