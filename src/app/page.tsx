@@ -12,9 +12,9 @@ const STARTER_PILLS = [
   { text: "Until next time",    r: "-0.5deg" },
 ];
 const INBOX_ITEMS = [
-  { id:1, from:"alex@email.com",  date:"Nov 8", bg:"#e8d5c4", emoji:"🏔️", unread:true },
-  { id:2, from:"jamie@email.com", date:"Nov 6", bg:"#c4d5e8", emoji:"🌊", unread:true },
-  { id:3, from:"sam@email.com",   date:"Nov 2", bg:"#d5e8c4", emoji:"🌸", unread:false },
+  { id:1, from:"Priya",  fromEmail:"priya@email.com",  date:"Nov 8",  bg:"linear-gradient(135deg,#b5cfe8 0%,#d4e8c2 100%)", emoji:"🌊", unread:true,  rot:-2.1, msg:"Thinking of you from the coast.\nThe water here is impossibly blue —\nyou'd love it.\n\n— Priya" },
+  { id:2, from:"Arjun",  fromEmail:"arjun@email.com",  date:"Nov 6",  bg:"linear-gradient(135deg,#f5e0b5 0%,#f0c8a0 100%)", emoji:"🏜️", unread:true,  rot:1.4,  msg:"Made it to Rajasthan.\nThe light at dusk is unlike anything\nI've ever seen.\n\n— Arjun" },
+  { id:3, from:"Mei",    fromEmail:"mei@email.com",    date:"Nov 2",  bg:"linear-gradient(135deg,#e8d5f0 0%,#c8b0e8 100%)", emoji:"🌸", unread:false, rot:-0.8, msg:"Kyoto in the rain.\nEverything is quiet and perfect\nand I wished you were here.\n\n— Mei" },
 ];
 
 function PostmarkSVG({ uid }: { uid: string }) {
@@ -52,6 +52,9 @@ export default function Home() {
   const [sending, setSending]         = useState(false);
   const [sendError, setSendError]     = useState("");
   const [slideX, setSlideX]           = useState(0);
+  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
+  const [openCardIdx, setOpenCardIdx] = useState<number | null>(null);
+  const [openCardFlipped, setOpenCardFlipped] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const isDragging = useRef(false);
@@ -171,26 +174,92 @@ export default function Home() {
   if (screen === "inbox") return (
     <div style={{ minHeight:"100vh", background:"#f5f5f3", display:"flex", flexDirection:"column", fontFamily:"sans-serif" }}>
       <style>{fonts}</style>
+
+      {/* Open postcard modal */}
+      {openCardIdx !== null && (() => {
+        const card = INBOX_ITEMS[openCardIdx];
+        const ruledLinesInbox = Array.from({ length: 11 });
+        return (
+          <div onClick={() => { setOpenCardIdx(null); setOpenCardFlipped(false); }} style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.65)", display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(2px)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:16 }}>
+              <div style={{ perspective:"1200px", cursor:"pointer" }} onClick={() => setOpenCardFlipped(f => !f)} title="Click to flip">
+                <div style={{ width:600, height:384, position:"relative", transformStyle:"preserve-3d", transition:"transform 0.55s cubic-bezier(0.45,0.05,0.55,0.95)", transform: openCardFlipped ? "rotateY(180deg)" : "rotateY(0deg)" }}>
+                  {/* Front */}
+                  <div style={{ position:"absolute", inset:0, backfaceVisibility:"hidden", WebkitBackfaceVisibility:"hidden" } as React.CSSProperties}>
+                    <div style={{ width:"100%", height:"100%", background:card.bg, borderRadius:10, border:"1.5px solid rgba(0,0,0,0.12)", boxShadow:"0 8px 40px rgba(0,0,0,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:120 }}>
+                      {card.emoji}
+                    </div>
+                  </div>
+                  {/* Back */}
+                  <div style={{ position:"absolute", inset:0, backfaceVisibility:"hidden", WebkitBackfaceVisibility:"hidden", transform:"rotateY(180deg)" } as React.CSSProperties}>
+                    <div style={{ width:"100%", height:"100%", background:"#fff", borderRadius:10, border:"1px solid #ddd", boxShadow:"0 8px 40px rgba(0,0,0,0.3)", display:"flex", overflow:"hidden" }}>
+                      {/* message half */}
+                      <div style={{ width:"58%", borderRight:"1px solid #e8e4dc", position:"relative", padding:"28px 24px 0" }}>
+                        <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", justifyContent:"space-around" }}>
+                          {ruledLinesInbox.map((_,i) => <div key={i} style={{ height:1, background:"#ece8e0", margin:"0 24px" }}/>)}
+                        </div>
+                        <div style={{ position:"absolute", inset:"28px 24px", fontFamily:"'Dancing Script',cursive", fontSize:16, fontStyle:"italic", color:"#333", lineHeight:"36px", whiteSpace:"pre-wrap", zIndex:1, pointerEvents:"none" }}>{card.msg}</div>
+                      </div>
+                      {/* address half */}
+                      <div style={{ flex:1, display:"flex", flexDirection:"column" }}>
+                        <div style={{ padding:"20px 20px 0", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                          <div>
+                            <div style={pcTitle}>Postcard</div>
+                            <div style={pcSub}>with love</div>
+                          </div>
+                          <div style={{ position:"relative", flexShrink:0 }}>
+                            <div style={{ width:58, height:72, background:"#f0eeea", borderRadius:3, position:"absolute", top:-6, right:-6 }}/>
+                            <div style={{ width:58, height:72, border:"1.5px dashed #d8b8b8", borderRadius:3, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#c8a8a8", letterSpacing:"0.06em", textTransform:"uppercase", position:"relative", zIndex:1 }}>Stamp</div>
+                          </div>
+                        </div>
+                        <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"0 20px 24px" }}>
+                          {["Durga Vitankar","12 Garden Lane","Mumbai, India","400 001"].map((line,i) => (
+                            <div key={i} style={{ borderBottom:"1px solid #ece8e0", height:34, display:"flex", alignItems:"flex-end", paddingBottom:4, fontFamily:"Georgia,serif", fontSize:12, color:"#333" }}>{line}</div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.65)" }}>From <strong style={{ color:"#fff" }}>{card.from}</strong> · {card.date}</div>
+                <div style={{ fontSize:11, color:"rgba(255,255,255,0.45)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:12, padding:"3px 10px" }}>tap to flip</div>
+                <button onClick={() => { setOpenCardIdx(null); setOpenCardFlipped(false); }} style={{ fontSize:12, color:"rgba(255,255,255,0.65)", background:"none", border:"1px solid rgba(255,255,255,0.2)", borderRadius:8, padding:"5px 12px", cursor:"pointer" }}>Close</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"28px 48px 0", maxWidth:1200, width:"100%", margin:"0 auto", boxSizing:"border-box" }}>
         <div style={{ fontFamily:"'Playfair Display',Georgia,serif", fontSize:28, fontWeight:700, color:"#111", letterSpacing:"-0.02em" }}>Received</div>
         <button onClick={() => setScreen("desk")} style={{ fontSize:13, color:"#777", cursor:"pointer", background:"none", border:"none", display:"flex", alignItems:"center", gap:5 }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
-          Back
+          Back to writing
         </button>
       </div>
       <div style={{ display:"flex", gap:8, padding:"20px 48px 0", maxWidth:1200, width:"100%", margin:"0 auto", boxSizing:"border-box" }}>
-        {["All","Unread","Sent"].map((f,i) => (
+        {["All","Unread"].map((f,i) => (
           <button key={f} style={{ fontSize:12, fontWeight:600, letterSpacing:"0.04em", color: i===0?"#fff":"#888", background: i===0?"#111":"none", border:`1px solid ${i===0?"#111":"#ddd"}`, borderRadius:20, padding:"5px 14px", cursor:"pointer", textTransform:"uppercase" }}>{f}</button>
         ))}
       </div>
-      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"32px 0 80px", flex:1, overflowY:"auto" }}>
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", paddingTop:40, paddingBottom:120, flex:1, overflowY:"auto" }}>
         {INBOX_ITEMS.map((item, i) => (
-          <div key={item.id} style={{ marginBottom:-28, position:"relative", cursor:"pointer", zIndex:i, transition:"transform 0.2s" }}>
-            <div style={{ width:490, height:314, background:item.bg, borderRadius:7, border:"1.5px solid rgba(0,0,0,0.12)", boxShadow:"0 4px 16px rgba(0,0,0,0.13)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:80, position:"relative", overflow:"hidden" }}>
+          <div
+            key={item.id}
+            style={{ marginBottom:-28, position:"relative", cursor:"pointer", zIndex: INBOX_ITEMS.length - i, transition:"transform 0.22s ease, box-shadow 0.22s ease", transform: hoveredCard===i ? `rotate(${item.rot * 0.3}deg) translateY(-14px)` : `rotate(${item.rot}deg)`, transformOrigin:"center top" }}
+            onMouseEnter={() => setHoveredCard(i)}
+            onMouseLeave={() => setHoveredCard(null)}
+            onClick={() => { setOpenCardIdx(i); setOpenCardFlipped(false); }}
+          >
+            <div style={{ width:490, height:314, background:item.bg, borderRadius:8, border:"1.5px solid rgba(0,0,0,0.10)", boxShadow: hoveredCard===i ? "0 18px 48px rgba(0,0,0,0.22)" : "0 4px 18px rgba(0,0,0,0.13)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:90, position:"relative", overflow:"hidden", transition:"box-shadow 0.22s ease" }}>
               {item.emoji}
-              {item.unread && <div style={{ position:"absolute", top:10, left:10, width:9, height:9, borderRadius:"50%", background:"#111", border:"2px solid #fff", zIndex:2 }}/>}
+              {item.unread && <div style={{ position:"absolute", top:12, left:12, width:9, height:9, borderRadius:"50%", background:"#111", border:"2px solid rgba(255,255,255,0.8)", zIndex:2 }}/>}
+              {/* subtle vignette */}
+              <div style={{ position:"absolute", inset:0, background:"linear-gradient(135deg,rgba(255,255,255,0.08) 0%,transparent 60%)", borderRadius:8 }}/>
             </div>
-            <div style={{ display:"flex", alignItems:"baseline", gap:8, padding:"8px 2px 0" }}>
+            <div style={{ display:"flex", alignItems:"baseline", gap:8, padding:"10px 4px 0", transform: `rotate(${-item.rot * 0.5}deg)` }}>
               <span style={{ fontSize:12, fontWeight:600, color:"#333" }}>From {item.from}</span>
               <span style={{ fontSize:11, color:"#bbb" }}>{item.date}</span>
             </div>
@@ -211,17 +280,28 @@ export default function Home() {
         Back
       </button>
 
-      <h2 style={{ fontSize:20, fontWeight:700, fontFamily:"'Playfair Display',Georgia,serif", margin:0 }}>Send your postcard</h2>
+      {/* Card preview thumbnail */}
+      <div style={{ position:"relative" }}>
+        <div style={{ width:isPortrait ? 110 : 170, height:isPortrait ? 154 : 110, borderRadius:8, overflow:"hidden", border:"1.5px solid rgba(0,0,0,0.12)", boxShadow:"0 4px 20px rgba(0,0,0,0.14)", transform:"rotate(-1.5deg)", background:"#f0f0ee" }}>
+          {imageUrl
+            ? <img src={imageUrl} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
+            : <div style={{ width:"100%", height:"100%", background:"linear-gradient(135deg,#e8e4dc,#f5f3ef)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:34, color:"#ccc" }}>✉️</div>
+          }
+        </div>
+        {stamp && <div style={{ position:"absolute", top:8, right:-4, fontSize:18, background:"rgba(255,255,255,0.9)", borderRadius:4, padding:"3px 5px", boxShadow:"0 1px 6px rgba(0,0,0,0.1)" }}>{stamp}</div>}
+      </div>
 
-      <div style={{ width:340, display:"flex", flexDirection:"column", gap:22 }}>
+      <h2 style={{ fontSize:22, fontWeight:700, fontFamily:"'Playfair Display',Georgia,serif", margin:0, letterSpacing:"-0.01em" }}>Who&apos;s it going to?</h2>
+
+      <div style={{ width:340, display:"flex", flexDirection:"column", gap:14 }}>
         {[
           { label:"To", val:recipientEmail, set:setRecipientEmail, ph:"their@email.com" },
           { label:"From", val:senderEmail, set:setSenderEmail, ph:"you@email.com" },
         ].map(f => (
-          <div key={f.label}>
-            <div style={{ fontSize:11, color:"#aaa", letterSpacing:"0.07em", textTransform:"uppercase", marginBottom:6, fontWeight:600 }}>{f.label}</div>
+          <div key={f.label} style={{ display:"flex", flexDirection:"column", gap:6 }}>
+            <div style={{ fontSize:11, color:"#aaa", letterSpacing:"0.07em", textTransform:"uppercase", fontWeight:600 }}>{f.label}</div>
             <input type="email" value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.ph}
-              style={{ width:"100%", border:"none", borderBottom:"1px solid #ddd", padding:"8px 0", fontSize:15, fontFamily:"Georgia,serif", color:"#333", background:"transparent", outline:"none", boxSizing:"border-box" }}/>
+              style={{ width:"100%", border:"1px solid #d0d0d0", borderRadius:10, padding:"11px 16px", fontSize:15, fontFamily:"Georgia,serif", color:"#333", background:"#fff", outline:"none", boxSizing:"border-box", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}/>
           </div>
         ))}
       </div>
