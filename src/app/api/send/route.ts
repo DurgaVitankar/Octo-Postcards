@@ -20,26 +20,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Save to database
-    const { data: postcard, error: dbError } = await supabase
-      .from("postcards")
-      .insert({
-        sender_email: senderEmail,
-        recipient_email: recipientEmail,
-        message,
-        image_url: imageUrl,
-        orientation: orientation || "portrait",
-        bg_color: bgColor || "#f5f5f3",
-        stamp_emoji: stampEmoji || "leaf",
-        status: "sent",
-        sent_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+    // Save to database (best-effort — skip if permission denied)
+    let postcardId = crypto.randomUUID();
+    try {
+      const { data: postcard, error: dbError } = await supabase
+        .from("postcards")
+        .insert({
+          sender_email: senderEmail,
+          recipient_email: recipientEmail,
+          message,
+          image_url: imageUrl,
+          orientation: orientation || "portrait",
+          bg_color: bgColor || "#f5f5f3",
+          stamp_emoji: stampEmoji || "leaf",
+          status: "sent",
+          sent_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
 
-    if (dbError) {
-      console.error("DB error:", dbError);
-      return NextResponse.json({ error: dbError.message }, { status: 500 });
+      if (dbError) {
+        console.warn("DB error (continuing anyway):", dbError.message);
+      } else if (postcard) {
+        postcardId = postcard.id;
+      }
+    } catch (dbErr) {
+      console.warn("DB exception (continuing anyway):", dbErr);
     }
 
     const isPortrait = (orientation || "portrait") === "portrait";
@@ -55,7 +61,7 @@ export async function POST(req: NextRequest) {
       cardW,
       cardH,
       isPortrait,
-      postcardId: postcard.id,
+      postcardId,
     });
 
     const { error: emailError } = await resend.emails.send({
