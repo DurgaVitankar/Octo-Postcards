@@ -10,6 +10,8 @@ const supabase = createClient(
 );
 
 export async function POST(req: NextRequest) {
+  const key = process.env.RESEND_API_KEY || "";
+  console.log("RESEND key chars:", [...key.slice(0,12)].map(c => c.charCodeAt(0)));
   try {
     const body = await req.json();
     const { recipientEmail, senderEmail, message, imageUrl, orientation, bgColor, stampEmoji } = body;
