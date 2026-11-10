@@ -1,16 +1,51 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 type Screen = "login" | "desk" | "send" | "inbox" | "sent";
 type Orientation = "portrait" | "landscape";
 type Side = "front" | "back";
+type PhotoEffect = "original" | "vintage";
+type PenType = "calligraphy" | "ink";
+type ModalType = "none" | "stamp" | "sticker" | "pen";
 
-const STAMP_OPTS = ["🌿","🌸","🏔️","🌊","🌙","☀️","🦋","🍂","✨","🌺"];
+interface PlacedItem {
+  id: string;
+  kind: "stamp" | "sticker";
+  content: string; // emoji or svg html
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const STAMP_OPTS = [
+  { emoji: "🌿", label: "Leaf" },
+  { emoji: "🌸", label: "Blossom" },
+  { emoji: "🏔️", label: "Mountain" },
+  { emoji: "🌊", label: "Wave" },
+  { emoji: "🌙", label: "Moon" },
+  { emoji: "☀️", label: "Sun" },
+  { emoji: "🦋", label: "Butterfly" },
+  { emoji: "🍂", label: "Autumn" },
+  { emoji: "✨", label: "Sparkle" },
+  { emoji: "🌺", label: "Hibiscus" },
+];
+
+const STICKER_OPTS = [
+  { id: "rose",    label: "Rose",          content: `<svg viewBox="0 0 48 48" width="48" height="48"><circle cx="24" cy="24" r="10" fill="#e57373"/><circle cx="20" cy="20" r="6" fill="#ef5350"/><circle cx="28" cy="20" r="5" fill="#e53935"/><circle cx="24" cy="28" r="6" fill="#c62828"/><ellipse cx="24" cy="38" rx="3" ry="8" fill="#43a047" transform="rotate(-10 24 38)"/><ellipse cx="18" cy="35" rx="6" ry="3" fill="#66bb6a" transform="rotate(-30 18 35)"/></svg>` },
+  { id: "daisy",   label: "Daisy",         content: `<svg viewBox="0 0 48 48" width="48" height="48"><circle cx="24" cy="24" r="7" fill="#fff176"/>${[0,36,72,108,144,180,216,252,288,324].map(a=>`<ellipse cx="${24+14*Math.cos(a*Math.PI/180)}" cy="${24+14*Math.sin(a*Math.PI/180)}" rx="4" ry="7" fill="white" stroke="#f5f5f5" stroke-width="0.5" transform="rotate(${a} ${24+14*Math.cos(a*Math.PI/180)} ${24+14*Math.sin(a*Math.PI/180)})"/>`).join("")}</svg>` },
+  { id: "hibiscus",label: "Hibiscus",      content: `<svg viewBox="0 0 48 48" width="48" height="48"><ellipse cx="24" cy="12" rx="8" ry="12" fill="#f06292" transform="rotate(0 24 24)"/><ellipse cx="24" cy="12" rx="8" ry="12" fill="#e91e8c" transform="rotate(72 24 24)"/><ellipse cx="24" cy="12" rx="8" ry="12" fill="#f06292" transform="rotate(144 24 24)"/><ellipse cx="24" cy="12" rx="8" ry="12" fill="#e91e8c" transform="rotate(216 24 24)"/><ellipse cx="24" cy="12" rx="8" ry="12" fill="#f06292" transform="rotate(288 24 24)"/><circle cx="24" cy="24" r="5" fill="#fff176"/></svg>` },
+  { id: "maple",   label: "Maple Leaf",    content: `<svg viewBox="0 0 48 48" width="48" height="48"><path d="M24 4 l3 8 5-2-4 7 7 1-5 5 2 7-8-3v10h-2V27l-8 3 2-7-5-5 7-1-4-7 5 2z" fill="#e53935"/><rect x="22" y="36" width="4" height="8" fill="#795548" rx="1"/></svg>` },
+  { id: "tropical",label: "Tropical Leaf", content: `<svg viewBox="0 0 48 48" width="48" height="48"><path d="M8 44 Q20 20 40 8 Q38 24 28 34 Q22 40 8 44z" fill="#43a047"/><path d="M8 44 Q24 36 40 8" stroke="#2e7d32" stroke-width="1.5" fill="none"/></svg>` },
+  { id: "cherry",  label: "Cherry Blossom",content: `<svg viewBox="0 0 48 48" width="48" height="48">${[0,72,144,216,288].map(a=>`<ellipse cx="${24+10*Math.cos(a*Math.PI/180)}" cy="${24+10*Math.sin(a*Math.PI/180)}" rx="6" ry="9" fill="#f8bbd0" transform="rotate(${a} ${24+10*Math.cos(a*Math.PI/180)} ${24+10*Math.sin(a*Math.PI/180)})"/>`).join("")}<circle cx="24" cy="24" r="4" fill="#fff176"/></svg>` },
+];
+
 const STARTER_PILLS = [
   { text: "Wish you were here", r: "-1deg" },
   { text: "Thinking of you",    r: "0.5deg" },
   { text: "Until next time",    r: "-0.5deg" },
 ];
+
 const INBOX_ITEMS = [
   { id:1, from:"Priya",  fromEmail:"priya@email.com",  date:"Nov 8",  bg:"linear-gradient(135deg,#b5cfe8 0%,#d4e8c2 100%)", emoji:"🌊", unread:true,  rot:-2.1, msg:"Thinking of you from the coast.\nThe water here is impossibly blue —\nyou'd love it.\n\n— Priya" },
   { id:2, from:"Arjun",  fromEmail:"arjun@email.com",  date:"Nov 6",  bg:"linear-gradient(135deg,#f5e0b5 0%,#f0c8a0 100%)", emoji:"🏜️", unread:true,  rot:1.4,  msg:"Made it to Rajasthan.\nThe light at dusk is unlike anything\nI've ever seen.\n\n— Arjun" },
@@ -44,31 +79,283 @@ export default function Home() {
   const [message, setMessage]         = useState("");
   const [imageUrl, setImageUrl]       = useState<string | null>(null);
   const [imageFile, setImageFile]     = useState<File | null>(null);
-  const [stamp, setStamp]             = useState<string | null>(null);
-  const [showStampModal, setShowStampModal] = useState(false);
+  const [photoEffect, setPhotoEffect] = useState<PhotoEffect>("original");
+  const [photoHover, setPhotoHover]   = useState(false);
+  const [photoPos, setPhotoPos]       = useState({ x: 50, y: 50 });
+  const [placedItems, setPlacedItems] = useState<PlacedItem[]>([]);
+  const [modal, setModal]             = useState<ModalType>("none");
+  const [penType, setPenType]         = useState<PenType>("calligraphy");
   const [jazzOn, setJazzOn]           = useState(false);
   const [recipientEmail, setRecipientEmail] = useState("");
-  const [senderEmail, setSenderEmail] = useState("");
+  const [senderEmail, setSenderEmail]       = useState("");
   const [sending, setSending]         = useState(false);
   const [sendError, setSendError]     = useState("");
   const [slideX, setSlideX]           = useState(0);
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const [openCardIdx, setOpenCardIdx] = useState<number | null>(null);
   const [openCardFlipped, setOpenCardFlipped] = useState(false);
+  const [addrLines, setAddrLines]     = useState(["", "", "", ""]);
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
-  const fileRef = useRef<HTMLInputElement>(null);
-  const isDragging = useRef(false);
-  const dragStartX = useRef(0);
-  const SLIDE_MAX = 268;
+  const fileRef      = useRef<HTMLInputElement>(null);
+  const imgRef       = useRef<HTMLImageElement>(null);
+  const cardFrontRef = useRef<HTMLDivElement>(null);
+  const backCardRef  = useRef<HTMLDivElement>(null);
+  const jazzCtxRef   = useRef<AudioContext | null>(null);
+  const jazzOnRef    = useRef(false);
+  const jazzBeatRef  = useRef(0);
+  const jazzTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ghostRef     = useRef<HTMLDivElement>(null);
 
-  const isPortrait = orientation === "portrait";
-  const cardW = isPortrait ? 432 : 672;
-  const cardH = isPortrait ? 600 : 432;
-  const ruledLines = Array.from({ length: isPortrait ? 10 : 11 });
+  // slider
+  const isDragging   = useRef(false);
+  const dragStartX   = useRef(0);
+  const SLIDE_MAX    = 268;
 
+  // photo pan state
+  const panDragging  = useRef(false);
+  const panStartX    = useRef(0);
+  const panStartY    = useRef(0);
+  const panStartPos  = useRef({ x: 50, y: 50 });
+
+  // dragging placed item
+  const itemDragId   = useRef<string | null>(null);
+  const itemDragStart= useRef({ mx: 0, my: 0, ix: 0, iy: 0 });
+
+  // ghost drag (stamp/sticker from modal)
+  const ghostDragging= useRef(false);
+  const ghostContent = useRef<{ content: string; kind: "stamp"|"sticker" } | null>(null);
+
+  const isPortrait   = orientation === "portrait";
+  const cardW        = isPortrait ? 432 : 672;
+  const cardH        = isPortrait ? 600 : 432;
+  const ruledLines   = Array.from({ length: isPortrait ? 10 : 11 });
+  const flipped      = side === "back";
+
+  const hasContent = !!(message || imageUrl || placedItems.length > 0);
+
+  // ── Jazz ──
+  const CHORDS = [
+    [146.83, 220.00, 261.63, 329.63, 392.00],
+    [196.00, 246.94, 329.63, 392.00, 440.00],
+    [261.63, 329.63, 392.00, 493.88, 587.33],
+    [220.00, 261.63, 329.63, 392.00, 493.88],
+  ];
+  const BASS = [
+    146.83, 164.81, 174.61, 185.00,
+    196.00, 220.00, 233.08, 246.94,
+    261.63, 246.94, 220.00, 196.00,
+    220.00, 196.00, 174.61, 164.81,
+  ];
+
+  function jazzNote(ctx: AudioContext, type: OscillatorType, freq: number, when: number, dur: number, vol: number) {
+    const osc = ctx.createOscillator();
+    const env = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    env.gain.setValueAtTime(0, when);
+    env.gain.linearRampToValueAtTime(vol, when + 0.015);
+    env.gain.exponentialRampToValueAtTime(0.001, when + dur);
+    osc.connect(env); env.connect(ctx.destination);
+    osc.start(when); osc.stop(when + dur + 0.05);
+  }
+
+  function scheduleJazz() {
+    const ctx = jazzCtxRef.current;
+    if (!ctx || !jazzOnRef.current) return;
+    const beat = jazzBeatRef.current;
+    const TEMPO = 0.52;
+    const now = ctx.currentTime;
+    const bassFreq = BASS[beat % BASS.length];
+    jazzNote(ctx, "sine", bassFreq, now, TEMPO * 0.9, 0.22);
+    jazzNote(ctx, "sine", bassFreq * 2, now, TEMPO * 0.5, 0.06);
+    const chordIdx = Math.floor(beat / 4) % CHORDS.length;
+    const chord = CHORDS[chordIdx];
+    const beatInBar = beat % 4;
+    if (beatInBar === 1 || beatInBar === 3) {
+      chord.forEach((freq, i) => {
+        jazzNote(ctx, "triangle", freq, now + i * 0.022, TEMPO * 0.7, 0.04);
+      });
+    } else if (beatInBar === 0 && Math.random() > 0.5) {
+      chord.slice(1, 4).forEach((freq, i) => {
+        jazzNote(ctx, "triangle", freq, now + i * 0.018, TEMPO * 0.4, 0.025);
+      });
+    }
+    // hi-hat noise burst
+    const noiseLen = 0.04;
+    const nBuf = ctx.createBuffer(1, ctx.sampleRate * noiseLen, ctx.sampleRate);
+    const nd = nBuf.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = (Math.random() * 2 - 1);
+    const filt = ctx.createBiquadFilter();
+    filt.type = "highpass"; filt.frequency.value = 8000;
+    const nEnv = ctx.createGain();
+    nEnv.gain.setValueAtTime(0.06, now);
+    nEnv.gain.exponentialRampToValueAtTime(0.001, now + noiseLen);
+    const nSrc = ctx.createBufferSource();
+    nSrc.buffer = nBuf;
+    nSrc.connect(filt); filt.connect(nEnv); nEnv.connect(ctx.destination);
+    nSrc.start(now); nSrc.stop(now + noiseLen);
+    const nSrc2 = ctx.createBufferSource();
+    nSrc2.buffer = nBuf;
+    const nEnv2 = ctx.createGain();
+    nEnv2.gain.setValueAtTime(0.03, now + TEMPO * 0.65);
+    nEnv2.gain.exponentialRampToValueAtTime(0.001, now + TEMPO * 0.65 + noiseLen);
+    nSrc2.connect(filt); filt.connect(nEnv2); nEnv2.connect(ctx.destination);
+    nSrc2.start(now + TEMPO * 0.65); nSrc2.stop(now + TEMPO * 0.65 + noiseLen);
+    jazzBeatRef.current++;
+    jazzTimerRef.current = setTimeout(scheduleJazz, TEMPO * 1000);
+  }
+
+  function toggleJazz() {
+    if (!jazzOn) {
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      jazzCtxRef.current = ctx;
+      jazzBeatRef.current = 0;
+      jazzOnRef.current = true;
+      setJazzOn(true);
+      scheduleJazz();
+    } else {
+      jazzOnRef.current = false;
+      setJazzOn(false);
+      if (jazzTimerRef.current) clearTimeout(jazzTimerRef.current);
+      if (jazzCtxRef.current) { jazzCtxRef.current.close(); jazzCtxRef.current = null; }
+    }
+  }
+
+  // ── Photo pan ──
+  function onPhotoPanDown(e: React.PointerEvent<HTMLImageElement>) {
+    if (!imageUrl) return;
+    e.preventDefault();
+    e.stopPropagation();
+    panDragging.current = true;
+    panStartX.current = e.clientX;
+    panStartY.current = e.clientY;
+    panStartPos.current = { ...photoPos };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function onPhotoPanMove(e: React.PointerEvent<HTMLImageElement>) {
+    if (!panDragging.current || !imgRef.current || !cardFrontRef.current) return;
+    const img = imgRef.current;
+    const card = cardFrontRef.current;
+    const cw = card.offsetWidth, ch = card.offsetHeight;
+    const iw = img.naturalWidth || cw, ih = img.naturalHeight || ch;
+    const scale = Math.max(cw / iw, ch / ih);
+    const rendW = iw * scale, rendH = ih * scale;
+    const overflowX = Math.max(1, rendW - cw);
+    const overflowY = Math.max(1, rendH - ch);
+    const dx = -(e.clientX - panStartX.current) / overflowX * 100;
+    const dy = -(e.clientY - panStartY.current) / overflowY * 100;
+    setPhotoPos({
+      x: Math.max(0, Math.min(100, panStartPos.current.x + dx)),
+      y: Math.max(0, Math.min(100, panStartPos.current.y + dy)),
+    });
+  }
+
+  function onPhotoPanUp() {
+    panDragging.current = false;
+  }
+
+  // ── Placed item drag ──
+  function onItemPanDown(e: React.PointerEvent<HTMLDivElement>, id: string) {
+    e.stopPropagation();
+    const item = placedItems.find(it => it.id === id);
+    if (!item) return;
+    itemDragId.current = id;
+    itemDragStart.current = { mx: e.clientX, my: e.clientY, ix: item.x, iy: item.y };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function onItemPanMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!itemDragId.current || !backCardRef.current) return;
+    const id = itemDragId.current;
+    const card = backCardRef.current;
+    const cw = card.offsetWidth, ch = card.offsetHeight;
+    const item = placedItems.find(it => it.id === id);
+    if (!item) return;
+    const nx = Math.max(0, Math.min(cw - item.w, itemDragStart.current.ix + (e.clientX - itemDragStart.current.mx)));
+    const ny = Math.max(0, Math.min(ch - item.h, itemDragStart.current.iy + (e.clientY - itemDragStart.current.my)));
+    setPlacedItems(prev => prev.map(it => it.id === id ? { ...it, x: nx, y: ny } : it));
+  }
+
+  function onItemPanUp() {
+    itemDragId.current = null;
+  }
+
+  function removeItem(id: string) {
+    setPlacedItems(prev => prev.filter(it => it.id !== id));
+  }
+
+  // ── Ghost drag from modal ──
+  function onModalItemDown(e: React.PointerEvent<HTMLButtonElement>, content: string, kind: "stamp"|"sticker") {
+    e.preventDefault();
+    ghostDragging.current = true;
+    ghostContent.current = { content, kind };
+    const ghost = ghostRef.current;
+    if (ghost) {
+      ghost.style.display = "flex";
+      ghost.style.left = e.clientX - 29 + "px";
+      ghost.style.top  = e.clientY - 36 + "px";
+      ghost.innerHTML = content;
+    }
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  const onGhostMove = useCallback((e: PointerEvent) => {
+    if (!ghostDragging.current) return;
+    const ghost = ghostRef.current;
+    if (ghost) {
+      ghost.style.left = e.clientX - 29 + "px";
+      ghost.style.top  = e.clientY - 36 + "px";
+    }
+  }, []);
+
+  const onGhostUp = useCallback((e: PointerEvent) => {
+    if (!ghostDragging.current) return;
+    ghostDragging.current = false;
+    const ghost = ghostRef.current;
+    if (ghost) ghost.style.display = "none";
+    if (!backCardRef.current || !ghostContent.current) { setModal("none"); return; }
+    const rect = backCardRef.current.getBoundingClientRect();
+    const cx = e.clientX, cy = e.clientY;
+    setModal("none");
+    if (cx >= rect.left && cx <= rect.right && cy >= rect.top && cy <= rect.bottom) {
+      const gc = ghostContent.current;
+      const w = gc.kind === "stamp" ? 42 : 48;
+      const h = gc.kind === "stamp" ? 42 : 48;
+      const x = Math.max(0, Math.min(rect.width  - w, cx - rect.left - w/2));
+      const y = Math.max(0, Math.min(rect.height - h, cy - rect.top  - h/2));
+      setPlacedItems(prev => [...prev, { id: Date.now().toString(), kind: gc.kind, content: gc.content, x, y, w, h }]);
+    } else {
+      // tap-to-place near stamp zone
+      const gc = ghostContent.current;
+      const w = gc.kind === "stamp" ? 42 : 48;
+      const h = gc.kind === "stamp" ? 42 : 48;
+      const zoneX = isPortrait ? 356 : 590;
+      const x = Math.max(0, zoneX + (Math.random()-0.5)*24);
+      const y = Math.max(0, 12 + (Math.random()-0.5)*16);
+      setPlacedItems(prev => [...prev, { id: Date.now().toString(), kind: gc.kind, content: gc.content, x, y, w, h }]);
+    }
+    ghostContent.current = null;
+  }, [isPortrait]);
+
+  useEffect(() => {
+    window.addEventListener("pointermove", onGhostMove);
+    window.addEventListener("pointerup", onGhostUp);
+    return () => {
+      window.removeEventListener("pointermove", onGhostMove);
+      window.removeEventListener("pointerup", onGhostUp);
+    };
+  }, [onGhostMove, onGhostUp]);
+
+  // ── Handlers ──
   function handleReset() {
+    if (!hasContent) return;
+    if (!window.confirm("Reset and start over?")) return;
     setMessage(""); setImageUrl(null); setImageFile(null);
-    setStamp(null); setSide("front"); setSendError(""); setSlideX(0);
+    setPlacedItems([]); setSide("front"); setSendError(""); setSlideX(0);
+    setPhotoPos({ x: 50, y: 50 }); setPhotoEffect("original");
+    setAddrLines(["", "", "", ""]);
   }
 
   function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -76,6 +363,9 @@ export default function Home() {
     if (!file) return;
     setImageUrl(URL.createObjectURL(file));
     setImageFile(file);
+    setPhotoPos({ x: 50, y: 50 });
+    setPhotoEffect("original");
+    e.target.value = "";
   }
 
   async function uploadImage(file: File): Promise<string | null> {
@@ -88,7 +378,7 @@ export default function Home() {
   }
 
   async function handleSend() {
-    if (!recipientEmail || !senderEmail) { setSendError("Please fill in both email addresses."); return; }
+    if (!recipientEmail) { setSendError("Please enter a recipient email."); return; }
     setSendError(""); setSending(true);
     try {
       let url = imageUrl;
@@ -96,7 +386,7 @@ export default function Home() {
       const res = await fetch("/api/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipientEmail, senderEmail, message, imageUrl: url, orientation, bgColor: "#ffffff", stampEmoji: stamp || "🌿" }),
+        body: JSON.stringify({ recipientEmail, senderEmail, message, imageUrl: url, orientation, bgColor: "#ffffff", stampEmoji: placedItems.find(it=>it.kind==="stamp")?.content || "🌿" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to send");
@@ -108,7 +398,6 @@ export default function Home() {
     }
   }
 
-  // slider events
   function onSliderDown(e: React.PointerEvent<HTMLDivElement>) {
     isDragging.current = true;
     dragStartX.current = e.clientX - slideX;
@@ -124,7 +413,13 @@ export default function Home() {
     if (isDragging.current) { isDragging.current = false; setSlideX(0); }
   }
 
-  // ── SHARED STYLES ──
+  const photoFilter = photoEffect === "vintage" ? "sepia(60%) contrast(90%) brightness(95%) saturate(80%)" : undefined;
+
+  // pen styles
+  const penStyle: React.CSSProperties = penType === "calligraphy"
+    ? { fontFamily: "'Dancing Script', cursive", fontSize: 18, fontStyle: "italic" }
+    : { fontFamily: "Courier New, monospace", fontSize: 14, fontStyle: "normal" };
+
   const topBtn = (extra?: object) => ({
     display: "flex", alignItems: "center", gap: 6,
     fontSize: 13, fontWeight: 500, border: "1px solid #ddd",
@@ -175,32 +470,27 @@ export default function Home() {
     <div style={{ minHeight:"100vh", background:"#f5f5f3", display:"flex", flexDirection:"column", fontFamily:"sans-serif" }}>
       <style>{fonts}</style>
 
-      {/* Open postcard modal */}
       {openCardIdx !== null && (() => {
         const card = INBOX_ITEMS[openCardIdx];
-        const ruledLinesInbox = Array.from({ length: 11 });
+        const rLines = Array.from({ length: 11 });
         return (
           <div onClick={() => { setOpenCardIdx(null); setOpenCardFlipped(false); }} style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.65)", display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(2px)" }}>
             <div onClick={e => e.stopPropagation()} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:16 }}>
-              <div style={{ perspective:"1200px", cursor:"pointer" }} onClick={() => setOpenCardFlipped(f => !f)} title="Click to flip">
+              <div style={{ perspective:"1200px", cursor:"pointer" }} onClick={() => setOpenCardFlipped(f => !f)}>
                 <div style={{ width:600, height:384, position:"relative", transformStyle:"preserve-3d", transition:"transform 0.55s cubic-bezier(0.45,0.05,0.55,0.95)", transform: openCardFlipped ? "rotateY(180deg)" : "rotateY(0deg)" }}>
-                  {/* Front */}
                   <div style={{ position:"absolute", inset:0, backfaceVisibility:"hidden", WebkitBackfaceVisibility:"hidden" } as React.CSSProperties}>
                     <div style={{ width:"100%", height:"100%", background:card.bg, borderRadius:10, border:"1.5px solid rgba(0,0,0,0.12)", boxShadow:"0 8px 40px rgba(0,0,0,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:120 }}>
                       {card.emoji}
                     </div>
                   </div>
-                  {/* Back */}
                   <div style={{ position:"absolute", inset:0, backfaceVisibility:"hidden", WebkitBackfaceVisibility:"hidden", transform:"rotateY(180deg)" } as React.CSSProperties}>
                     <div style={{ width:"100%", height:"100%", background:"#fff", borderRadius:10, border:"1px solid #ddd", boxShadow:"0 8px 40px rgba(0,0,0,0.3)", display:"flex", overflow:"hidden" }}>
-                      {/* message half */}
                       <div style={{ width:"58%", borderRight:"1px solid #e8e4dc", position:"relative", padding:"28px 24px 0" }}>
                         <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", justifyContent:"space-around" }}>
-                          {ruledLinesInbox.map((_,i) => <div key={i} style={{ height:1, background:"#ece8e0", margin:"0 24px" }}/>)}
+                          {rLines.map((_,i) => <div key={i} style={{ height:1, background:"#ece8e0", margin:"0 24px" }}/>)}
                         </div>
                         <div style={{ position:"absolute", inset:"28px 24px", fontFamily:"'Dancing Script',cursive", fontSize:16, fontStyle:"italic", color:"#333", lineHeight:"36px", whiteSpace:"pre-wrap", zIndex:1, pointerEvents:"none" }}>{card.msg}</div>
                       </div>
-                      {/* address half */}
                       <div style={{ flex:1, display:"flex", flexDirection:"column" }}>
                         <div style={{ padding:"20px 20px 0", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                           <div>
@@ -246,17 +536,12 @@ export default function Home() {
       </div>
       <div style={{ display:"flex", flexDirection:"column", alignItems:"center", paddingTop:40, paddingBottom:120, flex:1, overflowY:"auto" }}>
         {INBOX_ITEMS.map((item, i) => (
-          <div
-            key={item.id}
-            style={{ marginBottom:-28, position:"relative", cursor:"pointer", zIndex: INBOX_ITEMS.length - i, transition:"transform 0.22s ease, box-shadow 0.22s ease", transform: hoveredCard===i ? `rotate(${item.rot * 0.3}deg) translateY(-14px)` : `rotate(${item.rot}deg)`, transformOrigin:"center top" }}
-            onMouseEnter={() => setHoveredCard(i)}
-            onMouseLeave={() => setHoveredCard(null)}
-            onClick={() => { setOpenCardIdx(i); setOpenCardFlipped(false); }}
-          >
+          <div key={item.id} style={{ marginBottom:-28, position:"relative", cursor:"pointer", zIndex: INBOX_ITEMS.length - i, transition:"transform 0.22s ease, box-shadow 0.22s ease", transform: hoveredCard===i ? `rotate(${item.rot * 0.3}deg) translateY(-14px)` : `rotate(${item.rot}deg)`, transformOrigin:"center top" }}
+            onMouseEnter={() => setHoveredCard(i)} onMouseLeave={() => setHoveredCard(null)}
+            onClick={() => { setOpenCardIdx(i); setOpenCardFlipped(false); }}>
             <div style={{ width:490, height:314, background:item.bg, borderRadius:8, border:"1.5px solid rgba(0,0,0,0.10)", boxShadow: hoveredCard===i ? "0 18px 48px rgba(0,0,0,0.22)" : "0 4px 18px rgba(0,0,0,0.13)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:90, position:"relative", overflow:"hidden", transition:"box-shadow 0.22s ease" }}>
               {item.emoji}
               {item.unread && <div style={{ position:"absolute", top:12, left:12, width:9, height:9, borderRadius:"50%", background:"#111", border:"2px solid rgba(255,255,255,0.8)", zIndex:2 }}/>}
-              {/* subtle vignette */}
               <div style={{ position:"absolute", inset:0, background:"linear-gradient(135deg,rgba(255,255,255,0.08) 0%,transparent 60%)", borderRadius:8 }}/>
             </div>
             <div style={{ display:"flex", alignItems:"baseline", gap:8, padding:"10px 4px 0", transform: `rotate(${-item.rot * 0.5}deg)` }}>
@@ -280,43 +565,33 @@ export default function Home() {
         Back
       </button>
 
-      {/* Card preview thumbnail */}
       <div style={{ position:"relative" }}>
         <div style={{ width:isPortrait ? 110 : 170, height:isPortrait ? 154 : 110, borderRadius:8, overflow:"hidden", border:"1.5px solid rgba(0,0,0,0.12)", boxShadow:"0 4px 20px rgba(0,0,0,0.14)", transform:"rotate(-1.5deg)", background:"#f0f0ee" }}>
           {imageUrl
-            ? <img src={imageUrl} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
+            ? <img src={imageUrl} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:`${photoPos.x}% ${photoPos.y}%`, display:"block", filter: photoFilter }}/>
             : <div style={{ width:"100%", height:"100%", background:"linear-gradient(135deg,#e8e4dc,#f5f3ef)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:34, color:"#ccc" }}>✉️</div>
           }
         </div>
-        {stamp && <div style={{ position:"absolute", top:8, right:-4, fontSize:18, background:"rgba(255,255,255,0.9)", borderRadius:4, padding:"3px 5px", boxShadow:"0 1px 6px rgba(0,0,0,0.1)" }}>{stamp}</div>}
       </div>
 
       <h2 style={{ fontSize:22, fontWeight:700, fontFamily:"'Playfair Display',Georgia,serif", margin:0, letterSpacing:"-0.01em" }}>Who&apos;s it going to?</h2>
 
       <div style={{ width:340, display:"flex", flexDirection:"column", gap:14 }}>
-        {[
-          { label:"To", val:recipientEmail, set:setRecipientEmail, ph:"their@email.com" },
-          { label:"From", val:senderEmail, set:setSenderEmail, ph:"you@email.com" },
-        ].map(f => (
-          <div key={f.label} style={{ display:"flex", flexDirection:"column", gap:6 }}>
-            <div style={{ fontSize:11, color:"#aaa", letterSpacing:"0.07em", textTransform:"uppercase", fontWeight:600 }}>{f.label}</div>
-            <input type="email" value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.ph}
-              style={{ width:"100%", border:"1px solid #d0d0d0", borderRadius:10, padding:"11px 16px", fontSize:15, fontFamily:"Georgia,serif", color:"#333", background:"#fff", outline:"none", boxSizing:"border-box", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}/>
-          </div>
-        ))}
+        <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+          <div style={{ fontSize:11, color:"#aaa", letterSpacing:"0.07em", textTransform:"uppercase", fontWeight:600 }}>To</div>
+          <input type="email" value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} placeholder="their@email.com"
+            style={{ width:"100%", border:"1px solid #d0d0d0", borderRadius:10, padding:"11px 16px", fontSize:15, fontFamily:"Georgia,serif", color:"#333", background:"#fff", outline:"none", boxSizing:"border-box", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}/>
+        </div>
       </div>
 
       {sendError && <p style={{ color:"#e55", fontSize:13, margin:0 }}>{sendError}</p>}
 
-      {/* Slide to send */}
       <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:14 }}>
         <div style={{ position:"relative", display:"flex", alignItems:"center" }}>
           <div style={{ width:340, height:56, border:"1.5px solid #ddd", borderRadius:14, background:"#f0ede8", position:"relative", overflow:"visible", display:"flex", alignItems:"center" }}>
             <div style={{ position:"absolute", left:"50%", transform:"translateX(-50%)", fontSize:12, color:"#ccc", pointerEvents:"none", whiteSpace:"nowrap" }}>slide to send ›</div>
             <div
-              onPointerDown={onSliderDown}
-              onPointerMove={onSliderMove}
-              onPointerUp={onSliderUp}
+              onPointerDown={onSliderDown} onPointerMove={onSliderMove} onPointerUp={onSliderUp}
               style={{ position:"absolute", left:4+slideX, top:"50%", transform:"translateY(-50%)", width:72, height:46, background:"#fff", border:"1px solid #ddd", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", cursor:"grab", userSelect:"none", touchAction:"none", boxShadow:"0 1px 4px rgba(0,0,0,0.08)", zIndex:5, flexDirection:"column", gap:2 }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               <div style={{ fontSize:10, color:"#ccc", letterSpacing:"0.3px" }}>send</div>
@@ -326,24 +601,23 @@ export default function Home() {
             {slideX > SLIDE_MAX*0.6 ? "📬" : "📪"}
           </div>
         </div>
-        <div style={{ fontSize:12, color:"#bbb" }}>or tap below</div>
+        <div style={{ fontSize:12, color:"#bbb" }}>The postcard will be posted at 6pm</div>
         <button onClick={handleSend} disabled={sending} style={{ background: sending?"#999":"#111", color:"#fff", border:"none", borderRadius:10, padding:"11px 36px", fontSize:14, cursor: sending?"default":"pointer", fontWeight:600 }}>
           {sending ? "Sending…" : "Send now ✈"}
         </button>
       </div>
-
-      <p style={{ fontSize:12, color:"#aaa", textAlign:"center", margin:0 }}>Delivered to their inbox right away.</p>
     </div>
   );
 
   // ══════════════════════════════════════════════
   // SCREEN: DESK (main)
   // ══════════════════════════════════════════════
-  const flipped = side === "back";
-
   return (
     <div style={{ minHeight:"100vh", background:"#f5f5f3", position:"relative", overflow:"hidden" }}>
       <style>{fonts + keyframes}</style>
+
+      {/* Ghost drag element */}
+      <div ref={ghostRef} style={{ position:"fixed", display:"none", zIndex:1000, pointerEvents:"none", fontSize:36, width:58, height:72, alignItems:"center", justifyContent:"center" }}/>
 
       {/* ── top-left: Received ── */}
       <button onClick={() => setScreen("inbox")} style={{ position:"fixed", top:18, left:16, zIndex:50, ...topBtn() }}>
@@ -356,10 +630,12 @@ export default function Home() {
       </button>
 
       {/* ── top-right: Reset + Send ── */}
-      <button onClick={handleReset} style={{ position:"fixed", top:18, right:120, zIndex:50, ...topBtn({ color:"#888" }) }}>
+      <button
+        onClick={handleReset}
+        disabled={!hasContent}
+        style={{ position:"fixed", top:18, right:120, zIndex:50, ...topBtn({ color: hasContent?"#888":"#ccc", cursor: hasContent?"pointer":"default", opacity: hasContent?1:0.5 }) }}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="1 4 1 10 7 10"/>
-          <path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
+          <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
         </svg>
         Reset
       </button>
@@ -382,7 +658,12 @@ export default function Home() {
         <div style={{ height:1, background:"#e8e8e6", margin:"2px 8px" }}/>
 
         <SbTile active={side==="front"} onClick={() => setSide("front")}>
-          <div style={{ width: isPortrait?26:44, height: isPortrait?38:28, borderRadius:3, backgroundImage: imageUrl ? `url(${imageUrl})` : undefined, backgroundSize:"cover", backgroundPosition:"center", background: imageUrl ? undefined : "#e8e8e6", border:"1px solid rgba(0,0,0,0.08)", overflow:"hidden", flexShrink:0 }}/>
+          <div style={{ width: isPortrait?26:44, height: isPortrait?38:28, borderRadius:3, border:"1px solid rgba(0,0,0,0.08)", overflow:"hidden", flexShrink:0, background:"#e8e8e6" }}>
+            {imageUrl
+              ? <img src={imageUrl} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:`${photoPos.x}% ${photoPos.y}%`, filter: photoFilter }}/>
+              : <div style={{ width:"100%", height:"100%", background:"#e8e8e6" }}/>
+            }
+          </div>
           <span style={tileLabel(side==="front")}>Front</span>
         </SbTile>
 
@@ -405,12 +686,35 @@ export default function Home() {
           }}>
             {/* FRONT face */}
             <div style={{ position:"absolute", inset:0, backfaceVisibility:"hidden", WebkitBackfaceVisibility:"hidden" } as React.CSSProperties}>
-              <div onClick={() => fileRef.current?.click()} style={{ width:"100%", height:"100%", background:"#fff", border: imageUrl?"1.5px solid #ccc":"1.5px dashed #c8c8c8", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:10, position:"relative", cursor:"pointer", overflow:"hidden", boxShadow: imageUrl?"0 2px 12px rgba(0,0,0,0.08)":"none" }}>
+              <div
+                ref={cardFrontRef}
+                style={{ width:"100%", height:"100%", background:"#fff", border: imageUrl?"1.5px solid #ccc":"1.5px dashed #c8c8c8", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:10, position:"relative", overflow:"hidden", boxShadow: imageUrl?"0 2px 12px rgba(0,0,0,0.08)":"none", cursor: imageUrl ? (panDragging.current ? "grabbing" : "grab") : "pointer" }}
+                onClick={() => !imageUrl && fileRef.current?.click()}
+                onMouseEnter={() => imageUrl && setPhotoHover(true)}
+                onMouseLeave={() => setPhotoHover(false)}
+              >
                 {imageUrl ? (
                   <>
-                    <img src={imageUrl} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block", borderRadius:9 }}/>
-                    <button onClick={e => { e.stopPropagation(); setImageUrl(null); setImageFile(null); }} style={{ position:"absolute", top:10, right:10, background:"rgba(0,0,0,0.55)", color:"#fff", border:"none", borderRadius:6, padding:"5px 10px", fontSize:11, cursor:"pointer" }}>Change</button>
-                    {stamp && <div style={{ position:"absolute", top:14, right:14, fontSize:22, background:"rgba(255,255,255,0.9)", borderRadius:5, padding:"4px 7px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)", lineHeight:1 }}>{stamp}</div>}
+                    <img
+                      ref={imgRef}
+                      src={imageUrl}
+                      alt=""
+                      style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:`${photoPos.x}% ${photoPos.y}%`, display:"block", borderRadius:9, filter: photoFilter, cursor: panDragging.current ? "grabbing" : "grab", userSelect:"none", WebkitUserDrag:"none" } as React.CSSProperties}
+                      draggable={false}
+                      onPointerDown={onPhotoPanDown}
+                      onPointerMove={onPhotoPanMove}
+                      onPointerUp={onPhotoPanUp}
+                    />
+                    {/* photo hover UI */}
+                    {photoHover && !panDragging.current && (
+                      <>
+                        <div style={{ position:"absolute", top:10, right:10, display:"flex", gap:6, zIndex:10 }}>
+                          <button onClick={e => { e.stopPropagation(); fileRef.current?.click(); }} style={{ background:"rgba(0,0,0,0.6)", color:"#fff", border:"none", borderRadius:6, padding:"5px 10px", fontSize:11, cursor:"pointer" }}>Change</button>
+                          <button onClick={e => { e.stopPropagation(); setImageUrl(null); setImageFile(null); setPhotoHover(false); }} style={{ background:"rgba(0,0,0,0.6)", color:"#fff", border:"none", borderRadius:6, padding:"5px 10px", fontSize:11, cursor:"pointer" }}>Remove</button>
+                        </div>
+                        <div style={{ position:"absolute", bottom:12, left:"50%", transform:"translateX(-50%)", background:"rgba(0,0,0,0.5)", color:"#fff", fontSize:11, borderRadius:20, padding:"4px 12px", pointerEvents:"none", whiteSpace:"nowrap" }}>Drag to reposition</div>
+                      </>
+                    )}
                   </>
                 ) : (
                   <>
@@ -424,34 +728,86 @@ export default function Home() {
             {/* BACK face */}
             <div style={{ position:"absolute", inset:0, backfaceVisibility:"hidden", WebkitBackfaceVisibility:"hidden", transform:"rotateY(180deg)" } as React.CSSProperties}>
               {isPortrait ? (
-                <div style={{ width:"100%", height:"100%", background:"#fff", border:"1px solid #ddd", borderRadius:10, boxShadow:"0 2px 12px rgba(0,0,0,0.08)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+                <div
+                  ref={backCardRef}
+                  style={{ width:"100%", height:"100%", background:"#fff", border:"1px solid #ddd", borderRadius:10, boxShadow:"0 2px 12px rgba(0,0,0,0.08)", display:"flex", flexDirection:"column", overflow:"hidden", position:"relative" }}
+                  onPointerMove={onItemPanMove}
+                  onPointerUp={onItemPanUp}
+                >
+                  {/* placed items */}
+                  {side==="back" && placedItems.map(item => (
+                    <div
+                      key={item.id}
+                      style={{ position:"absolute", left:item.x, top:item.y, width:item.w, height:item.h, cursor:"move", userSelect:"none", zIndex:20 }}
+                      onPointerDown={e => onItemPanDown(e, item.id)}
+                      onMouseEnter={() => setHoveredItem(item.id)}
+                      onMouseLeave={() => setHoveredItem(null)}
+                    >
+                      {item.kind === "stamp"
+                        ? <div style={{ fontSize:item.w, lineHeight:1 }}>{item.content}</div>
+                        : <div dangerouslySetInnerHTML={{ __html: item.content }} style={{ width:"100%", height:"100%" }}/>
+                      }
+                      {hoveredItem === item.id && (
+                        <>
+                          <button onClick={e => { e.stopPropagation(); removeItem(item.id); }} style={{ position:"absolute", top:-8, right:-8, width:18, height:18, borderRadius:"50%", background:"#333", color:"#fff", border:"none", fontSize:11, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, zIndex:21 }}>×</button>
+                          <div style={{ position:"absolute", bottom:-4, right:-4, width:12, height:12, background:"#555", borderRadius:2, cursor:"se-resize", zIndex:21 }}/>
+                        </>
+                      )}
+                    </div>
+                  ))}
                   <div style={{ padding:"20px 20px 0", display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexShrink:0 }}>
                     <div>
                       <div style={pcTitle}>Postcard</div>
                       <div style={pcSub}>with love</div>
                       <div style={{ display:"flex", flexDirection:"column", marginTop:12 }}>
-                        {["Name","Address","City, Country"].map(p => (
-                          <input key={p} type="text" placeholder={p} style={addrInput(180)}/>
+                        {["Name","Address","City, Country"].map((p,i) => (
+                          <input key={p} type="text" placeholder={p} value={addrLines[i]} onChange={e => setAddrLines(prev => { const a=[...prev]; a[i]=e.target.value; return a; })} style={addrInput(180)}/>
                         ))}
                       </div>
                     </div>
-                    <StampZone stamp={stamp} uid="pm-p"/>
+                    <StampZone stamp={placedItems.find(it=>it.kind==="stamp")?.content || null} uid="pm-p"/>
                   </div>
-                  <RuledTextarea value={message} onChange={setMessage} lines={ruledLines} padTop={16} padH={24}/>
+                  <RuledTextarea value={message} onChange={setMessage} lines={ruledLines} padTop={16} padH={24} penStyle={penStyle}/>
                 </div>
               ) : (
-                <div style={{ width:"100%", height:"100%", background:"#fff", border:"1px solid #ddd", borderRadius:10, boxShadow:"0 2px 12px rgba(0,0,0,0.08)", display:"flex", overflow:"hidden" }}>
+                <div
+                  ref={backCardRef}
+                  style={{ width:"100%", height:"100%", background:"#fff", border:"1px solid #ddd", borderRadius:10, boxShadow:"0 2px 12px rgba(0,0,0,0.08)", display:"flex", overflow:"hidden", position:"relative" }}
+                  onPointerMove={onItemPanMove}
+                  onPointerUp={onItemPanUp}
+                >
+                  {/* placed items */}
+                  {side==="back" && placedItems.map(item => (
+                    <div
+                      key={item.id}
+                      style={{ position:"absolute", left:item.x, top:item.y, width:item.w, height:item.h, cursor:"move", userSelect:"none", zIndex:20 }}
+                      onPointerDown={e => onItemPanDown(e, item.id)}
+                      onMouseEnter={() => setHoveredItem(item.id)}
+                      onMouseLeave={() => setHoveredItem(null)}
+                    >
+                      {item.kind === "stamp"
+                        ? <div style={{ fontSize:item.w, lineHeight:1 }}>{item.content}</div>
+                        : <div dangerouslySetInnerHTML={{ __html: item.content }} style={{ width:"100%", height:"100%" }}/>
+                      }
+                      {hoveredItem === item.id && (
+                        <>
+                          <button onClick={e => { e.stopPropagation(); removeItem(item.id); }} style={{ position:"absolute", top:-8, right:-8, width:18, height:18, borderRadius:"50%", background:"#333", color:"#fff", border:"none", fontSize:11, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, zIndex:21 }}>×</button>
+                          <div style={{ position:"absolute", bottom:-4, right:-4, width:12, height:12, background:"#555", borderRadius:2, cursor:"se-resize", zIndex:21 }}/>
+                        </>
+                      )}
+                    </div>
+                  ))}
                   <div style={{ width:"58%", borderRight:"1px solid #e8e4dc", position:"relative", padding:"28px 24px 0" }}>
-                    <RuledTextarea value={message} onChange={setMessage} lines={ruledLines} padTop={28} padH={24}/>
+                    <RuledTextarea value={message} onChange={setMessage} lines={ruledLines} padTop={28} padH={24} penStyle={penStyle}/>
                   </div>
                   <div style={{ flex:1, display:"flex", flexDirection:"column" }}>
                     <div style={{ padding:"20px 20px 0", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                       <div><div style={pcTitle}>Postcard</div><div style={pcSub}>with love</div></div>
-                      <StampZone stamp={stamp} uid="pm-l"/>
+                      <StampZone stamp={placedItems.find(it=>it.kind==="stamp")?.content || null} uid="pm-l"/>
                     </div>
                     <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"0 20px 24px" }}>
-                      {["Name","Address","City, Country","Postal code"].map(p => (
-                        <input key={p} type="text" placeholder={p} style={addrInput("100%")}/>
+                      {["Name","Address","City, Country","Postal code"].map((p,i) => (
+                        <input key={p} type="text" placeholder={p} value={addrLines[i]} onChange={e => setAddrLines(prev => { const a=[...prev]; a[i]=e.target.value; return a; })} style={addrInput("100%")}/>
                       ))}
                     </div>
                   </div>
@@ -461,6 +817,21 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* ── Effect pills (front, photo loaded) ── */}
+      {side === "front" && imageUrl && (
+        <div style={{ position:"fixed", bottom:28, left:"50%", transform:"translateX(-50%)", display:"flex", gap:8, zIndex:50 }}>
+          {(["Original","Vintage"] as const).map(ef => {
+            const active = (ef === "Original" && photoEffect === "original") || (ef === "Vintage" && photoEffect === "vintage");
+            return (
+              <button key={ef} onClick={() => setPhotoEffect(ef === "Original" ? "original" : "vintage")}
+                style={{ border:`1px solid ${active?"#333":"#d0d0d0"}`, background: active?"#333":"#fff", color: active?"#fff":"#555", borderRadius:20, padding:"7px 20px", fontSize:13, cursor:"pointer", fontWeight: active?600:400, transition:"all 0.15s" }}>
+                {ef}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── Starter pills (back only) ── */}
       {side === "back" && (
@@ -476,14 +847,14 @@ export default function Home() {
       {/* ── Bottom toolbar (back only) ── */}
       {side === "back" && (
         <div style={{ position:"fixed", bottom:28, left:"50%", transform:"translateX(-50%)", display:"flex", alignItems:"center", gap:10, zIndex:50 }}>
-          <button style={{ border:"1px solid #d0d0d0", background:"#fff", borderRadius:10, padding:"7px 16px", fontSize:13, cursor:"pointer", color:"#333", fontStyle:"italic" }}>Font</button>
-          <CircleBtn onClick={() => setShowStampModal(true)} title="Add stamp">
+          <button onClick={() => setModal("pen")} style={{ border:"1px solid #d0d0d0", background:"#fff", borderRadius:10, padding:"7px 16px", fontSize:13, cursor:"pointer", color:"#333", fontStyle:"italic" }}>Font</button>
+          <CircleBtn onClick={() => setModal("stamp")} title="Add stamp">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2a4 4 0 0 1 4 4c0 .88-.28 1.7-.77 2.36L17 10h2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2l-1.77 1.64A4 4 0 1 1 8 15.08V10H6a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h2l1.77-1.64A4 4 0 0 1 12 2z"/>
               <line x1="8" y1="20" x2="16" y2="20"/>
             </svg>
           </CircleBtn>
-          <CircleBtn onClick={() => {}} title="Add sticker">
+          <CircleBtn onClick={() => setModal("sticker")} title="Add sticker">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.19 0 2-.95 2-2.11v-.39c0-.49.41-.9.9-.9h1.2c3.59 0 5.9-3.85 5.9-6.6C22 6.05 17.52 2 12 2z"/>
               <circle cx="8.5" cy="10.5" r="1.2" fill="currentColor" stroke="none"/>
@@ -494,8 +865,8 @@ export default function Home() {
       )}
 
       {/* ── Jazz record ── */}
-      <div onClick={() => setJazzOn(j => !j)} style={{ position:"fixed", bottom:22, left:22, width:56, height:56, cursor:"pointer", zIndex:50, filter:"drop-shadow(0 2px 6px rgba(0,0,0,0.18))" }} title="Play jazz">
-        <svg style={{ animation: jazzOn ? "vinyl-spin 4.5s linear 3 forwards" : "none" }} viewBox="0 0 56 56" width="56" height="56">
+      <div onClick={toggleJazz} style={{ position:"fixed", bottom:22, left:22, width:56, height:56, cursor:"pointer", zIndex:50, filter:`drop-shadow(0 2px 6px rgba(0,0,0,0.18)) ${jazzOn?"brightness(1.2)":""}` }} title="Play jazz">
+        <svg style={{ animation: jazzOn ? "vinyl-spin 4.5s linear infinite" : "none" }} viewBox="0 0 56 56" width="56" height="56">
           <circle cx="28" cy="28" r="27" fill="#1a1a1a"/>
           <circle cx="28" cy="28" r="20" fill="#2a2a2a"/>
           <circle cx="28" cy="28" r="13" fill="#1a1a1a"/>
@@ -506,19 +877,67 @@ export default function Home() {
           ))}
           <circle cx="34" cy="22" r="3" fill="#c0392b" opacity="0.9"/>
         </svg>
+        {jazzOn && <div style={{ position:"absolute", bottom:-18, left:"50%", transform:"translateX(-50%)", fontSize:9, color:"#999", whiteSpace:"nowrap" }}>♩ playing</div>}
       </div>
 
       {/* ── Stamp picker modal ── */}
-      {showStampModal && (
-        <div onClick={() => setShowStampModal(false)} style={{ position:"fixed", inset:0, zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center", paddingBottom:80 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:14, padding:20, width:340, boxShadow:"0 8px 32px rgba(0,0,0,0.15)", display:"flex", flexDirection:"column", gap:12 }}>
-            <div style={{ fontSize:14, fontWeight:600 }}>Pick a stamp</div>
+      {modal === "stamp" && (
+        <div onClick={() => setModal("none")} style={{ position:"fixed", inset:0, zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center", paddingBottom:80 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:14, padding:20, width:360, boxShadow:"0 8px 32px rgba(0,0,0,0.15)", display:"flex", flexDirection:"column", gap:12 }}>
+            <div style={{ fontSize:14, fontWeight:600 }}>Pick a stamp — drag to card or tap to place</div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:8 }}>
               {STAMP_OPTS.map(s => (
-                <button key={s} onClick={() => { setStamp(s); setShowStampModal(false); }} style={{ height:52, border:"none", background: stamp===s?"#f0ede8":"transparent", borderRadius:8, fontSize:22, cursor:"pointer" }}>{s}</button>
+                <button
+                  key={s.emoji}
+                  onPointerDown={e => onModalItemDown(e, s.emoji, "stamp")}
+                  style={{ height:52, border:"none", background:"transparent", borderRadius:8, fontSize:28, cursor:"grab", touchAction:"none" }}>
+                  {s.emoji}
+                </button>
               ))}
             </div>
-            <button onClick={() => setShowStampModal(false)} style={{ border:"1px solid #ddd", background:"#f5f5f3", borderRadius:8, padding:9, fontSize:13, cursor:"pointer", color:"#555" }}>Close</button>
+            <button onClick={() => setModal("none")} style={{ border:"1px solid #ddd", background:"#f5f5f3", borderRadius:8, padding:9, fontSize:13, cursor:"pointer", color:"#555" }}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Sticker picker modal ── */}
+      {modal === "sticker" && (
+        <div onClick={() => setModal("none")} style={{ position:"fixed", inset:0, zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center", paddingBottom:80 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:14, padding:20, width:380, boxShadow:"0 8px 32px rgba(0,0,0,0.15)", display:"flex", flexDirection:"column", gap:12 }}>
+            <div style={{ fontSize:14, fontWeight:600 }}>Botanical stickers — drag to card or tap to place</div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12 }}>
+              {STICKER_OPTS.map(s => (
+                <button
+                  key={s.id}
+                  onPointerDown={e => onModalItemDown(e, s.content, "sticker")}
+                  style={{ height:72, border:"1px solid #f0ede8", background:"#faf8f5", borderRadius:10, fontSize:12, cursor:"grab", touchAction:"none", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:4, padding:8 }}>
+                  <div dangerouslySetInnerHTML={{ __html: s.content }}/>
+                  <div style={{ fontSize:10, color:"#999" }}>{s.label}</div>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setModal("none")} style={{ border:"1px solid #ddd", background:"#f5f5f3", borderRadius:8, padding:9, fontSize:13, cursor:"pointer", color:"#555" }}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Pen / Font modal ── */}
+      {modal === "pen" && (
+        <div onClick={() => setModal("none")} style={{ position:"fixed", inset:0, zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center", paddingBottom:80 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:14, padding:20, width:340, boxShadow:"0 8px 32px rgba(0,0,0,0.15)", display:"flex", flexDirection:"column", gap:12 }}>
+            <div style={{ fontSize:14, fontWeight:600 }}>Choose writing style</div>
+            <div style={{ display:"flex", gap:10 }}>
+              {([
+                { id:"calligraphy" as PenType, label:"Calligraphy", preview:"Thinking of you…", style:{ fontFamily:"'Dancing Script',cursive", fontSize:17, fontStyle:"italic" as const } },
+                { id:"ink"         as PenType, label:"Ink",         preview:"Thinking of you…", style:{ fontFamily:"Courier New, monospace", fontSize:14 } },
+              ]).map(opt => (
+                <button key={opt.id} onClick={() => { setPenType(opt.id); setModal("none"); }} style={{ flex:1, border:`1.5px solid ${penType===opt.id?"#333":"#ddd"}`, background: penType===opt.id?"#f5f5f3":"#fff", borderRadius:10, padding:"14px 10px", cursor:"pointer", display:"flex", flexDirection:"column", gap:8, alignItems:"center" }}>
+                  <div style={{ fontSize:11, fontWeight:600, letterSpacing:"0.05em", textTransform:"uppercase", color: penType===opt.id?"#333":"#aaa" }}>{opt.label}</div>
+                  <div style={{ ...opt.style, color:"#555" }}>{opt.preview}</div>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setModal("none")} style={{ border:"1px solid #ddd", background:"#f5f5f3", borderRadius:8, padding:9, fontSize:13, cursor:"pointer", color:"#555" }}>Close</button>
           </div>
         </div>
       )}
@@ -547,11 +966,12 @@ function CircleBtn({ onClick, title, children }: { onClick:()=>void; title:strin
 }
 
 function StampZone({ stamp, uid }: { stamp:string|null; uid:string }) {
+  const isEmoji = stamp && !stamp.startsWith("<svg");
   return (
     <div style={{ position:"relative", flexShrink:0 }}>
       <div style={{ width:58, height:72, background:"#f0eeea", borderRadius:3, position:"absolute", top:-6, right:-6 }}/>
       <div style={{ width:58, height:72, border:"1.5px dashed #d8b8b8", borderRadius:3, display:"flex", alignItems:"center", justifyContent:"center", fontSize: stamp?22:9, color:"#c8a8a8", letterSpacing:"0.06em", textTransform:"uppercase", position:"relative", zIndex:1 }}>
-        {stamp ?? "Stamp"}
+        {isEmoji ? stamp : (stamp ? <div dangerouslySetInnerHTML={{ __html: stamp }} style={{ width:36, height:36 }}/> : "Stamp")}
       </div>
       <div style={{ position:"absolute", bottom:-30, left:-30, opacity:0.8, pointerEvents:"none", zIndex:2 }}>
         <PostmarkSVG uid={uid}/>
@@ -560,14 +980,14 @@ function StampZone({ stamp, uid }: { stamp:string|null; uid:string }) {
   );
 }
 
-function RuledTextarea({ value, onChange, lines, padTop, padH }: { value:string; onChange:(v:string)=>void; lines:unknown[]; padTop:number; padH:number }) {
+function RuledTextarea({ value, onChange, lines, padTop, padH, penStyle }: { value:string; onChange:(v:string)=>void; lines:unknown[]; padTop:number; padH:number; penStyle:React.CSSProperties }) {
   return (
     <div style={{ flex:1, position:"relative" }}>
       <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", justifyContent:"space-around" }}>
         {lines.map((_,i) => <div key={i} style={{ height:1, background:"#ece8e0", margin:`0 ${padH}px` }}/>)}
       </div>
       <textarea value={value} onChange={e => onChange(e.target.value)} placeholder="Write your message…" maxLength={280}
-        style={{ position:"absolute", inset:`${padTop}px ${padH}px`, border:"none", background:"transparent", resize:"none", fontFamily:"Georgia,serif", fontSize:13, color:"#333", lineHeight:"36px", outline:"none", zIndex:1 }}/>
+        style={{ position:"absolute", inset:`${padTop}px ${padH}px`, border:"none", background:"transparent", resize:"none", ...penStyle, color:"#333", lineHeight:"36px", outline:"none", zIndex:1 }}/>
     </div>
   );
 }
