@@ -12,9 +12,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { recipientEmail, senderEmail, message, imageUrl, orientation, bgColor, stampEmoji } = body;
 
-    if (!recipientEmail || !senderEmail) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (!recipientEmail) {
+      return NextResponse.json({ error: "Missing recipient email" }, { status: 400 });
     }
+    const from = senderEmail || "someone";
 
     // Save to database (best-effort — skip if permission denied)
     let postcardId = crypto.randomUUID();
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
       const { data: postcard, error: dbError } = await supabase
         .from("postcards")
         .insert({
-          sender_email: senderEmail,
+          sender_email: from,
           recipient_email: recipientEmail,
           message,
           image_url: imageUrl,
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
       imageUrl,
       bgColor: bgColor || "#f5f5f3",
       stampEmoji: stampEmoji || "leaf",
-      senderEmail,
+      senderEmail: from,
       cardW,
       cardH,
       isPortrait,
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
     const { error: emailError } = await resend.emails.send({
       from: "Postcards <onboarding@resend.dev>",
       to: recipientEmail,
-      subject: `You received a postcard from ${senderEmail}`,
+      subject: `You received a postcard from ${from}`,
       html: htmlEmail,
     });
 
