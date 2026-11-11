@@ -4,10 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 
 export async function POST(req: NextRequest) {
   const resend = new Resend(process.env.RESEND_API_KEY || "");
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-  );
   try {
     const body = await req.json();
     const { recipientEmail, senderEmail, message, imageUrl, orientation, bgColor, stampEmoji } = body;
@@ -17,12 +13,14 @@ export async function POST(req: NextRequest) {
     }
     const from = senderEmail || "someone";
 
-    // Save to database (best-effort — skip if permission denied)
-    let postcardId = crypto.randomUUID();
+    // Save to database (best-effort — skip if URL missing or invalid)
+    const postcardId = crypto.randomUUID();
     try {
-      const { data: postcard, error: dbError } = await supabase
-        .from("postcards")
-        .insert({
+      const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+      const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+      if (sbUrl.startsWith("http")) {
+        const supabase = createClient(sbUrl, sbKey);
+        await supabase.from("postcards").insert({
           sender_email: from,
           recipient_email: recipientEmail,
           message,
@@ -32,14 +30,7 @@ export async function POST(req: NextRequest) {
           stamp_emoji: stampEmoji || "leaf",
           status: "sent",
           sent_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (dbError) {
-        console.warn("DB error (continuing anyway):", dbError.message);
-      } else if (postcard) {
-        postcardId = postcard.id;
+        });
       }
     } catch (dbErr) {
       console.warn("DB exception (continuing anyway):", dbErr);
