@@ -749,11 +749,18 @@ body {
   touch-action: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.08);
   z-index: 5;
-  transition: box-shadow 0.1s;
+  transition: box-shadow 0.1s, background 0.25s, border-color 0.25s, color 0.25s;
   flex-direction: column;
   gap: 2px;
 }
 .slide-handle:active { cursor: grabbing; box-shadow: 0 3px 10px rgba(0,0,0,0.13); }
+.slide-handle.sent {
+  background: #3a7d44;
+  border-color: #3a7d44;
+  color: #fff;
+  cursor: default;
+  box-shadow: 0 2px 10px rgba(58,125,68,0.3);
+}
 .slide-handle-label { font-size: 10px; color: #ccc; letter-spacing: 0.3px; }
 
 .slide-track-label {
@@ -3116,15 +3123,16 @@ body.mobile-mode .inbox-nav-btn { display: none !important; }
       const max = getMaxX();
       const cur = parseInt(handle.style.left || '4') - 4;
       if (cur >= max * 0.88) {
-        // committed — animate to end, then go to posted
+        // committed — snap to end, show sent state, then navigate
         handle.style.left = (4 + max) + 'px';
         mailbox.classList.add('open');
-        setTimeout(async () => {
-          // reset for next time
-          handle.style.left = '4px';
-          label.style.opacity = 1;
-          mailbox.classList.remove('open');
+        label.style.opacity = 0;
+        setTimeout(() => {
+          handle.classList.add('sent');
+          handle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg>';
+        }, 120);
 
+        setTimeout(async () => {
           // send via API
           const recipientEmail = document.getElementById('send-email').value.trim();
           const msgLandscape = document.getElementById('msg-landscape');
@@ -3157,7 +3165,18 @@ body.mobile-mode .inbox-nav-btn { display: none !important; }
           } catch(err) { console.warn('Send failed', err); }
 
           go('s-posted');
-        }, 380);
+
+          // reset slider silently after navigation
+          setTimeout(() => {
+            handle.style.transition = 'none';
+            handle.classList.remove('sent');
+            handle.innerHTML = '<span style="font-size:18px;">📨</span>';
+            handle.style.left = '4px';
+            label.style.opacity = 1;
+            mailbox.classList.remove('open');
+            requestAnimationFrame(() => { handle.style.transition = ''; });
+          }, 300);
+        }, 600);
       } else {
         // snap back
         handle.style.left = '4px';
