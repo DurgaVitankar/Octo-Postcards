@@ -163,6 +163,129 @@ body {
 /* ── LEFT SIDEBAR — hidden; controls moved to combined bottom toolbar ── */
 .sidebar { display: none !important; }
 
+/* ══ THREE-ZONE SCENE STAGE ══ */
+.scene-stage {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  min-height: 100vh;
+  overflow: hidden;
+}
+.scene-left {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 0;
+  position: relative;
+  overflow: hidden;
+}
+.scene-right {
+  width: 180px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 40px;
+}
+.scene-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 40px 20px 60px;
+  min-width: 0;
+}
+
+/* ── TOP CONTROLS PILL ── */
+.top-controls {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: #fff;
+  border: 1px solid #e0e0de;
+  border-radius: 10px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+  padding: 2px;
+}
+.tc-btn {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #666;
+  border-radius: 8px;
+  transition: background 0.1s, color 0.1s;
+  user-select: none;
+}
+.tc-btn:hover { background: #f5f5f3; color: #222; }
+.tc-btn.active { background: #efefed; color: #111; }
+.tc-sep { width: 1px; height: 22px; background: #e8e8e6; flex-shrink: 0; margin: 0 1px; }
+
+/* ── BOTTOM VISUAL TILES ── */
+.tiles-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.tiles-row.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px);
+}
+.bt-tile {
+  width: 80px;
+  height: 80px;
+  background: #fff;
+  border: 1px solid #e2e2e0;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  color: #555;
+}
+.bt-tile:hover {
+  transform: scale(1.07) translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.13);
+}
+.bt-tile.bt-dimmed {
+  opacity: 0.32;
+  pointer-events: none;
+}
+.bt-tile-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #999;
+}
+
+/* ── PLANT SWAY MICRO-INTERACTION ── */
+@keyframes sway {
+  0%, 100% { transform: rotate(0deg); }
+  25%  { transform: rotate(4deg); }
+  75%  { transform: rotate(-3deg); }
+}
+.shelf-plant { cursor: default; }
+.shelf-plant:hover { animation: sway 1.4s ease-in-out infinite; transform-origin: 50% 100%; }
+
+/* ── BOOKSHELF SVG SIZING ── */
+.shelf-svg { width: 220px; height: auto; display: block; }
+.mailbox-svg { width: 160px; height: auto; display: block; }
+
 /* ── COMBINED BOTTOM TOOLBAR ── */
 .bottom-toolbar {
   position: fixed;
@@ -918,27 +1041,45 @@ body {
 .login-btn:hover { background: #111; }
 .login-note { font-size: 11px; color: #bbb; text-align: center; }
 
-/* ── MODAL ── */
+/* ── MODAL / BOTTOM TRAY ── */
 .modal-overlay {
-  display: none;
   position: fixed;
-  inset: 0;
-  background: transparent;
+  bottom: 0;
+  left: 0;
+  right: 0;
   z-index: 200;
-  align-items: flex-end;
+  display: flex;
   justify-content: center;
-  padding-bottom: 80px;
+  padding: 0 0 28px;
+  transform: translateY(110%);
+  transition: transform 0.38s cubic-bezier(0.34, 1.0, 0.64, 1);
+  pointer-events: none;
 }
-.modal-overlay.open { display: flex; }
+.modal-overlay.open {
+  transform: translateY(0);
+  pointer-events: auto;
+}
 .modal {
   background: #fff;
-  border-radius: 14px;
-  padding: 20px;
-  width: 340px;
+  border-radius: 18px 18px 14px 14px;
+  padding: 18px 20px 20px;
+  width: auto;
+  min-width: 360px;
+  max-width: 600px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  gap: 14px;
+  box-shadow: 0 -2px 0 rgba(0,0,0,0.04), 0 8px 40px rgba(0,0,0,0.18);
+}
+/* drag handle pill on tray */
+.modal::before {
+  content: '';
+  display: block;
+  width: 36px;
+  height: 4px;
+  background: #e0e0de;
+  border-radius: 2px;
+  margin: -4px auto 4px;
 }
 .modal h3 { font-size: 14px; font-weight: 600; }
 .stamp-grid {
@@ -1798,7 +1939,145 @@ body.mobile-mode .inbox-nav-btn { display: none !important; }
     </div>
   </div>
 
-  <div class="scene">
+  <div class="scene-stage">
+
+    <!-- ── LEFT: Bookshelf illustration ── -->
+    <div class="scene-left">
+      <svg class="shelf-svg" viewBox="0 0 220 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- shelf back wall -->
+        <rect width="220" height="480" fill="#f8f4ee"/>
+        <!-- top shelf board -->
+        <rect x="10" y="140" width="200" height="10" rx="2" fill="#c8a87a"/>
+        <rect x="10" y="148" width="200" height="4" rx="1" fill="#b89060" opacity="0.5"/>
+        <!-- middle shelf board -->
+        <rect x="10" y="280" width="200" height="10" rx="2" fill="#c8a87a"/>
+        <rect x="10" y="288" width="200" height="4" rx="1" fill="#b89060" opacity="0.5"/>
+        <!-- bottom floor board -->
+        <rect x="10" y="430" width="200" height="10" rx="2" fill="#c8a87a"/>
+
+        <!-- ── TOP SHELF: books ── -->
+        <!-- Book 1 - tall red -->
+        <rect x="22" y="100" width="18" height="42" rx="2" fill="#c94040"/>
+        <line x1="22" y1="104" x2="40" y2="104" stroke="#b03030" stroke-width="1"/>
+        <!-- Book 2 - blue -->
+        <rect x="42" y="108" width="14" height="34" rx="2" fill="#3a6ea5"/>
+        <!-- Book 3 - green tall -->
+        <rect x="58" y="98" width="16" height="44" rx="2" fill="#4a8a4a"/>
+        <line x1="58" y1="102" x2="74" y2="102" stroke="#3a7a3a" stroke-width="1"/>
+        <!-- Book 4 - yellow small -->
+        <rect x="76" y="112" width="12" height="30" rx="2" fill="#d4a84a"/>
+        <!-- Book 5 - dusty pink -->
+        <rect x="90" y="104" width="15" height="38" rx="2" fill="#c47a7a"/>
+        <!-- leaning book -->
+        <rect x="106" y="106" width="13" height="36" rx="2" fill="#7a5aa0" transform="rotate(-8 106 142)"/>
+        <!-- small bookend block -->
+        <rect x="124" y="122" width="10" height="20" rx="1" fill="#888"/>
+
+        <!-- ── POSTCARD HOLDER: clickable inbox ── -->
+        <g onclick="go('s-inbox')" style="cursor:pointer">
+          <!-- wooden holder frame -->
+          <rect x="148" y="90" width="58" height="52" rx="4" fill="#e8d8b8" stroke="#c8a87a" stroke-width="1.5"/>
+          <!-- slot opening top -->
+          <rect x="152" y="93" width="50" height="4" rx="2" fill="#c8a87a"/>
+          <!-- postcards fanned inside -->
+          <rect x="156" y="99" width="36" height="38" rx="2" fill="#fff" stroke="#ddd" stroke-width="1" transform="rotate(-4 156 118)"/>
+          <rect x="158" y="97" width="36" height="38" rx="2" fill="#fff" stroke="#ddd" stroke-width="1" transform="rotate(2 158 116)"/>
+          <rect x="156" y="96" width="36" height="38" rx="2" fill="#fffdf8" stroke="#e0d0a0" stroke-width="1"/>
+          <!-- little stamp mark on top postcard -->
+          <rect x="183" y="99" width="8" height="10" rx="1" fill="#f0c060" stroke="#d0a040" stroke-width="0.7"/>
+          <!-- label -->
+          <text x="177" y="148" text-anchor="middle" font-size="8" fill="#8a7050" font-family="sans-serif" font-weight="600">RECEIVED</text>
+          <!-- hover highlight ring -->
+          <rect x="148" y="90" width="58" height="52" rx="4" fill="transparent" stroke="transparent" stroke-width="2" class="holder-hover"/>
+        </g>
+
+        <!-- ── MIDDLE SHELF: plant + items ── -->
+        <!-- small decorative pot 1 -->
+        <rect x="22" y="254" width="24" height="28" rx="3" fill="#d4986a"/>
+        <rect x="22" y="254" width="24" height="8" rx="3" fill="#c0845a"/>
+        <!-- cactus in pot -->
+        <rect x="31" y="232" width="6" height="24" rx="3" fill="#5a9a5a"/>
+        <rect x="34" y="238" width="8" height="5" rx="2" fill="#5a9a5a" transform="rotate(30 38 240)"/>
+
+        <!-- MONSTERA PLANT (sways on hover) -->
+        <g class="shelf-plant" transform="translate(60, 220)">
+          <!-- pot -->
+          <rect x="12" y="52" width="40" height="30" rx="4" fill="#c47050"/>
+          <rect x="8" y="52" width="48" height="8" rx="4" fill="#b05a3a"/>
+          <!-- stem -->
+          <line x1="32" y1="52" x2="32" y2="30" stroke="#5a7a3a" stroke-width="2.5"/>
+          <line x1="32" y1="38" x2="18" y2="20" stroke="#5a7a3a" stroke-width="2"/>
+          <line x1="32" y1="30" x2="48" y2="10" stroke="#5a7a3a" stroke-width="2"/>
+          <!-- big leaf left -->
+          <path d="M18 20 C6 10 2 -4 10 -8 C20 -12 28 -2 24 8 C22 14 20 18 18 20Z" fill="#4a8a4a"/>
+          <path d="M18 20 C14 12 12 4 10 -8" stroke="#3a7a3a" stroke-width="0.8"/>
+          <path d="M18 20 C18 14 20 6 24 8" stroke="#3a7a3a" stroke-width="0.8"/>
+          <!-- hole cut -->
+          <ellipse cx="14" cy="6" rx="3" ry="2" fill="#f8f4ee"/>
+          <!-- big leaf right -->
+          <path d="M48 10 C60 2 64 -12 54 -16 C44 -20 36 -8 40 4 C42 10 44 8 48 10Z" fill="#5a9a5a"/>
+          <path d="M48 10 C52 2 54 -6 54 -16" stroke="#4a8a4a" stroke-width="0.8"/>
+          <path d="M48 10 C44 4 42 -4 40 4" stroke="#4a8a4a" stroke-width="0.8"/>
+          <ellipse cx="52" cy="-4" rx="3" ry="2" fill="#f8f4ee"/>
+          <!-- small leaf emerging -->
+          <path d="M32 30 C26 22 22 18 20 12 C24 8 30 14 32 30Z" fill="#68a068"/>
+        </g>
+
+        <!-- small books on middle shelf -->
+        <rect x="134" y="246" width="12" height="36" rx="2" fill="#a06040"/>
+        <rect x="148" y="250" width="10" height="32" rx="2" fill="#607090"/>
+        <rect x="160" y="244" width="14" height="38" rx="2" fill="#c08040"/>
+        <rect x="176" y="254" width="10" height="28" rx="2" fill="#708060"/>
+
+        <!-- ── BOTTOM SHELF: knick-knacks ── -->
+        <!-- small clock -->
+        <circle cx="30" cy="406" r="18" fill="#f5f0e8" stroke="#c8b890" stroke-width="1.5"/>
+        <circle cx="30" cy="406" r="14" fill="#fff" stroke="#e8d8b0" stroke-width="0.8"/>
+        <line x1="30" y1="406" x2="30" y2="396" stroke="#444" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="30" y1="406" x2="38" y2="406" stroke="#444" stroke-width="1.2" stroke-linecap="round"/>
+        <!-- envelope icon -->
+        <rect x="58" y="395" width="34" height="24" rx="3" fill="#fff9ee" stroke="#d8c888" stroke-width="1.2"/>
+        <polyline points="58,395 75,410 92,395" stroke="#d8c888" stroke-width="1.2" fill="none"/>
+        <!-- little plant pot -->
+        <rect x="104" y="400" width="22" height="20" rx="3" fill="#b06840"/>
+        <rect x="102" y="400" width="26" height="6" rx="3" fill="#9a5830"/>
+        <circle cx="115" cy="394" r="8" fill="#6aaa6a"/>
+        <circle cx="109" cy="390" r="5" fill="#5a9a5a"/>
+        <!-- candle -->
+        <rect x="140" y="396" width="10" height="24" rx="2" fill="#f0e8c8" stroke="#d8c888" stroke-width="0.8"/>
+        <ellipse cx="145" cy="396" rx="4" ry="2" fill="#d8c888"/>
+        <!-- flame -->
+        <path d="M145 393 C143 390 144 386 145 388 C146 386 147 390 145 393Z" fill="#f0a040" opacity="0.8"/>
+        <!-- decorative tile -->
+        <rect x="162" y="398" width="20" height="24" rx="2" fill="#e8d0a0" stroke="#c8b880" stroke-width="1"/>
+        <text x="172" y="414" text-anchor="middle" font-size="9" fill="#c8a860" font-family="sans-serif">✦</text>
+      </svg>
+    </div>
+
+    <!-- ── CENTER: Editor ── -->
+    <div class="scene-center">
+      <!-- Top controls: orient · | · front · back -->
+      <div class="top-controls">
+        <div class="tc-btn" id="tb-orient" title="Toggle orientation" onclick="toggleOrientation()">
+          <svg id="orient-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="6" width="20" height="13" rx="2"/>
+          </svg>
+        </div>
+        <div class="tc-sep"></div>
+        <div class="tc-btn active" id="tab-front" title="Front" onclick="thumbClick(true)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="2"/>
+          </svg>
+        </div>
+        <div class="tc-btn" id="tab-back" title="Back" onclick="thumbClick(false)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="2"/>
+            <line x1="7" y1="10" x2="17" y2="10"/>
+            <line x1="7" y1="14" x2="13" y2="14"/>
+          </svg>
+        </div>
+      </div>
+
     <div class="flip-root" id="flip-root">
       <div class="flip-inner" id="flip-inner">
 
@@ -1942,44 +2221,60 @@ body.mobile-mode .inbox-nav-btn { display: none !important; }
 
       </div><!-- /flip-inner -->
     </div><!-- /flip-root -->
-  </div>
 
-  <div class="bottom-toolbar" id="bottom-toolbar">
-    <!-- nav group: orient · front · back -->
-    <div class="tb-btn" id="tb-orient" title="Toggle orientation" onclick="toggleOrientation()">
-      <svg id="orient-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="2" y="6" width="20" height="13" rx="2"/>
+      <!-- Bottom visual tiles: Type · Stamp · Sticker -->
+      <div class="tiles-row" id="tiles-row">
+        <div class="bt-tile bt-dimmed" id="bt-font" onclick="showPenModal()">
+          <span style="font-size:24px;font-weight:700;line-height:1;color:#555">Aa</span>
+          <span class="bt-tile-label">Type</span>
+        </div>
+        <div class="bt-tile bt-dimmed" id="bt-stamp" onclick="showStampModal()">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a4 4 0 0 1 4 4c0 .88-.28 1.7-.77 2.36L17 10h2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2l-1.77 1.64A4 4 0 1 1 8 15.08V10H6a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h2l1.77-1.64A4 4 0 0 1 12 2z"/>
+            <line x1="8" y1="20" x2="16" y2="20"/>
+          </svg>
+          <span class="bt-tile-label">Stamp</span>
+        </div>
+        <div class="bt-tile bt-dimmed" id="bt-sticker" onclick="showStickerModal()">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.19 0 2-.95 2-2.11v-.39c0-.49.41-.9.9-.9h1.2c3.59 0 5.9-3.85 5.9-6.6C22 6.05 17.52 2 12 2z"/>
+            <circle cx="8.5" cy="10.5" r="1.2" fill="currentColor" stroke="none"/>
+            <circle cx="14.5" cy="8.5" r="1.2" fill="currentColor" stroke="none"/>
+          </svg>
+          <span class="bt-tile-label">Sticker</span>
+        </div>
+      </div>
+    </div><!-- /scene-center -->
+
+    <!-- ── RIGHT: Japan POST mailbox ── -->
+    <div class="scene-right">
+      <svg class="mailbox-svg" viewBox="0 0 160 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- post sign pole -->
+        <rect x="72" y="140" width="16" height="180" rx="4" fill="#c8c0b0"/>
+        <rect x="74" y="142" width="6" height="176" rx="2" fill="#d8d0c0" opacity="0.5"/>
+        <!-- mailbox body — classic Japanese red -->
+        <rect x="30" y="40" width="100" height="110" rx="8" fill="#d42e2e"/>
+        <!-- body highlight -->
+        <rect x="34" y="44" width="40" height="102" rx="6" fill="#e84040" opacity="0.3"/>
+        <!-- rounded dome top -->
+        <path d="M30 60 Q30 40 80 40 Q130 40 130 60 L130 55 Q130 38 80 38 Q30 38 30 55 Z" fill="#c02020"/>
+        <ellipse cx="80" cy="52" rx="50" ry="14" fill="#c02020"/>
+        <ellipse cx="80" cy="52" rx="46" ry="11" fill="#d42e2e"/>
+        <!-- mail slot -->
+        <rect x="40" y="88" width="80" height="8" rx="4" fill="#b02020"/>
+        <rect x="42" y="89" width="76" height="6" rx="3" fill="#900000" opacity="0.6"/>
+        <!-- POST text band -->
+        <rect x="30" y="104" width="100" height="22" rx="0" fill="#c02020"/>
+        <text x="80" y="119" text-anchor="middle" font-size="12" fill="#fff" font-family="Arial, sans-serif" font-weight="700" letter-spacing="3">POST</text>
+        <!-- bottom rim -->
+        <rect x="26" y="146" width="108" height="10" rx="5" fill="#b02020"/>
+        <!-- little badge on front -->
+        <circle cx="80" cy="72" r="12" fill="#b02020"/>
+        <text x="80" y="77" text-anchor="middle" font-size="10" fill="#f0d0d0" font-family="serif">〒</text>
       </svg>
     </div>
-    <div class="tb-btn active" id="tab-front" title="Front" onclick="thumbClick(true)">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="4" width="18" height="16" rx="2"/>
-      </svg>
-    </div>
-    <div class="tb-btn" id="tab-back" title="Back" onclick="thumbClick(false)">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="4" width="18" height="16" rx="2"/>
-        <line x1="7" y1="10" x2="17" y2="10"/>
-        <line x1="7" y1="14" x2="13" y2="14"/>
-      </svg>
-    </div>
-    <div class="tb-sep"></div>
-    <!-- tool group: font · stamp · sticker -->
-    <div class="font-pill tb-dimmed" id="tb-font" onclick="showPenModal()">Aa</div>
-    <div class="stamp-circle tb-dimmed" id="stamp-btn" onclick="showStampModal()" title="Add stamp">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2a4 4 0 0 1 4 4c0 .88-.28 1.7-.77 2.36L17 10h2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2l-1.77 1.64A4 4 0 1 1 8 15.08V10H6a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h2l1.77-1.64A4 4 0 0 1 12 2z"/>
-        <line x1="8" y1="20" x2="16" y2="20"/>
-      </svg>
-    </div>
-    <div class="stamp-circle tb-dimmed" id="sticker-btn" onclick="showStickerModal()" title="Add sticker">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.19 0 2-.95 2-2.11v-.39c0-.49.41-.9.9-.9h1.2c3.59 0 5.9-3.85 5.9-6.6C22 6.05 17.52 2 12 2z"/>
-        <circle cx="8.5" cy="10.5" r="1.2" fill="currentColor" stroke="none"/>
-        <circle cx="14.5" cy="8.5" r="1.2" fill="currentColor" stroke="none"/>
-      </svg>
-    </div>
-  </div>
+
+  </div><!-- /scene-stage -->
   <!-- Effect pills — fixed at bottom of screen, shown only when photo is loaded -->
   <div class="effect-pills" id="effect-pills" style="display:none">
     <div class="effect-pill active" onclick="setEffect(this,event)">Original</div>
@@ -2489,12 +2784,12 @@ body.mobile-mode .inbox-nav-btn { display: none !important; }
     document.getElementById('face-back-landscape').style.display = orientation === 'landscape' ? '' : 'none';
     document.getElementById('face-back-portrait').style.display  = orientation === 'portrait'  ? '' : 'none';
 
-    // dim/undim tool buttons based on which side is showing
+    // dim/undim tool tiles based on which side is showing
     setTimeout(() => {
       const onBack = !isFront;
-      ['tb-font','stamp-btn','sticker-btn'].forEach(id => {
+      ['bt-font','bt-stamp','bt-sticker'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.classList.toggle('tb-dimmed', !onBack);
+        if (el) el.classList.toggle('bt-dimmed', !onBack);
       });
       // effect pills only relevant on front when photo is loaded
       const pills = document.getElementById('effect-pills');
@@ -2807,9 +3102,11 @@ body.mobile-mode .inbox-nav-btn { display: none !important; }
   }
 
   // ── MODALS ──
-  function showStampModal() { document.getElementById('stamp-modal').classList.add('open'); }
-  function showStickerModal() { document.getElementById('sticker-modal').classList.add('open'); }
-  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  function hideTiles() { const r = document.getElementById('tiles-row'); if(r) r.classList.add('hidden'); }
+  function showTiles() { const r = document.getElementById('tiles-row'); if(r) r.classList.remove('hidden'); }
+  function showStampModal() { hideTiles(); document.getElementById('stamp-modal').classList.add('open'); }
+  function showStickerModal() { hideTiles(); document.getElementById('sticker-modal').classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); showTiles(); }
 
   // ── DRAGGABLE STAMPS ──
   function getActiveCard() {
@@ -3090,6 +3387,7 @@ body.mobile-mode .inbox-nav-btn { display: none !important; }
   }
 
   function showPenModal() {
+    hideTiles();
     document.getElementById('pen-lock-msg').style.display = 'none';
     document.getElementById('pen-options').style.display  = 'block';
     // highlight selected
