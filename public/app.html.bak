@@ -1,0 +1,3393 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Postcards</title>
+<script>
+  // Load Supabase public config from Next.js env at runtime
+  fetch('/api/env').then(r=>r.json()).then(d=>{
+    if(d.url) document.querySelector('meta[name="sb-url"]').content = d.url;
+    if(d.key) document.querySelector('meta[name="sb-key"]').content = d.key;
+  }).catch(()=>{});
+</script>
+<meta name="sb-url" content="">
+<meta name="sb-key" content="">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f5f5f3;
+  color: #222;
+  font-size: 14px;
+}
+
+/* ── SCREEN SYSTEM ── */
+.screen { display: none; min-height: 100vh; flex-direction: column; position: relative; }
+.screen.active { display: flex; }
+
+/* ── SEND BUTTON TOP RIGHT ── */
+.send-btn {
+  position: fixed;
+  top: 18px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  z-index: 50;
+  background: #111;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+}
+.send-btn:hover { background: #333; }
+.send-btn svg { width: 14px; height: 14px; }
+
+/* ── RESET BUTTON ── */
+.reset-btn {
+  position: fixed;
+  top: 18px;
+  right: 120px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #888;
+  cursor: pointer;
+  z-index: 50;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.reset-btn:hover:not(:disabled) { background: #f5f5f3; color: #333; border-color: #bbb; }
+.reset-btn:disabled { color: #ccc; border-color: #eee; cursor: default; }
+
+/* ── LEFT SIDEBAR ── */
+.sidebar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 50;
+}
+
+/* ── SIDEBAR TILES (icon + label) ── */
+.sb-tile {
+  width: 72px;
+  height: 82px;
+  border: 1px solid #e2e2e0;
+  background: #fff;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s, border-color 0.12s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.sb-tile:hover { background: #f5f5f3; }
+.sb-tile.active { background: #fff; border-color: #ccc; border-width: 1.5px; }
+#tab-front.active, #tab-back.active { border-color: #555; border-width: 2px; box-shadow: 0 1px 4px rgba(0,0,0,0.10); }
+#orient-tile { background: #fff; }
+.sb-tile svg { color: #555; transition: color 0.12s; }
+.sb-tile.active svg { color: #111; }
+.sb-tile-label {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #999;
+  font-weight: 500;
+  transition: color 0.12s;
+  line-height: 1;
+}
+.sb-tile:hover .sb-tile-label { color: #555; }
+.sb-tile.active .sb-tile-label { color: #222; }
+
+/* sidebar divider */
+.sb-divider {
+  height: 1px;
+  background: #e8e8e6;
+  margin: 2px 8px;
+  border-radius: 1px;
+}
+
+/* ── FRONT/BACK THUMBNAIL INSIDE TILES ── */
+.sb-thumb {
+  border-radius: 3px;
+  overflow: hidden;
+  background: #e8e8e6;
+  flex-shrink: 0;
+  transition: width 0.25s ease, height 0.25s ease;
+  position: relative;
+}
+.sb-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: none;
+}
+.sb-thumb-rules {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  padding: 3px 4px;
+}
+/* thumb shape mirrors card orientation */
+.sb-tile.orient-landscape .sb-thumb { width: 44px; height: 28px; }
+.sb-tile.orient-portrait  .sb-thumb { width: 26px; height: 38px; margin: 0 auto; }
+
+/* hide old seg-preview helper; keep .seg-rule for compat */
+.seg-preview { display: none; }
+.seg-rule {
+  height: 1px;
+  background: #c8c8c8;
+  border-radius: 1px;
+}
+
+/* ── LEFT SIDEBAR — hidden; controls moved to combined bottom toolbar ── */
+.sidebar { display: none !important; }
+
+/* ── COMBINED BOTTOM TOOLBAR ── */
+.bottom-toolbar {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0;
+  z-index: 50;
+  background: #fff;
+  border: 1px solid #e0e0de;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.09);
+  padding: 3px;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* individual icon buttons inside toolbar */
+.tb-btn {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #666;
+  border-radius: 10px;
+  transition: background 0.1s, color 0.1s;
+  flex-shrink: 0;
+  user-select: none;
+}
+.tb-btn:hover { background: #f5f5f3; color: #222; }
+.tb-btn.active { background: #efefed; color: #111; }
+.tb-btn.tb-dimmed { opacity: 0.25; pointer-events: none; }
+
+/* separator between nav group and tool group */
+.tb-sep {
+  width: 1px;
+  height: 26px;
+  background: #e8e8e6;
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
+/* restyle legacy font-pill as tb-btn */
+.font-pill {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #555;
+  font-style: normal;
+  letter-spacing: -0.02em;
+  transition: background 0.1s, color 0.1s;
+}
+.font-pill:hover { background: #f5f5f3; color: #222; }
+
+/* restyle legacy stamp-circle as tb-btn */
+.stamp-circle {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #666;
+  transition: background 0.1s, color 0.1s;
+}
+.stamp-circle:hover { background: #f5f5f3; color: #222; }
+
+/* ── MAIN SCENE ── */
+.scene {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 80px;
+}
+
+/* ── FLIP CONTAINER ── */
+.flip-root {
+  perspective: 1200px;
+}
+.flip-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.45, 0.05, 0.55, 0.95);
+  /* size set by JS to match card */
+}
+.flip-inner.flipped {
+  transform: rotateY(180deg);
+}
+.flip-face {
+  position: absolute;
+  top: 0; left: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.flip-face-back {
+  transform: rotateY(180deg);
+}
+/* During flip, hide bottom toolbar and starters so they don't show through */
+.flip-root.is-flipping ~ .bottom-toolbar,
+.flip-root.is-flipping ~ .starter-pills { opacity: 0; }
+
+/* ── POSTCARD FRONT ── */
+.card-front {
+  background: #fff;
+  border: 1.5px dashed #c8c8c8;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  transition: width 0.3s, height 0.3s;
+}
+.card-front.landscape { width: 672px; height: 432px; }
+.card-front.portrait  { width: 432px; height: 600px; }
+
+.add-image-icon {
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid #c0c0c0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #b0b0b0;
+  font-size: 18px;
+  cursor: pointer;
+}
+.add-image-label { font-size: 13px; color: #b0b0b0; cursor: pointer; }
+
+.card-front.has-photo {
+  border-style: solid;
+  border-color: #ccc;
+  background: #d8d8d8;
+}
+.card-front.has-photo .photo-placeholder {
+  font-size: 12px;
+  color: #888;
+}
+/* photo action bar — appears on hover over loaded photo */
+.photo-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 5;
+}
+.card-front.has-photo:hover .photo-actions { opacity: 1; pointer-events: auto; }
+
+/* reposition hint */
+.reposition-hint {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.45);
+  color: #fff;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+  z-index: 6;
+  letter-spacing: 0.02em;
+}
+.card-front.has-photo:hover .reposition-hint { opacity: 1; }
+.card-front.panning .reposition-hint { opacity: 0 !important; }
+#photo-img { cursor: grab; }
+#photo-img:active { cursor: grabbing; }
+.photo-action-btn {
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.photo-action-btn:hover { background: rgba(0,0,0,0.78); }
+.effect-pills {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 40;
+}
+.effect-pill {
+  border: 1px solid #c8c8c8;
+  background: rgba(255,255,255,0.9);
+  border-radius: 7px;
+  padding: 5px 14px;
+  font-size: 11px;
+  cursor: pointer;
+  color: #555;
+  white-space: nowrap;
+}
+.effect-pill.active { background: #333; color: #fff; border-color: #333; }
+
+/* ── POSTCARD BACK — SHARED TYPOGRAPHY ── */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Dancing+Script:wght@400&display=swap');
+
+.pc-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #1a1a1a;
+  line-height: 1;
+}
+.pc-sub {
+  font-family: 'Dancing Script', cursive;
+  font-size: 13px;
+  color: #b0a0a0;
+  margin-top: 2px;
+  line-height: 1;
+}
+.pc-stamp-zone {
+  width: 58px;
+  height: 72px;
+  border: 1.5px dashed #d8b8b8;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Georgia, serif;
+  font-size: 9px;
+  color: #c8a8a8;
+  flex-shrink: 0;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ruled lines shared */
+.pc-ruled {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+.pc-ruled-line {
+  border-bottom: 1px solid #ece8e0;
+  height: 36px;
+  flex-shrink: 0;
+}
+.pc-textarea {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: transparent;
+  resize: none;
+  font-family: Georgia, serif;
+  font-size: 13px;
+  color: #333;
+  line-height: 36px;
+  outline: none;
+  padding: 0 24px;
+  z-index: 1;
+}
+
+/* ── POSTCARD BACK — LANDSCAPE ── */
+.card-back-landscape {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  width: 672px;
+  height: 432px;
+  display: flex;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  overflow: hidden;
+  position: relative;
+}
+
+/* left writing zone */
+.bl-message {
+  width: 58%;
+  border-right: 1px solid #e8e4dc;
+  position: relative;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.bl-message .pc-ruled { flex: 1; }
+.bl-message .pc-textarea { padding-top: 40px; }
+
+/* right panel */
+.bl-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* header zone (top-right) */
+.bl-header {
+  padding: 20px 20px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.bl-stamp-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.bl-stamp-bg {
+  width: 58px;
+  height: 72px;
+  background: #f0eeea;
+  border-radius: 3px;
+  position: absolute;
+  top: -6px;
+  right: -6px;
+}
+
+/* postmark overlapping stamp — always top layer */
+.bl-postmark {
+  position: absolute;
+  bottom: -30px;
+  left: -30px;
+  opacity: 0.8;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* address zone (bottom-right) */
+.bl-address {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 0 20px 24px;
+  gap: 0;
+}
+.bl-addr-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.bl-addr-line {
+  border: none;
+  border-bottom: 1px solid #ece8e0;
+  height: 34px;
+  width: 100%;
+  background: transparent;
+  font-family: Georgia, serif;
+  font-size: 12px;
+  color: #333;
+  padding: 14px 4px 2px;
+  outline: none;
+  line-height: normal;
+}
+
+/* draggable stamps sit absolutely inside the card */
+.stamp-draggable {
+  position: absolute;
+  width: 58px; height: 72px;
+  border: none;
+  background: transparent;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  z-index: 10;
+  transition: box-shadow 0.1s;
+}
+.stamp-draggable svg { width: 100%; height: 100%; display: block; }
+.stamp-draggable:hover { filter: brightness(0.9); }
+.stamp-draggable.dragging {
+  cursor: grabbing;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  z-index: 20;
+}
+.stamp-draggable .stamp-remove {
+  display: none;
+  position: absolute;
+  top: -7px; right: -7px;
+  width: 16px; height: 16px;
+  background: #888;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 10px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  line-height: 1;
+}
+.stamp-draggable:hover .stamp-remove { display: flex; }
+.stamp-resize {
+  display: none;
+  position: absolute;
+  bottom: -5px; right: -5px;
+  width: 12px; height: 12px;
+  background: #fff;
+  border: 1.5px solid #888;
+  border-radius: 2px;
+  cursor: nwse-resize;
+  z-index: 12;
+}
+.stamp-draggable:hover .stamp-resize { display: block; }
+
+/* ── POSTCARD BACK — PORTRAIT ── */
+.card-back-portrait {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  width: 432px;
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  overflow: hidden;
+  position: relative;
+}
+
+/* portrait header bar */
+.bp-header {
+  padding: 20px 20px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+.bp-stamp-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.bp-stamp-bg {
+  width: 58px;
+  height: 72px;
+  background: #f0eeea;
+  border-radius: 3px;
+  position: absolute;
+  top: -6px;
+  right: -6px;
+}
+
+/* portrait message area */
+.bp-message {
+  margin-top: auto;
+  position: relative;
+  padding: 16px 24px;
+  height: 400px;
+}
+.bp-message .pc-textarea { padding-top: 28px; }
+
+/* portrait address area */
+.bp-address {
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
+.bp-addr-input {
+  border: none;
+  border-bottom: 1px solid #ece8e0;
+  height: 34px;
+  width: 180px;
+  background: transparent;
+  font-family: Georgia, serif;
+  font-size: 12px;
+  color: #333;
+  padding: 14px 4px 2px;
+  outline: none;
+  line-height: normal;
+}
+
+.bl-addr-line::placeholder,
+.bp-addr-input::placeholder,
+#msg-landscape::placeholder,
+#msg-portrait::placeholder {
+  color: #ccc;
+  opacity: 1;
+}
+
+/* kill browser autofill tint on postcard fields */
+.bl-addr-line:-webkit-autofill,
+.bl-addr-line:-webkit-autofill:hover,
+.bl-addr-line:-webkit-autofill:focus,
+.bp-addr-input:-webkit-autofill,
+.bp-addr-input:-webkit-autofill:hover,
+.bp-addr-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  box-shadow: 0 0 0 1000px #fff inset;
+  -webkit-text-fill-color: #333;
+  transition: background-color 9999s ease-out 0s;
+}
+.bl-addr-line:autofill,
+.bp-addr-input:autofill { background: transparent; }
+.pc-textarea::selection,
+.bl-addr-line::selection,
+.bp-addr-input::selection { background: rgba(0,0,0,0.08); }
+
+/* ── JAZZ RECORD ── */
+.jazz-record {
+  position: fixed;
+  bottom: 22px;
+  left: 22px;
+  width: 56px;
+  height: 56px;
+  cursor: pointer;
+  user-select: none;
+  z-index: 50;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.18));
+  transition: filter 0.2s;
+}
+.jazz-record:hover { filter: drop-shadow(0 3px 10px rgba(0,0,0,0.28)); }
+.record-disc {
+  width: 56px;
+  height: 56px;
+  transition: transform 0.3s;
+}
+@keyframes vinyl-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.jazz-record.on .record-disc {
+  animation: vinyl-spin 4.5s linear 3 forwards;
+}
+.jazz-record.on:hover .record-disc {
+  animation: vinyl-spin 4.5s linear infinite;
+}
+
+/* ── STARTER PILLS ── */
+.starter-pills {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 50;
+}
+.starter-pill {
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  border-radius: 20px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-style: italic;
+  cursor: pointer;
+  color: #888;
+  white-space: nowrap;
+  transform: rotate(var(--r, 0deg));
+}
+.starter-pill:hover { background: #f5f5f3; }
+
+/* ── SEND SCREEN ── */
+.send-scene {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+}
+.send-label { font-size: 14px; color: #888; align-self: flex-start; margin-left: 0; }
+.send-input {
+  width: 340px;
+  border: 1px solid #d0d0d0;
+  border-radius: 10px;
+  padding: 11px 16px;
+  font-size: 14px;
+  background: #fff;
+  color: #333;
+  outline: none;
+}
+.send-input:focus { border-color: #999; }
+
+/* slide to send */
+.slide-track-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.slide-track {
+  width: 340px;
+  height: 56px;
+  border: 1.5px solid #ddd;
+  border-radius: 14px;
+  background: #f5f5f3;
+  position: relative;
+  overflow: visible;
+  display: flex;
+  align-items: center;
+}
+.slide-handle {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 72px;
+  height: 46px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  font-size: 11px;
+  color: #bbb;
+  user-select: none;
+  touch-action: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  z-index: 5;
+  transition: box-shadow 0.1s, background 0.25s, border-color 0.25s, color 0.25s;
+  flex-direction: column;
+  gap: 2px;
+}
+.slide-handle:active { cursor: grabbing; box-shadow: 0 3px 10px rgba(0,0,0,0.13); }
+.slide-handle.sent {
+  background: #3a7d44;
+  border-color: #3a7d44;
+  color: #fff;
+  cursor: default;
+  box-shadow: 0 2px 10px rgba(58,125,68,0.3);
+}
+.slide-handle-label { font-size: 10px; color: #ccc; letter-spacing: 0.3px; }
+
+.slide-track-label {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: #ccc;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* mailbox at right end */
+.mailbox-end {
+  position: absolute;
+  right: -48px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 42px;
+  pointer-events: none;
+  transition: transform 0.2s;
+}
+.mailbox-end.open { transform: translateY(-50%) scale(1.15); }
+
+.slide-note {
+  font-size: 12px;
+  color: #bbb;
+  text-align: center;
+}
+
+/* ── POSTED ── */
+.posted-scene {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.posted-box {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.posted-icon { font-size: 44px; }
+.posted-box h2 { font-size: 20px; font-weight: 600; }
+.posted-box p { font-size: 13px; color: #888; max-width: 260px; line-height: 1.6; }
+.posted-box .time-note {
+  font-size: 12px;
+  color: #aaa;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  padding: 4px 14px;
+}
+.btn-outline {
+  border: 1px solid #bbb;
+  background: #fff;
+  border-radius: 8px;
+  padding: 9px 22px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #333;
+  margin-top: 4px;
+}
+.btn-outline:hover { background: #f0f0f0; }
+
+/* ── LOGIN ── */
+.login-scene {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.login-card {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 40px 36px;
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.login-card h1 { font-size: 20px; font-weight: 700; text-align: center; }
+.login-card p  { font-size: 12px; color: #999; text-align: center; line-height: 1.6; }
+.login-input {
+  width: 100%;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  background: #fafafa;
+  outline: none;
+}
+.login-input:focus { border-color: #999; }
+.login-btn {
+  width: 100%;
+  background: #333;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 11px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.login-btn:hover { background: #111; }
+.login-note { font-size: 11px; color: #bbb; text-align: center; }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  z-index: 200;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 80px;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}
+.modal h3 { font-size: 14px; font-weight: 600; }
+.stamp-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+.stamp-opt {
+  height: 64px;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  cursor: pointer;
+}
+.stamp-opt svg { width: 100%; height: 100%; display: block; }
+.stamp-opt:hover { opacity: 0.75; }
+.modal-note { font-size: 11px; color: #bbb; }
+.modal-close {
+  border: 1px solid #ddd;
+  background: #f5f5f3;
+  border-radius: 8px;
+  padding: 9px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #555;
+}
+.modal-close:hover { background: #eee; }
+
+/* drag ghost */
+#stamp-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  width: 58px; height: 72px;
+  background: transparent;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+  font-size: 22px;
+  opacity: 0.85;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.1s;
+}
+/* drop-zone highlight when ghost is over card */
+.card-drop-active {
+  outline: 2px dashed #888 !important;
+  outline-offset: 3px;
+}
+.stamp-opt { cursor: grab; }
+
+/* pen modal */
+.pen-option {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pen-option:hover { border-color: #999; }
+.pen-option strong { font-size: 13px; }
+.pen-option span   { font-size: 11px; color: #aaa; }
+.pen-option .sample { font-size: 15px; color: #555; margin-top: 4px; font-family: Georgia, serif; font-style: italic; }
+.pen-locked-note { font-size: 11px; color: #888; background: #f5f5f3; border-radius: 6px; padding: 8px 12px; }
+
+/* ── INBOX NAV BUTTON ── */
+.inbox-nav-btn {
+  position: fixed;
+  top: 18px;
+  left: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #555;
+  cursor: pointer;
+  z-index: 50;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.inbox-nav-btn:hover { background: #f5f5f3; color: #111; border-color: #bbb; }
+.inbox-nav-btn .inbox-badge {
+  background: #111;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 1px 6px;
+  line-height: 1.5;
+}
+
+/* ── INBOX SCREEN ── */
+#s-inbox { background: transparent; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+.inbox-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 48px 0;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  background: transparent;
+  position: relative;
+  z-index: 10;
+}
+.inbox-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: #111;
+  letter-spacing: -0.02em;
+}
+.inbox-back-btn {
+  font-size: 13px;
+  color: #777;
+  cursor: pointer;
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 0;
+}
+.inbox-back-btn:hover { color: #111; }
+.inbox-filter-row {
+  display: flex;
+  gap: 8px;
+  padding: 20px 48px 0;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+.inbox-filter {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #888;
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  padding: 5px 14px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.inbox-filter.active { background: #111; color: #fff; border-color: #111; }
+.inbox-filter:hover:not(.active) { border-color: #aaa; color: #555; }
+
+/* Scattered postcard pile — vertical scroll */
+.inbox-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 0 80px;
+  width: 100%;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Each inbox item: card + meta label beside it */
+.inbox-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  cursor: pointer;
+  position: relative;
+  margin-bottom: -28px; /* slight overlap */
+  transition: transform 0.22s, z-index 0s;
+}
+.inbox-item:last-child { margin-bottom: 0; }
+.inbox-item:hover { z-index: 10; }
+.inbox-item:hover .inbox-postcard-front {
+  box-shadow: 0 16px 48px rgba(0,0,0,0.22);
+}
+
+/* landscape default */
+.inbox-postcard-front {
+  width: 490px;
+  height: 314px;
+  background: #fff;
+  border: 1.5px solid rgba(0,0,0,0.12);
+  border-radius: 7px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.13);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* portrait variant */
+.inbox-item.portrait .inbox-postcard-front {
+  width: 314px;
+  height: 490px;
+}
+.inbox-postcard-front .ipc-photo {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.inbox-postcard-front .ipc-placeholder {
+  font-size: 56px;
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+.inbox-unread-dot {
+  position: absolute;
+  top: 10px; left: 10px;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: #111;
+  border: 2px solid #fff;
+  z-index: 2;
+}
+.inbox-item-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 2px 0;
+}
+.inbox-item-from {
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+}
+.inbox-item-date {
+  font-size: 11px;
+  color: #bbb;
+}
+
+/* ── POSTCARD MODAL (open view) ── */
+#s-open-postcard {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 24px;
+}
+#s-open-postcard.active { display: flex; }
+.opc-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+/* the flip root inside the modal */
+.opc-flip-root {
+  perspective: 1400px;
+}
+.opc-flip-inner {
+  position: relative;
+  width: 672px;
+  height: 432px;
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.45, 0.05, 0.55, 0.95);
+}
+.opc-flip-inner.flipped { transform: rotateY(180deg); }
+.opc-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.22);
+}
+.opc-face-back { transform: rotateY(180deg); }
+/* front */
+.opc-front-face {
+  background: #fff;
+  border: 1.5px solid #ccc;
+  display: flex; align-items: center; justify-content: center;
+}
+.opc-front-face .opc-placeholder {
+  font-size: 100px;
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+/* back — mirrors card-back-landscape */
+.opc-back-face {
+  background: #fff;
+  border: 1.5px solid #ccc;
+  display: flex;
+}
+.opc-back-left {
+  flex: 1;
+  padding: 32px 28px;
+  border-right: 1px dashed #ddd;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.opc-back-right {
+  width: 260px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+}
+.opc-msg-line {
+  border-bottom: 1px solid #ece8e0;
+  height: 38px;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 4px;
+  font-family: 'Dancing Script', cursive;
+  font-size: 16px;
+  font-style: italic;
+  color: #333;
+  line-height: 1;
+  width: 100%;
+}
+.opc-stamp-area {
+  width: 68px; height: 84px;
+  border: 1.5px dashed #c8c8c8;
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; color: #ccc; letter-spacing: 0.06em; text-transform: uppercase;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+.opc-addr-block {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.opc-addr-line {
+  height: 34px;
+  border-bottom: 1px solid #ece8e0;
+  font-family: 'Dancing Script', cursive;
+  font-size: 14px;
+  color: #444;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 4px;
+  width: 100%;
+}
+/* flip button below the card */
+.opc-flip-btn {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  padding: 8px 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #555;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 7px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+.opc-flip-btn:hover { background: #f5f5f3; color: #111; border-color: #bbb; }
+.opc-close {
+  position: absolute;
+  top: -14px; right: -14px;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  color: #555;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+.opc-close:hover { background: #f5f5f3; color: #111; }
+
+/* ── VIEW SWITCHER ── */
+#view-switcher {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  gap: 2px;
+  background: #e8e8e6;
+  border-radius: 10px;
+  padding: 3px;
+  z-index: 1000;
+}
+.vs-btn {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: #888;
+  background: none;
+  border: none;
+  border-radius: 7px;
+  padding: 6px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background 0.12s, color 0.12s;
+}
+.vs-btn.active { background: #fff; color: #111; box-shadow: 0 1px 3px rgba(0,0,0,0.10); }
+.vs-btn svg { width: 13px; height: 13px; }
+
+/* ── MOBILE VIEW WRAPPER ── */
+#mobile-view {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #f0ede8;
+}
+body.mobile-mode #mobile-view { display: flex; }
+body.mobile-mode .screen,
+body.mobile-mode #s-open-postcard,
+body.mobile-mode .send-btn,
+body.mobile-mode .reset-btn,
+body.mobile-mode .inbox-nav-btn { display: none !important; }
+
+/* Phone frame */
+.phone-frame {
+  width: 390px;
+  height: 844px;
+  background: #fff;
+  border-radius: 48px;
+  border: 10px solid #1a1a1a;
+  box-shadow: 0 0 0 2px #333, 0 32px 80px rgba(0,0,0,0.35);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.phone-notch {
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 120px; height: 34px;
+  background: #1a1a1a;
+  border-radius: 0 0 20px 20px;
+  z-index: 100;
+}
+.phone-inner {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Mobile screens inside phone */
+.m-screen { display: none; flex-direction: column; height: 100%; }
+.m-screen.m-active { display: flex; }
+
+/* ── MOBILE: CREATION SCREEN ── */
+#m-desk {
+  background: #f5f5f3;
+}
+.m-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 44px 20px 12px;
+  flex-shrink: 0;
+}
+.m-topbar-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111;
+}
+.m-send-btn {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: #111;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 14px;
+  cursor: pointer;
+}
+.m-inbox-btn {
+  font-size: 12px;
+  font-weight: 500;
+  color: #888;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Card area — landscape or portrait centered */
+.m-card-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  overflow: hidden;
+}
+.m-card-flip-root {
+  perspective: 1000px;
+}
+.m-card-flip-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.45,0.05,0.55,0.95);
+}
+.m-card-flip-inner.flipped { transform: rotateY(180deg); }
+.m-card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.14);
+}
+.m-card-front {
+  background: linear-gradient(135deg, #e8d5c4 0%, #d4c0b0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #b0a090;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  flex-direction: column;
+  gap: 8px;
+}
+.m-card-front svg { opacity: 0.4; }
+.m-card-back {
+  background: #fff;
+  transform: rotateY(180deg);
+  display: flex;
+}
+/* landscape back */
+.m-back-landscape {
+  display: flex;
+  width: 100%; height: 100%;
+}
+.m-back-msg {
+  flex: 1;
+  border-right: 1px solid #ece8e0;
+  position: relative;
+  overflow: hidden;
+}
+.m-back-ruled {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  padding: 12px 0;
+}
+.m-back-ruled-line {
+  height: 1px;
+  background: #f0ede8;
+  margin: 0 12px;
+}
+.m-back-right {
+  width: 120px;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  gap: 10px;
+}
+.m-stamp-box {
+  border: 1.5px dashed #ccc;
+  border-radius: 4px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #ccc;
+  letter-spacing: 0.05em;
+}
+.m-addr-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: auto;
+}
+.m-addr-line {
+  height: 1px;
+  background: #e8e4dc;
+}
+
+/* Bottom toolbar */
+.m-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 14px 12px 28px;
+  background: #fff;
+  border-top: 1px solid #ece8e0;
+  flex-shrink: 0;
+}
+.m-tool-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: #888;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  letter-spacing: 0.03em;
+  font-weight: 500;
+}
+.m-tool-btn:hover { background: #f5f5f3; color: #333; }
+.m-tool-btn svg { width: 20px; height: 20px; }
+.m-flip-pill {
+  font-size: 11px;
+  font-weight: 600;
+  color: #555;
+  background: #f0ede8;
+  border: none;
+  border-radius: 20px;
+  padding: 7px 16px;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+}
+.m-flip-pill:hover { background: #e8e4dc; }
+
+/* ── MOBILE: INBOX SCREEN ── */
+#m-inbox { background: #fff; }
+.m-inbox-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 52px 20px 16px;
+  flex-shrink: 0;
+}
+.m-inbox-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+}
+.m-back-link {
+  font-size: 12px;
+  color: #888;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.m-cards-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0 40px;
+}
+.m-inbox-item {
+  cursor: pointer;
+  margin-bottom: -20px;
+  position: relative;
+}
+.m-inbox-card {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 3px 14px rgba(0,0,0,0.13);
+  border: 1px solid rgba(0,0,0,0.08);
+}
+.m-inbox-card .ipc-placeholder {
+  width: 100%; height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+}
+.m-unread-dot {
+  position: absolute;
+  top: 8px; left: 8px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #111;
+  border: 2px solid #fff;
+  z-index: 2;
+}
+
+/* ── MOBILE: SEND SCREEN ── */
+#m-send { background: #fff; }
+.m-send-header {
+  padding: 52px 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.m-send-back {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #888;
+  display: flex;
+  align-items: center;
+}
+.m-send-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 20px;
+  font-weight: 700;
+}
+.m-send-body {
+  flex: 1;
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+}
+.m-send-preview {
+  width: 100%;
+  height: 160px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #e8d5c4 0%, #d4c0b0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: #b0a090;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+  flex-shrink: 0;
+}
+.m-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: #aaa;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.m-field-input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid #e8e4dc;
+  padding: 8px 0;
+  font-size: 15px;
+  font-family: Georgia, serif;
+  color: #333;
+  background: transparent;
+  outline: none;
+}
+.m-field-input::placeholder { color: #ccc; }
+.m-datetime-row {
+  display: flex;
+  gap: 12px;
+}
+.m-datetime-box {
+  flex: 1;
+  border: 1px solid #e8e4dc;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.m-datetime-val {
+  font-size: 15px;
+  color: #333;
+  font-weight: 500;
+}
+.m-send-cta {
+  margin-top: auto;
+  width: 100%;
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.m-send-cta:hover { background: #333; }
+</style>
+</head>
+<body>
+
+<!-- ══════════ SCREEN: LOGIN ══════════ -->
+<div class="screen active" id="s-login">
+  <div class="login-scene">
+    <div class="login-card">
+      <h1>Postcards</h1>
+      <p>A deliberate way to share a moment with someone you care about.</p>
+      <div>
+        <input class="login-input" type="email" placeholder="your@email.com">
+      </div>
+      <button class="login-btn" onclick="go('s-desk')">Send magic link →</button>
+      <div class="login-note">No password. We'll email you a link to sign in.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: DESK + CARD (front & back, shared) ══════════ -->
+<div class="screen" id="s-desk">
+  <button class="send-btn" id="desk-send-btn" onclick="go('s-send')">Send <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+  <button class="inbox-nav-btn" onclick="go('s-inbox')">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
+    Received <span class="inbox-badge">3</span>
+  </button>
+  <button class="reset-btn" onclick="resetCard()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+    Reset
+  </button>
+
+  <div class="sidebar">
+    <!-- Orientation tile -->
+    <div class="sb-tile active" id="orient-tile" title="Toggle orientation" onclick="toggleOrientation()">
+      <svg id="orient-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <!-- landscape icon -->
+        <rect x="2" y="6" width="20" height="13" rx="2"/>
+      </svg>
+      <span class="sb-tile-label">Orient</span>
+    </div>
+
+    <div class="sb-divider"></div>
+
+    <!-- Front tile -->
+    <div class="sb-tile active orient-landscape" id="tab-front" onclick="thumbClick(true)">
+      <div class="sb-thumb" id="seg-preview-front">
+        <img id="thumb-photo-img" src="" alt="">
+      </div>
+      <span class="sb-tile-label">Front</span>
+    </div>
+
+    <!-- Back tile -->
+    <div class="sb-tile orient-landscape" id="tab-back" onclick="thumbClick(false)">
+      <div class="sb-thumb">
+        <div class="sb-thumb-rules">
+          <div class="seg-rule"></div>
+          <div class="seg-rule"></div>
+          <div class="seg-rule"></div>
+        </div>
+      </div>
+      <span class="sb-tile-label">Back</span>
+    </div>
+  </div>
+
+  <div class="scene">
+    <div class="flip-root" id="flip-root">
+      <div class="flip-inner" id="flip-inner">
+
+        <!-- FRONT FACE -->
+        <div class="flip-face" id="face-front">
+          <div class="card-front landscape" id="card-front" onclick="handleFrontClick()">
+            <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
+            <div id="front-empty">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+                <div class="add-image-icon">+</div>
+                <div class="add-image-label">Add image</div>
+              </div>
+            </div>
+            <div id="front-photo" style="display:none;width:100%;height:100%;position:absolute;inset:0;overflow:hidden;border-radius:9px;">
+              <img id="photo-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;object-position:50% 50%;border-radius:9px;display:block;">
+              <div class="photo-actions">
+                <button class="photo-action-btn" onclick="changePhoto(event)">Change</button>
+              </div>
+              <div class="reposition-hint">Drag to reposition</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BACK FACE — landscape -->
+        <div class="flip-face flip-face-back" id="face-back-landscape">
+          <div class="card-back-landscape" id="card-back-landscape">
+
+            <!-- left: message writing area -->
+            <div class="bl-message">
+              <div class="pc-ruled">
+                <div class="pc-ruled-line"></div><div class="pc-ruled-line"></div>
+                <div class="pc-ruled-line"></div><div class="pc-ruled-line"></div>
+                <div class="pc-ruled-line"></div><div class="pc-ruled-line"></div>
+                <div class="pc-ruled-line"></div><div class="pc-ruled-line"></div>
+                <div class="pc-ruled-line"></div><div class="pc-ruled-line"></div>
+                <div class="pc-ruled-line"></div>
+              </div>
+              <textarea class="pc-textarea" id="msg-landscape" placeholder="Write your message…" maxlength="280"></textarea>
+            </div>
+
+            <!-- right panel -->
+            <div class="bl-right">
+              <!-- header: title + stamp -->
+              <div class="bl-header">
+                <div>
+                  <div class="pc-title">Postcard</div>
+                  <div class="pc-sub">with love</div>
+                </div>
+                <div class="bl-stamp-wrap">
+                  <div class="bl-stamp-bg"></div>
+                  <div class="pc-stamp-zone">Stamp</div>
+                  <!-- postmark overlapping stamp -->
+                  <div class="bl-postmark">
+                    <svg width="80" height="80" viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="45" cy="45" r="40" stroke="#c8b8b8" stroke-width="1.2"/>
+                      <circle cx="45" cy="45" r="34" stroke="#c8b8b8" stroke-width="0.7"/>
+                      <path d="M13 45 Q20 38 27 45 Q34 52 41 45 Q48 38 55 45 Q62 52 69 45 Q76 38 83 45" stroke="#c8b8b8" stroke-width="1" fill="none"/>
+                      <text font-family="Georgia, serif" font-size="7.5" fill="#b8a8a8" letter-spacing="2.5" text-anchor="middle">
+                        <textPath href="#bl-pm-circle-top" startOffset="50%">YOUR LOCATION</textPath>
+                      </text>
+                      <text font-family="Georgia, serif" font-size="7" fill="#b8a8a8" letter-spacing="1.5" text-anchor="middle">
+                        <textPath href="#bl-pm-circle-bot" startOffset="50%">SEP 2026</textPath>
+                      </text>
+                      <defs>
+                        <path id="bl-pm-circle-top" d="M 9,45 A 36,36 0 0,1 81,45"/>
+                        <path id="bl-pm-circle-bot" d="M 15,51 A 32,32 0 0,0 75,51"/>
+                      </defs>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <!-- address lines -->
+              <div class="bl-address">
+                <div class="bl-addr-lines">
+                  <input class="bl-addr-line" type="text" placeholder="Name">
+                  <input class="bl-addr-line" type="text" placeholder="Address">
+                  <input class="bl-addr-line" type="text" placeholder="City, Country">
+                  <input class="bl-addr-line" type="text" placeholder="Postal code">
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- BACK FACE — portrait -->
+        <div class="flip-face flip-face-back" id="face-back-portrait" style="display:none;">
+          <div class="card-back-portrait" id="card-back-portrait">
+
+            <!-- header: title + stamp, address lines below title -->
+            <div class="bp-header">
+              <div style="display:flex;flex-direction:column;gap:0;">
+                <div class="pc-title">Postcard</div>
+                <div class="pc-sub">with love</div>
+                <div class="bp-address">
+                  <input class="bp-addr-input" type="text" placeholder="Name">
+                  <input class="bp-addr-input" type="text" placeholder="Address">
+                  <input class="bp-addr-input" type="text" placeholder="City, Country">
+                  <input class="bp-addr-input" type="text" placeholder="Postal code">
+                </div>
+              </div>
+              <div class="bp-stamp-wrap">
+                <div class="bp-stamp-bg"></div>
+                <div class="pc-stamp-zone">Stamp</div>
+                <!-- postmark overlapping stamp -->
+                <div class="bl-postmark">
+                  <svg width="80" height="80" viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="45" cy="45" r="40" stroke="#c8b8b8" stroke-width="1.2"/>
+                    <circle cx="45" cy="45" r="34" stroke="#c8b8b8" stroke-width="0.7"/>
+                    <path d="M13 45 Q20 38 27 45 Q34 52 41 45 Q48 38 55 45 Q62 52 69 45 Q76 38 83 45" stroke="#c8b8b8" stroke-width="1" fill="none"/>
+                    <text font-family="Georgia, serif" font-size="7.5" fill="#b8a8a8" letter-spacing="2.5" text-anchor="middle">
+                      <textPath href="#bp-pm-circle-top" startOffset="50%">YOUR LOCATION</textPath>
+                    </text>
+                    <text font-family="Georgia, serif" font-size="7" fill="#b8a8a8" letter-spacing="1.5" text-anchor="middle">
+                      <textPath href="#bp-pm-circle-bot" startOffset="50%">SEP 2026</textPath>
+                    </text>
+                    <defs>
+                      <path id="bp-pm-circle-top" d="M 9,45 A 36,36 0 0,1 81,45"/>
+                      <path id="bp-pm-circle-bot" d="M 15,51 A 32,32 0 0,0 75,51"/>
+                    </defs>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- message writing area -->
+            <div class="bp-message">
+              <div class="pc-ruled">
+                <div class="pc-ruled-line"></div><div class="pc-ruled-line"></div>
+                <div class="pc-ruled-line"></div><div class="pc-ruled-line"></div>
+                <div class="pc-ruled-line"></div><div class="pc-ruled-line"></div>
+                <div class="pc-ruled-line"></div><div class="pc-ruled-line"></div>
+                <div class="pc-ruled-line"></div><div class="pc-ruled-line"></div>
+              </div>
+              <textarea class="pc-textarea" id="msg-portrait" placeholder="Write your message…" maxlength="280"></textarea>
+            </div>
+
+          </div>
+        </div>
+
+      </div><!-- /flip-inner -->
+    </div><!-- /flip-root -->
+  </div>
+
+  <div class="bottom-toolbar" id="bottom-toolbar">
+    <!-- nav group: orient · front · back -->
+    <div class="tb-btn" id="tb-orient" title="Toggle orientation" onclick="toggleOrientation()">
+      <svg id="orient-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="6" width="20" height="13" rx="2"/>
+      </svg>
+    </div>
+    <div class="tb-btn active" id="tab-front" title="Front" onclick="thumbClick(true)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="16" rx="2"/>
+      </svg>
+    </div>
+    <div class="tb-btn" id="tab-back" title="Back" onclick="thumbClick(false)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="16" rx="2"/>
+        <line x1="7" y1="10" x2="17" y2="10"/>
+        <line x1="7" y1="14" x2="13" y2="14"/>
+      </svg>
+    </div>
+    <div class="tb-sep"></div>
+    <!-- tool group: font · stamp · sticker -->
+    <div class="font-pill tb-dimmed" id="tb-font" onclick="showPenModal()">Aa</div>
+    <div class="stamp-circle tb-dimmed" id="stamp-btn" onclick="showStampModal()" title="Add stamp">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2a4 4 0 0 1 4 4c0 .88-.28 1.7-.77 2.36L17 10h2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2l-1.77 1.64A4 4 0 1 1 8 15.08V10H6a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h2l1.77-1.64A4 4 0 0 1 12 2z"/>
+        <line x1="8" y1="20" x2="16" y2="20"/>
+      </svg>
+    </div>
+    <div class="stamp-circle tb-dimmed" id="sticker-btn" onclick="showStickerModal()" title="Add sticker">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.19 0 2-.95 2-2.11v-.39c0-.49.41-.9.9-.9h1.2c3.59 0 5.9-3.85 5.9-6.6C22 6.05 17.52 2 12 2z"/>
+        <circle cx="8.5" cy="10.5" r="1.2" fill="currentColor" stroke="none"/>
+        <circle cx="14.5" cy="8.5" r="1.2" fill="currentColor" stroke="none"/>
+      </svg>
+    </div>
+  </div>
+  <!-- Effect pills — fixed at bottom of screen, shown only when photo is loaded -->
+  <div class="effect-pills" id="effect-pills" style="display:none">
+    <div class="effect-pill active" onclick="setEffect(this,event)">Original</div>
+    <div class="effect-pill" onclick="setEffect(this,event)">Vintage</div>
+  </div>
+
+  <!-- Jazz record — bottom left -->
+  <div class="jazz-record" id="jazz-toggle" onclick="toggleJazz()" title="Play jazz">
+    <svg class="record-disc" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+      <!-- vinyl body -->
+      <circle cx="28" cy="28" r="28" fill="#1a1a1a"/>
+      <!-- grooves -->
+      <circle cx="28" cy="28" r="25" fill="none" stroke="#2e2e2e" stroke-width="0.6"/>
+      <circle cx="28" cy="28" r="22" fill="none" stroke="#2e2e2e" stroke-width="0.6"/>
+      <circle cx="28" cy="28" r="19" fill="none" stroke="#2e2e2e" stroke-width="0.6"/>
+      <circle cx="28" cy="28" r="16" fill="none" stroke="#2e2e2e" stroke-width="0.6"/>
+      <circle cx="28" cy="28" r="13" fill="none" stroke="#2e2e2e" stroke-width="0.6"/>
+      <!-- label -->
+      <circle cx="28" cy="28" r="10" fill="#c94040"/>
+      <!-- label text arc top -->
+      <path id="arc-top" d="M 18.5,28 A 9.5,9.5 0 0,1 37.5,28" fill="none"/>
+      <text font-family="Georgia,serif" font-size="4.2" fill="rgba(255,255,255,0.85)" letter-spacing="1.2">
+        <textPath href="#arc-top" startOffset="50%" text-anchor="middle">JAZZ</textPath>
+      </text>
+      <!-- label text arc bottom -->
+      <path id="arc-bot" d="M 19,28 A 9,9 0 0,0 37,28" fill="none"/>
+      <text font-family="Georgia,serif" font-size="3.5" fill="rgba(255,255,255,0.6)" letter-spacing="0.8">
+        <textPath href="#arc-bot" startOffset="50%" text-anchor="middle">MOOD MUSIC</textPath>
+      </text>
+      <!-- spindle -->
+      <circle cx="28" cy="28" r="2" fill="#1a1a1a"/>
+      <circle cx="28" cy="28" r="0.8" fill="#555"/>
+    </svg>
+  </div>
+</div>
+
+<!-- ══════════ STICKER MODAL ══════════ -->
+<div class="modal-overlay" id="sticker-modal" onclick="closeModal('sticker-modal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>Add a sticker</h3>
+    <div class="modal-note">Drag onto the card, or tap to place.</div>
+    <div class="stamp-grid" id="sticker-grid">
+
+      <!-- Rose -->
+      <div class="stamp-opt sticker-opt" data-sticker="rose" title="Rose">
+        <svg viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="28" cy="22" r="12" fill="#e85c7a" opacity="0.15"/>
+          <path d="M28 10 C24 14 20 18 22 24 C24 30 28 32 28 32 C28 32 32 30 34 24 C36 18 32 14 28 10Z" fill="#e85c7a"/>
+          <path d="M18 16 C16 20 18 26 22 28 C26 30 28 32 28 32 C28 32 24 26 22 22 C20 18 18 16 18 16Z" fill="#c0335a"/>
+          <path d="M38 16 C40 20 38 26 34 28 C30 30 28 32 28 32 C28 32 32 26 34 22 C36 18 38 16 38 16Z" fill="#c0335a"/>
+          <path d="M22 24 C20 28 24 34 28 34 C32 34 36 28 34 24 C32 20 28 22 28 22 C28 22 24 20 22 24Z" fill="#d44468"/>
+          <ellipse cx="28" cy="20" rx="5" ry="4" fill="#f08098" opacity="0.6"/>
+          <!-- stem -->
+          <line x1="28" y1="34" x2="28" y2="50" stroke="#4a8a40" stroke-width="1.5"/>
+          <path d="M28 42 C25 38 20 38 20 40" fill="none" stroke="#4a8a40" stroke-width="1.2"/>
+        </svg>
+      </div>
+
+      <!-- Daisy -->
+      <div class="stamp-opt sticker-opt" data-sticker="daisy" title="Daisy">
+        <svg viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="28" cy="26" r="6" fill="#f5d020"/>
+          <ellipse cx="28" cy="13" rx="3.5" ry="7" fill="#fff" stroke="#e8e0c8" stroke-width="0.5"/>
+          <ellipse cx="28" cy="39" rx="3.5" ry="7" fill="#fff" stroke="#e8e0c8" stroke-width="0.5"/>
+          <ellipse cx="15" cy="26" rx="7" ry="3.5" fill="#fff" stroke="#e8e0c8" stroke-width="0.5"/>
+          <ellipse cx="41" cy="26" rx="7" ry="3.5" fill="#fff" stroke="#e8e0c8" stroke-width="0.5"/>
+          <ellipse cx="18.5" cy="15.5" rx="3.5" ry="7" fill="#fff" stroke="#e8e0c8" stroke-width="0.5" transform="rotate(-45 18.5 15.5)"/>
+          <ellipse cx="37.5" cy="15.5" rx="3.5" ry="7" fill="#fff" stroke="#e8e0c8" stroke-width="0.5" transform="rotate(45 37.5 15.5)"/>
+          <ellipse cx="18.5" cy="36.5" rx="3.5" ry="7" fill="#fff" stroke="#e8e0c8" stroke-width="0.5" transform="rotate(45 18.5 36.5)"/>
+          <ellipse cx="37.5" cy="36.5" rx="3.5" ry="7" fill="#fff" stroke="#e8e0c8" stroke-width="0.5" transform="rotate(-45 37.5 36.5)"/>
+          <circle cx="28" cy="26" r="6" fill="#f5d020"/>
+          <circle cx="28" cy="26" r="3.5" fill="#e0a800"/>
+          <!-- stem -->
+          <line x1="28" y1="33" x2="28" y2="52" stroke="#4a8a40" stroke-width="1.5"/>
+        </svg>
+      </div>
+
+      <!-- Hibiscus -->
+      <div class="stamp-opt sticker-opt" data-sticker="hibiscus" title="Hibiscus">
+        <svg viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="28" cy="14" rx="6" ry="10" fill="#e84040" opacity="0.9"/>
+          <ellipse cx="28" cy="14" rx="6" ry="10" fill="#e84040" opacity="0.9" transform="rotate(72 28 28)"/>
+          <ellipse cx="28" cy="14" rx="6" ry="10" fill="#e84040" opacity="0.9" transform="rotate(144 28 28)"/>
+          <ellipse cx="28" cy="14" rx="6" ry="10" fill="#e84040" opacity="0.9" transform="rotate(216 28 28)"/>
+          <ellipse cx="28" cy="14" rx="6" ry="10" fill="#e84040" opacity="0.9" transform="rotate(288 28 28)"/>
+          <circle cx="28" cy="28" r="6" fill="#f5a0a0"/>
+          <line x1="28" y1="28" x2="28" y2="42" stroke="#f5a0a0" stroke-width="2"/>
+          <circle cx="28" cy="40" r="3" fill="#f5c518"/>
+        </svg>
+      </div>
+
+      <!-- Maple leaf -->
+      <div class="stamp-opt sticker-opt" data-sticker="maple" title="Maple leaf">
+        <svg viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+          <path d="M28 6 L32 18 L44 14 L36 24 L48 28 L36 30 L40 44 L28 36 L16 44 L20 30 L8 28 L20 24 L12 14 L24 18 Z" fill="#e05020" stroke="#c03010" stroke-width="0.8"/>
+          <line x1="28" y1="36" x2="28" y2="52" stroke="#6a3010" stroke-width="2"/>
+        </svg>
+      </div>
+
+      <!-- Tropical leaf -->
+      <div class="stamp-opt sticker-opt" data-sticker="leaf" title="Tropical leaf">
+        <svg viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 50 C20 50 10 38 12 24 C14 12 22 6 34 8 C46 10 50 18 48 28 C46 38 36 44 28 46 C24 47 20 50 20 50Z" fill="#3aab50" stroke="#268a38" stroke-width="0.8"/>
+          <line x1="20" y1="50" x2="40" y2="14" stroke="#268a38" stroke-width="1.2"/>
+          <path d="M40 14 C38 20 36 26 34 32" stroke="#268a38" stroke-width="0.8" fill="none"/>
+          <path d="M30 22 C26 26 22 30 20 34" stroke="#268a38" stroke-width="0.7" fill="none"/>
+          <path d="M36 30 C32 32 28 34 24 38" stroke="#268a38" stroke-width="0.7" fill="none"/>
+        </svg>
+      </div>
+
+      <!-- Cherry blossom -->
+      <div class="stamp-opt sticker-opt" data-sticker="blossom" title="Cherry blossom">
+        <svg viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="28" cy="16" rx="5" ry="9" fill="#f4b8cc" opacity="0.9"/>
+          <ellipse cx="28" cy="16" rx="5" ry="9" fill="#f4b8cc" opacity="0.9" transform="rotate(72 28 28)"/>
+          <ellipse cx="28" cy="16" rx="5" ry="9" fill="#f4b8cc" opacity="0.9" transform="rotate(144 28 28)"/>
+          <ellipse cx="28" cy="16" rx="5" ry="9" fill="#f4b8cc" opacity="0.9" transform="rotate(216 28 28)"/>
+          <ellipse cx="28" cy="16" rx="5" ry="9" fill="#f4b8cc" opacity="0.9" transform="rotate(288 28 28)"/>
+          <circle cx="28" cy="28" r="5" fill="#fff" stroke="#f4b8cc" stroke-width="1"/>
+          <circle cx="28" cy="28" r="2" fill="#f5d020"/>
+          <!-- stamens -->
+          <line x1="28" y1="26" x2="28" y2="20" stroke="#d44488" stroke-width="0.8"/>
+          <line x1="28" y1="26" x2="24" y2="21" stroke="#d44488" stroke-width="0.8"/>
+          <line x1="28" y1="26" x2="32" y2="21" stroke="#d44488" stroke-width="0.8"/>
+        </svg>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: SEND ══════════ -->
+<div class="screen" id="s-send">
+  <div class="send-scene">
+    <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-start;">
+      <div class="send-label">Send to</div>
+      <input class="send-input" type="email" placeholder="Email address" id="send-email">
+    </div>
+
+    <div class="slide-track-wrap">
+      <div class="slide-track" id="slide-track">
+        <div class="slide-handle" id="slide-handle">
+          <span style="font-size:18px;">📨</span>
+        </div>
+        <div class="slide-track-label" id="slide-track-label">slide to post →</div>
+        <div class="mailbox-end" id="mailbox-end">📮</div>
+      </div>
+      <div class="slide-note">Your postcard will be sent instantly.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: POSTED ══════════ -->
+<div class="screen" id="s-posted">
+  <div class="posted-scene">
+    <div class="posted-box">
+      <div class="posted-icon">📮</div>
+      <h2>Posted.</h2>
+      <div class="time-note">Sends at 6:00 PM your local time</div>
+      <button class="btn-outline" onclick="go('s-desk')">Write another postcard</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: INBOX ══════════ -->
+<div class="screen" id="s-inbox">
+  <div class="inbox-header">
+    <span class="inbox-title">Received</span>
+    <button class="inbox-back-btn" onclick="go('s-desk')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      Back to writing
+    </button>
+  </div>
+<div class="inbox-grid" id="inbox-grid">
+    <!-- populated by renderInbox() -->
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: OPEN POSTCARD MODAL ══════════ -->
+<div id="s-open-postcard" onclick="closeOpc()">
+  <div class="opc-wrap" onclick="event.stopPropagation()">
+    <div class="opc-flip-root" onclick="opcFlip()" style="cursor:pointer">
+      <div class="opc-flip-inner" id="opc-flip-inner">
+        <div class="opc-face opc-front-face" id="opc-front-face">
+          <!-- filled by openPostcard() -->
+        </div>
+        <div class="opc-face opc-face-back opc-back-face" id="opc-back-face">
+          <!-- filled by openPostcard() -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ STAMP MODAL ══════════ -->
+<div class="modal-overlay" id="stamp-modal" onclick="closeModal('stamp-modal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>Add a stamp</h3>
+    <div class="modal-note">Drag onto the card, or tap to place.</div>
+    <div class="stamp-grid">
+      <!-- Flower stamp -->
+      <div class="stamp-opt" data-emoji="🌺" title="Flower">
+        <svg viewBox="0 0 56 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="4" width="48" height="62" rx="2" fill="#fff" stroke="#d8c8a0" stroke-width="1.5" stroke-dasharray="3 2.5"/>
+          <rect x="8" y="8" width="40" height="50" rx="1" fill="#fdf6e3"/>
+          <!-- flower -->
+          <circle cx="28" cy="30" r="5" fill="#f5a623"/>
+          <ellipse cx="28" cy="20" rx="4" ry="6" fill="#e05c5c" opacity="0.85"/>
+          <ellipse cx="28" cy="40" rx="4" ry="6" fill="#e05c5c" opacity="0.85"/>
+          <ellipse cx="18" cy="30" rx="6" ry="4" fill="#e05c5c" opacity="0.85"/>
+          <ellipse cx="38" cy="30" rx="6" ry="4" fill="#e05c5c" opacity="0.85"/>
+          <text x="28" y="64" text-anchor="middle" font-size="5" fill="#b8a070" font-family="sans-serif">POSTCARD</text>
+        </svg>
+      </div>
+      <!-- Moon stamp -->
+      <div class="stamp-opt" data-emoji="🌙" title="Moon">
+        <svg viewBox="0 0 56 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="4" width="48" height="62" rx="2" fill="#fff" stroke="#a0b8d8" stroke-width="1.5" stroke-dasharray="3 2.5"/>
+          <rect x="8" y="8" width="40" height="50" rx="1" fill="#1a2a4a"/>
+          <!-- stars -->
+          <circle cx="18" cy="18" r="1" fill="#fff" opacity="0.7"/>
+          <circle cx="38" cy="15" r="1.5" fill="#fff" opacity="0.8"/>
+          <circle cx="24" cy="44" r="1" fill="#fff" opacity="0.6"/>
+          <circle cx="40" cy="40" r="1" fill="#fff" opacity="0.5"/>
+          <!-- crescent -->
+          <circle cx="30" cy="30" r="11" fill="#f5e070"/>
+          <circle cx="36" cy="25" r="9" fill="#1a2a4a"/>
+          <text x="28" y="64" text-anchor="middle" font-size="5" fill="#b8a070" font-family="sans-serif">POSTCARD</text>
+        </svg>
+      </div>
+      <!-- Plane stamp -->
+      <div class="stamp-opt" data-emoji="✈️" title="Airplane">
+        <svg viewBox="0 0 56 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="4" width="48" height="62" rx="2" fill="#fff" stroke="#a0c8d8" stroke-width="1.5" stroke-dasharray="3 2.5"/>
+          <rect x="8" y="8" width="40" height="50" rx="1" fill="#d6eaf8"/>
+          <!-- clouds -->
+          <ellipse cx="18" cy="22" rx="7" ry="4" fill="#fff" opacity="0.8"/>
+          <ellipse cx="38" cy="40" rx="6" ry="3.5" fill="#fff" opacity="0.7"/>
+          <!-- plane -->
+          <path d="M14 33 L42 24 L38 30 L28 30 L32 36 L26 35 L22 40 L19 38 L24 32 L18 33 Z" fill="#2e6da4"/>
+          <text x="28" y="64" text-anchor="middle" font-size="5" fill="#b8a070" font-family="sans-serif">POSTCARD</text>
+        </svg>
+      </div>
+      <!-- Shell stamp -->
+      <div class="stamp-opt" data-emoji="🐚" title="Shell">
+        <svg viewBox="0 0 56 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="4" width="48" height="62" rx="2" fill="#fff" stroke="#c8b8a0" stroke-width="1.5" stroke-dasharray="3 2.5"/>
+          <rect x="8" y="8" width="40" height="50" rx="1" fill="#fef9f0"/>
+          <!-- shell -->
+          <path d="M28 16 C18 20 14 28 16 36 C18 42 24 46 28 46 C32 46 38 42 40 36 C42 28 38 20 28 16 Z" fill="#f0c080" stroke="#d0a060" stroke-width="1"/>
+          <path d="M28 16 C26 24 24 32 28 46" stroke="#d0a060" stroke-width="0.8"/>
+          <path d="M28 16 C30 24 32 32 28 46" stroke="#d0a060" stroke-width="0.8"/>
+          <path d="M28 16 C22 22 16 30 28 46" stroke="#d0a060" stroke-width="0.8"/>
+          <path d="M28 16 C34 22 40 30 28 46" stroke="#d0a060" stroke-width="0.8"/>
+          <text x="28" y="64" text-anchor="middle" font-size="5" fill="#b8a070" font-family="sans-serif">POSTCARD</text>
+        </svg>
+      </div>
+      <!-- Star stamp -->
+      <div class="stamp-opt" data-emoji="⭐" title="Star">
+        <svg viewBox="0 0 56 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="4" width="48" height="62" rx="2" fill="#fff" stroke="#d8c050" stroke-width="1.5" stroke-dasharray="3 2.5"/>
+          <rect x="8" y="8" width="40" height="50" rx="1" fill="#fffbe6"/>
+          <polygon points="28,14 31,24 42,24 33,31 36,42 28,35 20,42 23,31 14,24 25,24" fill="#f5c518" stroke="#e0a800" stroke-width="0.8"/>
+          <text x="28" y="64" text-anchor="middle" font-size="5" fill="#b8a070" font-family="sans-serif">POSTCARD</text>
+        </svg>
+      </div>
+      <!-- Leaf stamp -->
+      <div class="stamp-opt" data-emoji="🌿" title="Leaf">
+        <svg viewBox="0 0 56 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="4" width="48" height="62" rx="2" fill="#fff" stroke="#90c090" stroke-width="1.5" stroke-dasharray="3 2.5"/>
+          <rect x="8" y="8" width="40" height="50" rx="1" fill="#f0f8f0"/>
+          <path d="M28 42 C28 42 16 36 16 24 C16 16 22 12 28 12 C34 12 40 16 40 24 C40 36 28 42 28 42 Z" fill="#5aab55" stroke="#3d8a38" stroke-width="0.8"/>
+          <line x1="28" y1="42" x2="28" y2="14" stroke="#3d8a38" stroke-width="0.8"/>
+          <path d="M28 26 C24 22 20 22 18 20" stroke="#3d8a38" stroke-width="0.6"/>
+          <path d="M28 30 C32 26 36 26 38 24" stroke="#3d8a38" stroke-width="0.6"/>
+          <text x="28" y="64" text-anchor="middle" font-size="5" fill="#b8a070" font-family="sans-serif">POSTCARD</text>
+        </svg>
+      </div>
+      <!-- Butterfly stamp -->
+      <div class="stamp-opt" data-emoji="🦋" title="Butterfly">
+        <svg viewBox="0 0 56 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="4" width="48" height="62" rx="2" fill="#fff" stroke="#c0a0d8" stroke-width="1.5" stroke-dasharray="3 2.5"/>
+          <rect x="8" y="8" width="40" height="50" rx="1" fill="#fdf5ff"/>
+          <!-- wings -->
+          <path d="M28 30 C26 22 16 18 14 26 C12 34 22 38 28 34 Z" fill="#9b59b6" opacity="0.85"/>
+          <path d="M28 30 C30 22 40 18 42 26 C44 34 34 38 28 34 Z" fill="#9b59b6" opacity="0.85"/>
+          <path d="M28 34 C26 38 18 40 16 36 C14 32 20 30 28 34 Z" fill="#c39bd3" opacity="0.75"/>
+          <path d="M28 34 C30 38 38 40 40 36 C42 32 36 30 28 34 Z" fill="#c39bd3" opacity="0.75"/>
+          <!-- body -->
+          <ellipse cx="28" cy="32" rx="1.5" ry="7" fill="#5d2e8c"/>
+          <text x="28" y="64" text-anchor="middle" font-size="5" fill="#b8a070" font-family="sans-serif">POSTCARD</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ PEN MODAL ══════════ -->
+<div class="modal-overlay" id="pen-modal" onclick="closeModal('pen-modal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>Choose a pen</h3>
+    <div class="pen-locked-note" id="pen-lock-msg" style="display:none">Pen is locked for this card. Reset to change.</div>
+    <div id="pen-options">
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="pen-option" data-pen="calligraphy" onclick="choosePen('calligraphy')">
+          <strong>Calligraphy</strong>
+          <span>Elegant, flowing · ~200 characters</span>
+          <div class="sample">Dear Laura,</div>
+        </div>
+        <div class="pen-option" data-pen="ink" onclick="choosePen('ink')">
+          <strong>Ink</strong>
+          <span>Clean, everyday · ~320 characters</span>
+          <div class="sample" style="font-family:monospace; font-style:normal;">Dear Laura,</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.bl-addr-line, .bp-addr-input, .pc-textarea').forEach(el => el.setAttribute('autocomplete', 'off'));
+  let orientation = 'landscape';
+  let isFront = true;
+  let penLocked = false;
+  let photoLoaded = false;
+  const FLIP_DURATION = 560; // ms, matches CSS
+
+  // ── NAVIGATION ──
+  function go(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0,0);
+  }
+
+  // ── INBOX / OPEN POSTCARD ──
+  const INBOX_DATA = [
+    {
+      from: 'Priya', date: 'Sep 4', unread: true, orient: 'landscape', rot: -2.8,
+      bg: 'linear-gradient(135deg,#b5cfe8 0%,#d4e8c2 100%)', icon: '🌊',
+      msg: ['Thinking of you from the coast.', 'The water here is impossibly blue —', 'you\'d love it.', '', '— Priya'],
+      addr: ['Durga Vitankar', '12 Garden Lane', 'Mumbai, India', '400 001'],
+    },
+    {
+      from: 'Arjun', date: 'Sep 2', unread: true, orient: 'portrait', rot: 3.5,
+      bg: 'linear-gradient(135deg,#f5e0b5 0%,#f0c8a0 100%)', icon: '🏜️',
+      msg: ['Made it to Rajasthan.', 'The light at dusk is unlike anything', 'I\'ve ever seen.', '', '— Arjun'],
+      addr: ['Durga Vitankar', '12 Garden Lane', 'Mumbai, India', '400 001'],
+    },
+    {
+      from: 'Mei', date: 'Aug 28', unread: false, orient: 'landscape', rot: 1.4,
+      bg: 'linear-gradient(135deg,#e8d5f0 0%,#c8b0e8 100%)', icon: '🌸',
+      msg: ['Kyoto in the rain.', 'Everything is quiet and perfect', 'and I wished you were here.', '', '— Mei'],
+      addr: ['Durga Vitankar', '12 Garden Lane', 'Mumbai, India', '400 001'],
+    },
+  ];
+
+  function renderInbox() {
+    const grid = document.getElementById('inbox-grid');
+    grid.innerHTML = INBOX_DATA.map((d, i) => `
+      <div class="inbox-item${d.orient === 'portrait' ? ' portrait' : ''}"
+           style="transform: rotate(${d.rot}deg); transform-origin: center top;"
+           onclick="openPostcard(${i})">
+        ${d.unread ? '<div class="inbox-unread-dot"></div>' : ''}
+        <div class="inbox-postcard-front">
+          <div class="ipc-placeholder" style="background:${d.bg}">${d.icon}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  let opcIsFront = true;
+
+  function openPostcard(idx) {
+    const d = INBOX_DATA[idx];
+    opcIsFront = true;
+    const flipInner = document.getElementById('opc-flip-inner');
+    flipInner.classList.remove('flipped');
+    document.body.style.overflow = 'hidden';
+
+    const isPortrait = d.orient === 'portrait';
+    const W = isPortrait ? 432 : 672;
+    const H = isPortrait ? 672 : 432;
+    flipInner.style.width  = W + 'px';
+    flipInner.style.height = H + 'px';
+
+    // front face
+    document.getElementById('opc-front-face').innerHTML = `
+      <div class="opc-placeholder" style="background:${d.bg}">${d.icon}</div>
+    `;
+
+    const ruledLines = Array(11).fill('<div class="pc-ruled-line"></div>').join('');
+    const msgText = d.msg.join('\n');
+    const pmSvg = `<svg width="80" height="80" viewBox="0 0 90 90" fill="none"><circle cx="45" cy="45" r="40" stroke="#c8b8b8" stroke-width="1.2"/><circle cx="45" cy="45" r="34" stroke="#c8b8b8" stroke-width="0.7"/><path d="M13 45 Q20 38 27 45 Q34 52 41 45 Q48 38 55 45 Q62 52 69 45 Q76 38 83 45" stroke="#c8b8b8" stroke-width="1" fill="none"/><text font-family="Georgia,serif" font-size="7.5" fill="#b8a8a8" letter-spacing="2.5" text-anchor="middle"><textPath href="#opc-pm-top" startOffset="50%">YOUR LOCATION</textPath></text><text font-family="Georgia,serif" font-size="7" fill="#b8a8a8" letter-spacing="1.5" text-anchor="middle"><textPath href="#opc-pm-bot" startOffset="50%">SEP 2026</textPath></text><defs><path id="opc-pm-top" d="M 9,45 A 36,36 0 0,1 81,45"/><path id="opc-pm-bot" d="M 15,51 A 32,32 0 0,0 75,51"/></defs></svg>`;
+
+    let backHTML;
+    if (isPortrait) {
+      backHTML = `
+        <div class="card-back-portrait" style="width:${W}px;height:${H}px;box-shadow:none;border:none;border-radius:0;pointer-events:none;">
+          <div class="bp-header">
+            <div>
+              <div class="pc-title">Postcard</div>
+              <div class="pc-sub">with love</div>
+            </div>
+            <div class="bp-stamp-wrap">
+              <div class="bp-stamp-bg"></div>
+              <div class="pc-stamp-zone">Stamp</div>
+            </div>
+          </div>
+          <div class="bp-address" style="padding:0 20px;">
+            ${d.addr.map(l => `<div style="border-bottom:1px solid #ece8e0;height:34px;display:flex;align-items:flex-end;padding-bottom:4px;font-family:Georgia,serif;font-size:12px;color:#333;">${l}</div>`).join('')}
+          </div>
+          <div class="bp-message">
+            <div class="pc-ruled">${ruledLines}</div>
+            <div class="pc-textarea" style="font-family:'Dancing Script',cursive;font-size:18px;font-style:italic;color:#333;position:absolute;inset:0;pointer-events:none;padding:28px 24px;white-space:pre-wrap;background:transparent;">${msgText}</div>
+          </div>
+        </div>`;
+    } else {
+      backHTML = `
+        <div class="card-back-landscape" style="width:${W}px;height:${H}px;box-shadow:none;border:none;border-radius:0;pointer-events:none;">
+          <div class="bl-message">
+            <div class="pc-ruled">${ruledLines}</div>
+            <div class="pc-textarea" style="font-family:'Dancing Script',cursive;font-size:18px;font-style:italic;color:#333;position:absolute;inset:0;pointer-events:none;padding:40px 24px 28px;white-space:pre-wrap;background:transparent;">${msgText}</div>
+          </div>
+          <div class="bl-right">
+            <div class="bl-header">
+              <div>
+                <div class="pc-title">Postcard</div>
+                <div class="pc-sub">with love</div>
+              </div>
+              <div class="bl-stamp-wrap">
+                <div class="bl-stamp-bg"></div>
+                <div class="pc-stamp-zone">Stamp</div>
+                <div class="bl-postmark">${pmSvg}</div>
+              </div>
+            </div>
+            <div class="bl-address">
+              <div class="bl-addr-lines">
+                ${d.addr.map(l => `<div class="bl-addr-line" style="display:flex;align-items:flex-end;padding-bottom:4px;">${l}</div>`).join('')}
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }
+    document.getElementById('opc-back-face').innerHTML = backHTML;
+    document.getElementById('s-open-postcard').classList.add('active');
+  }
+
+  function opcFlip() {
+    opcIsFront = !opcIsFront;
+    document.getElementById('opc-flip-inner').classList.toggle('flipped', !opcIsFront);
+  }
+
+  function closeOpc() {
+    document.getElementById('s-open-postcard').classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  // render inbox on load
+  renderInbox();
+
+  // ── RESET BUTTON STATE ──
+  // listen for text input on message + address fields
+  document.addEventListener('input', e => {
+    if (e.target.matches('#msg-landscape, #msg-portrait, .bl-addr-line, .bp-addr-input')) {
+      updateResetBtn();
+    }
+  });
+  // observe stamp additions/removals
+  const stampObserver = new MutationObserver(updateResetBtn);
+  ['card-back-landscape', 'card-back-portrait'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) stampObserver.observe(el, { childList: true });
+  });
+  updateResetBtn();
+
+  // ── FLIP ──
+  function syncFlipSize() {
+    const inner = document.getElementById('flip-inner');
+    const card = orientation === 'landscape'
+      ? document.getElementById('card-front')
+      : document.getElementById('card-front');
+    // size the flip-inner to match the card
+    const W = orientation === 'landscape' ? 672 : 432;
+    const H = orientation === 'landscape' ? 432 : 600;
+    inner.style.width  = W + 'px';
+    inner.style.height = H + 'px';
+  }
+
+  function syncThumbs() {
+    document.getElementById('tab-front').classList.toggle('seg-active', isFront);
+    document.getElementById('tab-front').classList.toggle('active', isFront);
+    document.getElementById('tab-back').classList.toggle('seg-active', !isFront);
+    document.getElementById('tab-back').classList.toggle('active', !isFront);
+  }
+
+  function thumbClick(wantFront) {
+    if (wantFront !== isFront) flipCard();
+  }
+
+  function flipCard() {
+    isFront = !isFront;
+    const inner = document.getElementById('flip-inner');
+    inner.classList.toggle('flipped', !isFront);
+    syncThumbs();
+
+    // show/hide back faces based on orientation
+    document.getElementById('face-back-landscape').style.display = orientation === 'landscape' ? '' : 'none';
+    document.getElementById('face-back-portrait').style.display  = orientation === 'portrait'  ? '' : 'none';
+
+    // dim/undim tool buttons based on which side is showing
+    setTimeout(() => {
+      const onBack = !isFront;
+      ['tb-font','stamp-btn','sticker-btn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('tb-dimmed', !onBack);
+      });
+      // effect pills only relevant on front when photo is loaded
+      const pills = document.getElementById('effect-pills');
+      if (pills) pills.style.display = (!onBack && photoLoaded) ? 'flex' : 'none';
+    }, FLIP_DURATION / 2);
+  }
+
+  // ── ORIENTATION ──
+  function toggleOrientation() {
+    orientation = orientation === 'landscape' ? 'portrait' : 'landscape';
+    const front = document.getElementById('card-front');
+    front.classList.toggle('landscape', orientation === 'landscape');
+    front.classList.toggle('portrait',  orientation === 'portrait');
+    // swap orient icon: landscape = wide rect, portrait = tall rect
+    const oIcon = document.getElementById('orient-icon');
+    oIcon.innerHTML = orientation === 'landscape'
+      ? '<rect x="2" y="6" width="20" height="13" rx="2"/>'
+      : '<rect x="7" y="2" width="11" height="20" rx="2"/>';
+
+    // sync all text content between back faces
+    const msgL = document.getElementById('msg-landscape');
+    const msgP = document.getElementById('msg-portrait');
+    const addrL = [...document.querySelectorAll('.bl-addr-line')];
+    const addrP = [...document.querySelectorAll('.bp-addr-input')];
+    if (orientation === 'portrait') {
+      msgP.value = msgL.value;
+      addrP.forEach((inp, i) => { if (addrL[i]) inp.value = addrL[i].value; });
+    } else {
+      msgL.value = msgP.value;
+      addrL.forEach((inp, i) => { if (addrP[i]) inp.value = addrP[i].value; });
+    }
+
+    // move placed stamps from old back to new back, scaling positions
+    // use fixed card dimensions (offsetWidth/Height = 0 when hidden)
+    const DIMS = { landscape: { w: 672, h: 432 }, portrait: { w: 432, h: 600 } };
+    // Stamp zone anchor = top-left of where stamps should live (near the stamp placeholder)
+    // Landscape right panel starts at 58% = ~390px; stamp placeholder top-right
+    const STAMP_ZONE = {
+      landscape: { x: 590, y: 12 },
+      portrait:  { x: 356, y: 12 },
+    };
+    const oldOrient = orientation === 'portrait' ? 'landscape' : 'portrait';
+    const oldCard = document.getElementById('card-back-' + oldOrient);
+    const newCard = document.getElementById('card-back-' + orientation);
+    const oldDim  = DIMS[oldOrient];
+    const newDim  = DIMS[orientation];
+    const oldZone = STAMP_ZONE[oldOrient];
+    const newZone = STAMP_ZONE[orientation];
+    oldCard.querySelectorAll('.stamp-draggable').forEach(stamp => {
+      const w = parseFloat(stamp.style.width)  || 58;
+      const h = parseFloat(stamp.style.height) || 72;
+      const oldLeft = parseFloat(stamp.style.left);
+      const oldTop  = parseFloat(stamp.style.top);
+      // offset of this stamp relative to its zone anchor
+      const offX = oldLeft - oldZone.x;
+      const offY = oldTop  - oldZone.y;
+      // apply same offset from the new zone anchor, clamped to card bounds
+      const newLeft = Math.max(0, Math.min(newDim.w - w, newZone.x + offX));
+      const newTop  = Math.max(0, Math.min(newDim.h - h, newZone.y + offY));
+      stamp.style.left = newLeft + 'px';
+      stamp.style.top  = newTop  + 'px';
+      newCard.appendChild(stamp);
+      makeDraggable(stamp, newCard);
+    });
+
+    // if on back, swap which back face is visible without flipping
+    if (!isFront) {
+      document.getElementById('face-back-landscape').style.display = orientation === 'landscape' ? '' : 'none';
+      document.getElementById('face-back-portrait').style.display  = orientation === 'portrait'  ? '' : 'none';
+    }
+
+    syncFlipSize();
+
+    // sync tile thumb width to new orientation
+    document.querySelectorAll('#tab-front, #tab-back').forEach(tile => {
+      tile.classList.toggle('orient-landscape', orientation === 'landscape');
+      tile.classList.toggle('orient-portrait',  orientation === 'portrait');
+    });
+  }
+
+  // ── FRONT CARD ──
+  function handleFrontClick() {
+    if (!isFront) return;
+    if (!photoLoaded) {
+      document.getElementById('photo-input').click();
+    }
+  }
+
+  function handlePhotoUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    window._uploadedPhotoFile = file;
+    const url = URL.createObjectURL(file);
+    document.getElementById('photo-img').src = url;
+    const thumbImg = document.getElementById('thumb-photo-img');
+    thumbImg.src = url;
+    thumbImg.style.display = 'block';
+    photoLoaded = true;
+    updateResetBtn();
+    photoPos = { x: 50, y: 50 };
+    document.getElementById('photo-img').style.objectPosition = '50% 50%';
+    document.getElementById('front-empty').style.display = 'none';
+    const p = document.getElementById('front-photo');
+    p.style.display = 'block';
+    document.getElementById('card-front').classList.add('has-photo');
+    document.getElementById('effect-pills').style.display = 'flex';
+    e.target.value = '';
+  }
+
+  function changePhoto(e) {
+    e.stopPropagation();
+    document.getElementById('photo-input').click();
+  }
+
+  // ── PHOTO REPOSITION ──
+  let photoPos = { x: 50, y: 50 };
+
+  function initPhotoReposition() {
+    const img  = document.getElementById('photo-img');
+    const card = document.getElementById('card-front');
+    let dragging = false, startX, startY, startPosX, startPosY;
+
+    img.addEventListener('mousedown', e => {
+      if (!photoLoaded) return;
+      e.preventDefault();
+      e.stopPropagation();
+      dragging = true;
+      startX = e.clientX; startY = e.clientY;
+      startPosX = photoPos.x; startPosY = photoPos.y;
+      card.classList.add('panning');
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      const cw = card.offsetWidth, ch = card.offsetHeight;
+      const iw = img.naturalWidth, ih = img.naturalHeight;
+      // scale image renders at with object-fit:cover
+      const scale = Math.max(cw / iw, ch / ih);
+      const rendW = iw * scale, rendH = ih * scale;
+      // overflow pixels available to pan
+      const overflowX = Math.max(1, rendW - cw);
+      const overflowY = Math.max(1, rendH - ch);
+      // convert pixel drag to % shift
+      const dx = -(e.clientX - startX) / overflowX * 100;
+      const dy = -(e.clientY - startY) / overflowY * 100;
+      photoPos.x = Math.max(0, Math.min(100, startPosX + dx));
+      photoPos.y = Math.max(0, Math.min(100, startPosY + dy));
+      img.style.objectPosition = photoPos.x + '% ' + photoPos.y + '%';
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      card.classList.remove('panning');
+    });
+
+    // touch
+    img.addEventListener('touchstart', e => {
+      if (!photoLoaded) return;
+      const t = e.touches[0];
+      dragging = true;
+      startX = t.clientX; startY = t.clientY;
+      startPosX = photoPos.x; startPosY = photoPos.y;
+      card.classList.add('panning');
+    }, { passive: true });
+
+    window.addEventListener('touchmove', e => {
+      if (!dragging) return;
+      const t = e.touches[0];
+      const cw = card.offsetWidth, ch = card.offsetHeight;
+      const iw = img.naturalWidth, ih = img.naturalHeight;
+      const scale = Math.max(cw / iw, ch / ih);
+      const rendW = iw * scale, rendH = ih * scale;
+      const overflowX = Math.max(1, rendW - cw);
+      const overflowY = Math.max(1, rendH - ch);
+      const dx = -(t.clientX - startX) / overflowX * 100;
+      const dy = -(t.clientY - startY) / overflowY * 100;
+      photoPos.x = Math.max(0, Math.min(100, startPosX + dx));
+      photoPos.y = Math.max(0, Math.min(100, startPosY + dy));
+      img.style.objectPosition = photoPos.x + '% ' + photoPos.y + '%';
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => {
+      dragging = false;
+      card.classList.remove('panning');
+    });
+  }
+
+  function removePhoto(e) {
+    e.stopPropagation();
+    photoLoaded = false;
+    updateResetBtn();
+    document.getElementById('photo-img').src = '';
+    document.getElementById('front-photo').style.display = 'none';
+    document.getElementById('front-empty').style.display = '';
+    document.getElementById('card-front').classList.remove('has-photo');
+    document.getElementById('effect-pills').style.display = 'none';
+  }
+  function setEffect(el, e) {
+    e.stopPropagation();
+    document.querySelectorAll('.effect-pill').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    const img = document.getElementById('photo-img');
+    if (el.textContent.trim() === 'Vintage') {
+      img.style.filter = 'sepia(60%) contrast(90%) brightness(95%) saturate(80%)';
+    } else {
+      img.style.filter = '';
+    }
+  }
+
+  // ── JAZZ ENGINE ──
+  let jazzOn = false, jazzCtx = null, jazzTimer = null, jazzBeat = 0;
+
+  // Chord voicings (Hz): ii-V-I-VI in C, each 2 beats
+  // Dm9 | G13 | Cmaj9 | Am9
+  const CHORDS = [
+    [146.83, 220.00, 261.63, 329.63, 392.00], // Dm9:   D  A  C  E  G
+    [196.00, 246.94, 329.63, 392.00, 440.00], // G13:   G  B  E  G  A
+    [261.63, 329.63, 392.00, 493.88, 587.33], // Cmaj9: C  E  G  B  D
+    [220.00, 261.63, 329.63, 392.00, 493.88], // Am9:   A  C  E  G  B
+  ];
+
+  // Walking bass line (one note per beat, Hz)
+  const BASS = [
+    146.83, 164.81, 174.61, 185.00,  // D  E  F  F#  (Dm)
+    196.00, 220.00, 233.08, 246.94,  // G  A  Bb B   (G7)
+    261.63, 246.94, 220.00, 196.00,  // C  B  A  G   (Cmaj)
+    220.00, 196.00, 174.61, 164.81,  // A  G  F  E   (Am)
+  ];
+
+  function note(ctx, dest, type, freq, when, dur, vol) {
+    const osc = ctx.createOscillator();
+    const env = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    env.gain.setValueAtTime(0, when);
+    env.gain.linearRampToValueAtTime(vol, when + 0.015);
+    env.gain.exponentialRampToValueAtTime(0.001, when + dur);
+    osc.connect(env); env.connect(dest);
+    osc.start(when); osc.stop(when + dur + 0.05);
+  }
+
+  function scheduleJazz() {
+    if (!jazzOn) return;
+    const beat = jazzBeat;
+    const TEMPO = 0.52; // seconds per beat (~115 bpm swing)
+    const now = jazzCtx.currentTime;
+
+    // Walking bass on every beat
+    const bassFreq = BASS[beat % BASS.length];
+    note(jazzCtx, jazzCtx.destination, 'sine', bassFreq, now, TEMPO * 0.9, 0.22);
+    // Add slight octave warmth to bass
+    note(jazzCtx, jazzCtx.destination, 'sine', bassFreq * 2, now, TEMPO * 0.5, 0.06);
+
+    // Piano comp: stab on beats 2 and 4 (swing feel), or sparse on 1&3
+    const chordIdx = Math.floor(beat / 4) % CHORDS.length;
+    const chord = CHORDS[chordIdx];
+    const beatInBar = beat % 4;
+    if (beatInBar === 1 || beatInBar === 3) {
+      // Swing comp — arpeggiate upward quickly
+      chord.forEach((freq, i) => {
+        note(jazzCtx, jazzCtx.destination, 'triangle', freq, now + i * 0.022, TEMPO * 0.7, 0.04);
+      });
+    } else if (beatInBar === 0 && Math.random() > 0.5) {
+      // Occasional ghost chord on beat 1
+      chord.slice(1, 4).forEach((freq, i) => {
+        note(jazzCtx, jazzCtx.destination, 'triangle', freq, now + i * 0.018, TEMPO * 0.4, 0.025);
+      });
+    }
+
+    // Soft hi-hat (noise burst) on every 8th
+    const noiseLen = 0.04;
+    const nBuf = jazzCtx.createBuffer(1, jazzCtx.sampleRate * noiseLen, jazzCtx.sampleRate);
+    const nd = nBuf.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = (Math.random() * 2 - 1);
+    const nSrc = jazzCtx.createBufferSource();
+    nSrc.buffer = nBuf;
+    const nFilt = jazzCtx.createBiquadFilter();
+    nFilt.type = 'highpass'; nFilt.frequency.value = 8000;
+    const nEnv = jazzCtx.createGain();
+    nEnv.gain.setValueAtTime(0.06, now);
+    nEnv.gain.exponentialRampToValueAtTime(0.001, now + noiseLen);
+    nSrc.connect(nFilt); nFilt.connect(nEnv); nEnv.connect(jazzCtx.destination);
+    nSrc.start(now); nSrc.stop(now + noiseLen);
+
+    // Swing: eighth note hi-hat offset
+    const nSrc2 = jazzCtx.createBufferSource();
+    nSrc2.buffer = nBuf;
+    const nEnv2 = jazzCtx.createGain();
+    nEnv2.gain.setValueAtTime(0.03, now + TEMPO * 0.65);
+    nEnv2.gain.exponentialRampToValueAtTime(0.001, now + TEMPO * 0.65 + noiseLen);
+    nSrc2.connect(nFilt); nFilt.connect(nEnv2); nEnv2.connect(jazzCtx.destination);
+    nSrc2.start(now + TEMPO * 0.65); nSrc2.stop(now + TEMPO * 0.65 + noiseLen);
+
+    jazzBeat++;
+    jazzTimer = setTimeout(scheduleJazz, TEMPO * 1000);
+  }
+
+  function toggleJazz() {
+    jazzOn = !jazzOn;
+    document.getElementById('jazz-toggle').classList.toggle('on', jazzOn);
+    if (jazzOn) {
+      jazzCtx = new (window.AudioContext || window.webkitAudioContext)();
+      jazzBeat = 0;
+      scheduleJazz();
+    } else {
+      clearTimeout(jazzTimer);
+      if (jazzCtx) { jazzCtx.close(); jazzCtx = null; }
+    }
+  }
+
+  // ── MODALS ──
+  function showStampModal() { document.getElementById('stamp-modal').classList.add('open'); }
+  function showStickerModal() { document.getElementById('sticker-modal').classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+  // ── DRAGGABLE STAMPS ──
+  function getActiveCard() {
+    if (!isFront) {
+      return orientation === 'landscape'
+        ? document.getElementById('card-back-landscape')
+        : document.getElementById('card-back-portrait');
+    }
+    return null;
+  }
+
+  function placeStamp(emoji, card, left, top, svgHtml) {
+    const stamp = document.createElement('div');
+    stamp.className = 'stamp-draggable';
+    const inner = svgHtml || emoji;
+    stamp.innerHTML = inner + '<div class="stamp-remove" title="Remove">×</div><div class="stamp-resize" title="Resize"></div>';
+    stamp.style.left = left + 'px';
+    stamp.style.top  = top  + 'px';
+    stamp.querySelector('.stamp-remove').addEventListener('click', e => {
+      e.stopPropagation();
+      stamp.remove();
+    });
+    makeDraggable(stamp, card);
+    card.appendChild(stamp);
+  }
+
+  function addStamp(emoji, clientX, clientY, svgHtml) {
+    closeModal('stamp-modal');
+    const card = getActiveCard();
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    let left, top;
+    if (clientX !== undefined) {
+      // dropped at specific position
+      left = Math.max(0, Math.min(rect.width  - 58, clientX - rect.left - 29));
+      top  = Math.max(0, Math.min(rect.height - 72, clientY - rect.top  - 36));
+    } else {
+      // tap-to-place: anchor to stamp zone with slight scatter
+      const zone = orientation === 'landscape' ? { x: 590, y: 12 } : { x: 356, y: 12 };
+      left = zone.x + (Math.random() - 0.5) * 24;
+      top  = zone.y + (Math.random() - 0.5) * 16;
+      left = Math.max(0, Math.min(rect.width  - 58, left));
+      top  = Math.max(0, Math.min(rect.height - 72, top));
+    }
+    placeStamp(emoji, card, left, top, svgHtml);
+  }
+
+  // ── STAMP DRAG FROM MODAL ──
+  function initStampDrag() {
+    const ghost = document.createElement('div');
+    ghost.id = 'stamp-ghost';
+    ghost.style.display = 'none';
+    document.body.appendChild(ghost);
+
+    let dragging = false;
+    let dragSvg = '';
+    let dragEmoji = '';
+
+    function getCard() {
+      return orientation === 'landscape'
+        ? document.getElementById('card-back-landscape')
+        : document.getElementById('card-back-portrait');
+    }
+
+    function isOverCard(cx, cy) {
+      const card = getCard();
+      if (!card) return false;
+      const r = card.getBoundingClientRect();
+      return cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom;
+    }
+
+    document.getElementById('stamp-modal').addEventListener('mousedown', e => {
+      const opt = e.target.closest('.stamp-opt');
+      if (!opt) return;
+      dragEmoji = opt.dataset.emoji;
+      dragSvg = opt.querySelector('svg') ? opt.querySelector('svg').outerHTML : dragEmoji;
+      dragging = true;
+      ghost.innerHTML = dragSvg;
+      ghost.style.display = 'flex';
+      ghost.style.left = e.clientX + 'px';
+      ghost.style.top  = e.clientY + 'px';
+      e.preventDefault();
+    }, { capture: true });
+
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      ghost.style.left = e.clientX + 'px';
+      ghost.style.top  = e.clientY + 'px';
+      const card = getCard();
+      if (card) card.classList.toggle('card-drop-active', isOverCard(e.clientX, e.clientY));
+    });
+
+    document.addEventListener('mouseup', e => {
+      if (!dragging) return;
+      dragging = false;
+      ghost.style.display = 'none';
+      const card = getCard();
+      if (card) card.classList.remove('card-drop-active');
+      if (isOverCard(e.clientX, e.clientY) && !isFront) {
+        addStamp(dragEmoji, e.clientX, e.clientY, dragSvg);
+      }
+      // else: tap handled by click on stamp-opt below
+    });
+
+    // tap-to-place fallback (fires only when no drag occurred)
+    document.getElementById('stamp-modal').addEventListener('click', e => {
+      const opt = e.target.closest('.stamp-opt');
+      if (!opt) return;
+      const svg = opt.querySelector('svg') ? opt.querySelector('svg').outerHTML : opt.dataset.emoji;
+      addStamp(opt.dataset.emoji, undefined, undefined, svg);
+    });
+
+    // touch support
+    document.getElementById('stamp-modal').addEventListener('touchstart', e => {
+      const opt = e.target.closest('.stamp-opt');
+      if (!opt) return;
+      dragEmoji = opt.dataset.emoji;
+      dragSvg = opt.querySelector('svg') ? opt.querySelector('svg').outerHTML : dragEmoji;
+      dragging = true;
+      const t = e.touches[0];
+      ghost.innerHTML = dragSvg;
+      ghost.style.display = 'flex';
+      ghost.style.left = t.clientX + 'px';
+      ghost.style.top  = t.clientY + 'px';
+    }, { passive: true });
+
+    document.addEventListener('touchmove', e => {
+      if (!dragging) return;
+      const t = e.touches[0];
+      ghost.style.left = t.clientX + 'px';
+      ghost.style.top  = t.clientY + 'px';
+      const card = getCard();
+      if (card) card.classList.toggle('card-drop-active', isOverCard(t.clientX, t.clientY));
+    }, { passive: true });
+
+    document.addEventListener('touchend', e => {
+      if (!dragging) return;
+      dragging = false;
+      ghost.style.display = 'none';
+      const card = getCard();
+      if (card) card.classList.remove('card-drop-active');
+      const t = e.changedTouches[0];
+      if (isOverCard(t.clientX, t.clientY) && !isFront) {
+        addStamp(dragEmoji, t.clientX, t.clientY, dragSvg);
+      }
+    });
+  }
+
+  function makeDraggable(el, container) {
+    let startX, startY, startLeft, startTop;
+
+    // ── resize handle ──
+    const resizeHandle = el.querySelector('.stamp-resize');
+    if (resizeHandle) {
+      resizeHandle.addEventListener('mousedown', e => {
+        e.stopPropagation();
+        e.preventDefault();
+        const startMX   = e.clientX;
+        const startMY   = e.clientY;
+        const startW    = el.offsetWidth;
+        const startH    = el.offsetHeight;
+        const aspectRatio = startW / startH;
+        const cRect     = container.getBoundingClientRect();
+        const minSize   = 28;
+
+        function onMove(e) {
+          const dx = e.clientX - startMX;
+          const dy = e.clientY - startMY;
+          // use the larger delta to drive resize, preserve aspect ratio
+          const delta = (Math.abs(dx) > Math.abs(dy)) ? dx : dy;
+          let newW = Math.max(minSize, startW + delta);
+          let newH = newW / aspectRatio;
+          // clamp so it doesn't overflow the card
+          const maxW = cRect.width  - parseFloat(el.style.left || 0);
+          const maxH = cRect.height - parseFloat(el.style.top  || 0);
+          if (newW > maxW) { newW = maxW; newH = newW / aspectRatio; }
+          if (newH > maxH) { newH = maxH; newW = newH * aspectRatio; }
+          el.style.width  = newW + 'px';
+          el.style.height = newH + 'px';
+        }
+        function onUp() {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+        }
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+      });
+    }
+
+    el.addEventListener('mousedown', e => {
+      if (e.target.classList.contains('stamp-remove')) return;
+      if (e.target.classList.contains('stamp-resize')) return;
+      e.preventDefault();
+      el.classList.add('dragging');
+      startX    = e.clientX;
+      startY    = e.clientY;
+      startLeft = parseInt(el.style.left) || 0;
+      startTop  = parseInt(el.style.top)  || 0;
+
+      const cRect = container.getBoundingClientRect();
+      const W = el.offsetWidth, H = el.offsetHeight;
+
+      function onMove(e) {
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        const newLeft = Math.max(0, Math.min(cRect.width  - W, startLeft + dx));
+        const newTop  = Math.max(0, Math.min(cRect.height - H, startTop  + dy));
+        el.style.left = newLeft + 'px';
+        el.style.top  = newTop  + 'px';
+      }
+      function onUp() {
+        el.classList.remove('dragging');
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    });
+
+    // touch support
+    el.addEventListener('touchstart', e => {
+      if (e.target.classList.contains('stamp-remove')) return;
+      if (e.target.classList.contains('stamp-resize')) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      el.classList.add('dragging');
+      startX    = t.clientX;
+      startY    = t.clientY;
+      startLeft = parseInt(el.style.left) || 0;
+      startTop  = parseInt(el.style.top)  || 0;
+      const cRect = container.getBoundingClientRect();
+      const W = el.offsetWidth, H = el.offsetHeight;
+
+      function onMove(e) {
+        const t = e.touches[0];
+        const dx = t.clientX - startX;
+        const dy = t.clientY - startY;
+        el.style.left = Math.max(0, Math.min(cRect.width  - W, startLeft + dx)) + 'px';
+        el.style.top  = Math.max(0, Math.min(cRect.height - H, startTop  + dy)) + 'px';
+      }
+      function onEnd() {
+        el.classList.remove('dragging');
+        window.removeEventListener('touchmove', onMove);
+        window.removeEventListener('touchend', onEnd);
+      }
+      window.addEventListener('touchmove', onMove, { passive: false });
+      window.addEventListener('touchend', onEnd);
+    }, { passive: false });
+  }
+
+  // ── PEN ──
+  let currentPen = 'calligraphy';
+
+  function applyPen(type) {
+    const fonts = {
+      calligraphy: { family: "'Dancing Script', cursive", size: '18px', style: 'italic' },
+      ink:         { family: "'Courier New', Courier, monospace", size: '14px', style: 'normal' },
+    };
+    const f = fonts[type] || fonts.calligraphy;
+    currentPen = type;
+    const targets = [
+      document.getElementById('msg-landscape'),
+      document.getElementById('msg-portrait'),
+      ...document.querySelectorAll('.bl-addr-line'),
+      ...document.querySelectorAll('.bp-addr-input'),
+    ];
+    targets.forEach(el => {
+      if (!el) return;
+      el.style.fontFamily = f.family;
+      el.style.fontSize   = f.size;
+      el.style.fontStyle  = f.style;
+    });
+  }
+
+  function choosePen(type) {
+    applyPen(type);
+    closeModal('pen-modal');
+  }
+
+  function showPenModal() {
+    document.getElementById('pen-lock-msg').style.display = 'none';
+    document.getElementById('pen-options').style.display  = 'block';
+    // highlight selected
+    document.querySelectorAll('.pen-option').forEach(el => {
+      el.style.borderColor = el.dataset.pen === currentPen ? '#333' : '#e0e0e0';
+      el.style.background  = el.dataset.pen === currentPen ? '#f5f5f3' : '';
+    });
+    document.getElementById('pen-modal').classList.add('open');
+  }
+
+  // ── RESET ──
+  function hasContent() {
+    if (photoLoaded) return true;
+    if (document.querySelectorAll('.stamp-draggable').length > 0) return true;
+    const msgL = document.getElementById('msg-landscape');
+    const msgP = document.getElementById('msg-portrait');
+    if ((msgL && msgL.value.trim()) || (msgP && msgP.value.trim())) return true;
+    const addrFilled = [...document.querySelectorAll('.bl-addr-line, .bp-addr-input')]
+      .some(el => el.value.trim());
+    return addrFilled;
+  }
+
+  function updateResetBtn() {
+    const btn = document.querySelector('.reset-btn');
+    if (!btn) return;
+    btn.disabled = !hasContent();
+  }
+
+  function resetCard() {
+    if (!confirm('Reset the postcard? All content will be cleared.')) return;
+    // clear message + address on both backs
+    ['msg-landscape', 'msg-portrait'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    document.querySelectorAll('.bl-addr-line, .bp-addr-input').forEach(el => el.value = '');
+    // remove all placed stamps and stickers
+    document.querySelectorAll('.stamp-draggable').forEach(el => el.remove());
+    // clear photo
+    removePhoto({ stopPropagation: () => {} });
+    // reset font to calligraphy
+    applyPen('calligraphy');
+    // if on back, flip back to front
+    if (!isFront) flipCard();
+    updateResetBtn();
+  }
+
+  // ── STARTERS ──
+  function insertStarter(text) {
+    const id = orientation === 'landscape' ? 'msg-landscape' : 'msg-portrait';
+    const ta = document.getElementById(id);
+    if (ta && !ta.value) ta.value = text;
+    if (ta) ta.focus();
+  }
+
+  // ── SLIDE TO SEND ──
+  function initSlider() {
+    const handle = document.getElementById('slide-handle');
+    const track  = document.getElementById('slide-track');
+    const label  = document.getElementById('slide-track-label');
+    const mailbox = document.getElementById('mailbox-end');
+    if (!handle) return;
+
+    let dragging = false, startX = 0, startLeft = 0;
+    const HANDLE_W = 72;
+
+    function getMaxX() {
+      return track.offsetWidth - HANDLE_W - 8;
+    }
+
+    function setPos(x) {
+      const max = getMaxX();
+      x = Math.max(0, Math.min(max, x));
+      handle.style.left = (4 + x) + 'px';
+      // fade out label as handle moves
+      const ratio = x / max;
+      label.style.opacity = 1 - ratio * 1.5;
+      if (ratio > 0.6) mailbox.classList.add('open');
+      else mailbox.classList.remove('open');
+      return x;
+    }
+
+    function onStart(clientX) {
+      const email = document.getElementById('send-email').value.trim();
+      if (!email) { document.getElementById('send-email').focus(); return; }
+      dragging = true;
+      startX   = clientX;
+      startLeft = parseInt(handle.style.left || '4') - 4;
+      handle.style.transition = 'none';
+    }
+    function onMove(clientX) {
+      if (!dragging) return;
+      setPos(startLeft + (clientX - startX));
+    }
+    function onEnd() {
+      if (!dragging) return;
+      dragging = false;
+      handle.style.transition = '';
+      const max = getMaxX();
+      const cur = parseInt(handle.style.left || '4') - 4;
+      if (cur >= max * 0.88) {
+        // committed — snap to end, show sent state, then navigate
+        handle.style.left = (4 + max) + 'px';
+        mailbox.classList.add('open');
+        label.style.opacity = 0;
+        setTimeout(() => {
+          handle.classList.add('sent');
+          handle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg>';
+        }, 120);
+
+        setTimeout(async () => {
+          // send via API
+          const recipientEmail = document.getElementById('send-email').value.trim();
+          const msgLandscape = document.getElementById('msg-landscape');
+          const msgPortrait  = document.getElementById('msg-portrait');
+          const message = (msgLandscape && msgLandscape.value) || (msgPortrait && msgPortrait.value) || '';
+
+          let imageUrl = null;
+          if (window._uploadedPhotoFile) {
+            try {
+              const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
+              const sb = createClient(
+                document.querySelector('meta[name="sb-url"]')?.content || '',
+                document.querySelector('meta[name="sb-key"]')?.content || ''
+              );
+              const f = window._uploadedPhotoFile;
+              const path = Date.now() + '.' + f.name.split('.').pop();
+              const { error } = await sb.storage.from('postcard-images').upload(path, f);
+              if (!error) {
+                imageUrl = sb.storage.from('postcard-images').getPublicUrl(path).data.publicUrl;
+              }
+            } catch(err) { console.warn('Image upload failed', err); }
+          }
+
+          try {
+            await fetch('/api/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ recipientEmail, message, imageUrl, orientation: typeof orientation !== 'undefined' ? orientation : 'landscape' })
+            });
+          } catch(err) { console.warn('Send failed', err); }
+
+          go('s-posted');
+
+          // reset slider silently after navigation
+          setTimeout(() => {
+            handle.style.transition = 'none';
+            handle.classList.remove('sent');
+            handle.innerHTML = '<span style="font-size:18px;">📨</span>';
+            handle.style.left = '4px';
+            label.style.opacity = 1;
+            mailbox.classList.remove('open');
+            requestAnimationFrame(() => { handle.style.transition = ''; });
+          }, 300);
+        }, 600);
+      } else {
+        // snap back
+        handle.style.left = '4px';
+        label.style.opacity = 1;
+        mailbox.classList.remove('open');
+      }
+    }
+
+    handle.addEventListener('mousedown',  e => { e.preventDefault(); onStart(e.clientX); });
+    window.addEventListener('mousemove',  e => onMove(e.clientX));
+    window.addEventListener('mouseup',    () => onEnd());
+    handle.addEventListener('touchstart', e => { e.preventDefault(); onStart(e.touches[0].clientX); }, { passive: false });
+    window.addEventListener('touchmove',  e => onMove(e.touches[0].clientX), { passive: false });
+    window.addEventListener('touchend',   () => onEnd());
+  }
+
+  // ── STICKER DRAG (places on active back card, same as stamps) ──
+  function initStickerDrag() {
+    const ghost = document.getElementById('stamp-ghost');
+    let dragging = false, dragSvg = '';
+
+    function getBackCard() {
+      return orientation === 'landscape'
+        ? document.getElementById('card-back-landscape')
+        : document.getElementById('card-back-portrait');
+    }
+    function isOverCard(cx, cy) {
+      const card = getBackCard();
+      if (!card) return false;
+      const r = card.getBoundingClientRect();
+      return cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom;
+    }
+
+    function placeSticker(svgHtml, clientX, clientY) {
+      closeModal('sticker-modal');
+      const card = getBackCard();
+      if (!card) return;
+      const rect = card.getBoundingClientRect();
+      const size = 48;
+      let left, top;
+      if (clientX !== undefined) {
+        left = Math.max(0, Math.min(rect.width  - size, clientX - rect.left - size / 2));
+        top  = Math.max(0, Math.min(rect.height - size, clientY - rect.top  - size / 2));
+      } else {
+        // tap-to-place: anchor near stamp zone
+        const zone = orientation === 'landscape' ? { x: 590, y: 12 } : { x: 356, y: 12 };
+        left = zone.x + (Math.random() - 0.5) * 24;
+        top  = zone.y + size + (Math.random() - 0.5) * 16;
+        left = Math.max(0, Math.min(rect.width  - size, left));
+        top  = Math.max(0, Math.min(rect.height - size, top));
+      }
+      const el = document.createElement('div');
+      el.className = 'stamp-draggable';
+      el.style.width = size + 'px';
+      el.style.height = size + 'px';
+      el.style.left = left + 'px';
+      el.style.top  = top  + 'px';
+      el.innerHTML = svgHtml + '<div class="stamp-remove" title="Remove">×</div><div class="stamp-resize" title="Resize"></div>';
+      el.querySelector('.stamp-remove').addEventListener('click', e => { e.stopPropagation(); el.remove(); });
+      makeDraggable(el, card);
+      card.appendChild(el);
+    }
+
+    document.getElementById('sticker-modal').addEventListener('mousedown', e => {
+      const opt = e.target.closest('.sticker-opt');
+      if (!opt) return;
+      dragSvg = opt.querySelector('svg') ? opt.querySelector('svg').outerHTML : '';
+      dragging = true;
+      ghost.innerHTML = dragSvg;
+      ghost.style.display = 'flex';
+      ghost.style.left = e.clientX + 'px';
+      ghost.style.top  = e.clientY + 'px';
+      e.preventDefault();
+    }, { capture: true });
+
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      ghost.style.left = e.clientX + 'px';
+      ghost.style.top  = e.clientY + 'px';
+      const card = getBackCard();
+      if (card) card.classList.toggle('card-drop-active', isOverCard(e.clientX, e.clientY));
+    });
+
+    document.addEventListener('mouseup', e => {
+      if (!dragging) return;
+      dragging = false;
+      ghost.style.display = 'none';
+      const card = getBackCard();
+      if (card) card.classList.remove('card-drop-active');
+      if (isOverCard(e.clientX, e.clientY)) placeSticker(dragSvg, e.clientX, e.clientY);
+    });
+
+    document.getElementById('sticker-modal').addEventListener('click', e => {
+      const opt = e.target.closest('.sticker-opt');
+      if (!opt) return;
+      const svg = opt.querySelector('svg');
+      placeSticker(svg ? svg.outerHTML : '');
+    });
+
+    document.getElementById('sticker-modal').addEventListener('touchstart', e => {
+      const opt = e.target.closest('.sticker-opt');
+      if (!opt) return;
+      dragSvg = opt.querySelector('svg') ? opt.querySelector('svg').outerHTML : '';
+      dragging = true;
+      const t = e.touches[0];
+      ghost.innerHTML = dragSvg;
+      ghost.style.display = 'flex';
+      ghost.style.left = t.clientX + 'px';
+      ghost.style.top  = t.clientY + 'px';
+    }, { passive: true });
+
+    document.addEventListener('touchmove', e => {
+      if (!dragging) return;
+      const t = e.touches[0];
+      ghost.style.left = t.clientX + 'px';
+      ghost.style.top  = t.clientY + 'px';
+      const card = getBackCard();
+      if (card) card.classList.toggle('card-drop-active', isOverCard(t.clientX, t.clientY));
+    }, { passive: true });
+
+    document.addEventListener('touchend', e => {
+      if (!dragging) return;
+      dragging = false;
+      ghost.style.display = 'none';
+      const card = getBackCard();
+      if (card) card.classList.remove('card-drop-active');
+      const t = e.changedTouches[0];
+      if (isOverCard(t.clientX, t.clientY)) placeSticker(dragSvg, t.clientX, t.clientY);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    syncFlipSize();
+    initSlider();
+    initStampDrag();
+    initStickerDrag();
+    // apply default pen (calligraphy) on load
+    applyPen('calligraphy');
+    initPhotoReposition();
+  });
+</script>
+
+</body>
+</html>
+
+</body></html>
