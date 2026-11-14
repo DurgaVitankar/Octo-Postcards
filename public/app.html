@@ -406,6 +406,12 @@ body {
     fileInput.value = '';
   });
 
+  // Load the back's fonts up front so the first flip doesn't re-render text
+  if (document.fonts) {
+    document.fonts.load('16px "Dancing Script"');
+    document.fonts.load('700 16px "Libre Baskerville"');
+  }
+
   // Postmark shows the current month and year
   document.getElementById('pmDate').textContent =
     new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase();
@@ -483,6 +489,14 @@ body {
     postcard.classList.toggle('landscape', !toLandscape);
     const scale = to.width / from.height;
 
+    // Fade out what's printed on the card while it turns, so the switch to the
+    // other layout happens while it's invisible (the empty-state plus stays put)
+    const content = [backArea, photo].filter(el => !el.hidden && !el.parentElement.hidden);
+    const fadeOuts = content.map(el => el.animate(
+      [{ opacity: 1 }, { opacity: 0 }],
+      { duration: 160, easing: 'ease-out', fill: 'forwards' }
+    ));
+
     // Quarter turn around the card's centre: anticlockwise to landscape, clockwise back
     const angle = toLandscape ? -90 : 90;
     rotating = true;
@@ -495,6 +509,11 @@ body {
     );
     anim.onfinish = () => {
       applyOrientation(toLandscape);
+      content.forEach(el => el.animate(
+        [{ opacity: 0 }, { opacity: 1 }],
+        { duration: 180, easing: 'ease-in' }
+      ));
+      fadeOuts.forEach(a => a.cancel());
       rotating = false;
     };
   });
