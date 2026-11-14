@@ -27,7 +27,7 @@ body {
 /* Postcard: white frame with a soft shadow, photo inset inside it */
 .postcard {
   /* Portrait width; capped so the card turned on its side still fits the screen */
-  --pw: min(360px, calc(28px + (100% - 28px) * 416 / 667));
+  --pw: min(400px, calc(28px + (100% - 28px) * 416 / 667));
   width: var(--pw);
   padding: 14px;
   background: #fff;
@@ -293,7 +293,7 @@ body {
 .stage > * { grid-area: 1 / 1; }
 
 .ghost {
-  --pw: min(360px, calc(28px + (100% - 28px) * 416 / 667));
+  --pw: min(400px, calc(28px + (100% - 28px) * 416 / 667));
   width: var(--pw);
   padding: 14px;
   visibility: hidden;
