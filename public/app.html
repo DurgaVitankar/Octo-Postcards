@@ -121,6 +121,8 @@ body {
 
 /* Controls row above the postcard */
 .controls {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -188,6 +190,7 @@ body {
    so rotating never moves the controls above it */
 .stage {
   display: grid;
+  overflow-x: clip;
   justify-items: center;
   align-items: center;
   width: 100%;
@@ -290,12 +293,43 @@ body {
   const showFront = document.getElementById('showFront');
   const showBack = document.getElementById('showBack');
 
-  function setSide(side) {
-    const back = side === 'back';
+  function applySide(back) {
     photoArea.hidden = back;
     backArea.hidden = !back;
     showFront.setAttribute('aria-pressed', String(!back));
     showBack.setAttribute('aria-pressed', String(back));
+  }
+
+  // Flip the card over: turn it edge-on, swap sides, turn it back
+  function setSide(side) {
+    const back = side === 'back';
+    if (back === !backArea.hidden || rotating) return;
+    const card = document.getElementById('postcard');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion || !card.animate) { applySide(back); return; }
+
+    rotating = true;
+    const dir = back ? 1 : -1;
+    const half = { duration: 200 };
+    const out = card.animate(
+      [
+        { transform: 'perspective(2400px) rotateY(0deg)' },
+        { transform: `perspective(2400px) rotateY(${90 * dir}deg)` }
+      ],
+      { ...half, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' }
+    );
+    out.onfinish = () => {
+      applySide(back);
+      const inn = card.animate(
+        [
+          { transform: `perspective(2400px) rotateY(${-90 * dir}deg)` },
+          { transform: 'perspective(2400px) rotateY(0deg)' }
+        ],
+        { ...half, easing: 'cubic-bezier(0, 0, 0.2, 1)' }
+      );
+      out.cancel();
+      inn.onfinish = () => { rotating = false; };
+    };
   }
   showFront.addEventListener('click', () => setSide('front'));
   showBack.addEventListener('click', () => setSide('back'));
@@ -303,12 +337,43 @@ body {
   // Rotate between portrait and landscape
   const postcard = document.getElementById('postcard');
   const rotate = document.getElementById('rotate');
-  rotate.addEventListener('click', () => {
-    const landscape = postcard.classList.toggle('landscape');
+  let rotating = false;
+
+  function applyOrientation(landscape) {
+    postcard.classList.toggle('landscape', landscape);
     document.body.classList.toggle('postcard-landscape', landscape);
     const label = landscape ? 'Rotate to portrait' : 'Rotate to landscape';
     rotate.setAttribute('aria-label', label);
     rotate.title = label;
+  }
+
+  rotate.addEventListener('click', () => {
+    if (rotating) return;
+    const toLandscape = !postcard.classList.contains('landscape');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion || !postcard.animate) { applyOrientation(toLandscape); return; }
+
+    // Measure the target size so the turned card lands exactly on it
+    const from = postcard.getBoundingClientRect();
+    postcard.classList.toggle('landscape', toLandscape);
+    const to = postcard.getBoundingClientRect();
+    postcard.classList.toggle('landscape', !toLandscape);
+    const scale = to.width / from.height;
+
+    // Quarter turn around the card's centre: anticlockwise to landscape, clockwise back
+    const angle = toLandscape ? -90 : 90;
+    rotating = true;
+    const anim = postcard.animate(
+      [
+        { transform: 'rotate(0deg) scale(1)' },
+        { transform: `rotate(${angle}deg) scale(${scale})` }
+      ],
+      { duration: 400, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' }
+    );
+    anim.onfinish = () => {
+      applyOrientation(toLandscape);
+      rotating = false;
+    };
   });
 
   // Drag and drop onto the empty postcard
