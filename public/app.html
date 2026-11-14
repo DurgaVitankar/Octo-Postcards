@@ -13,15 +13,38 @@
 html, body { height: 100%; }
 
 body {
-  min-height: 100vh;
+  background: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+
+/* The page is three screens wide: an empty panel either side of the
+   postcard. It opens centred on the postcard and scrolls left and right. */
+.scroller {
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior-x: contain;
+}
+
+.track {
+  display: flex;
+  width: 300%;
+  min-height: 100%;
+}
+
+.zone {
+  flex: 0 0 calc(100% / 3);
+  min-width: 0;
+}
+
+.zone-center {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 16px;
-  padding: 24px 16px 14vh;
-  background: #fff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  padding: 24px 16px 8vh;
 }
 
 /* Postcard: white frame with a soft shadow, photo inset inside it */
@@ -349,6 +372,10 @@ body {
 </head>
 <body>
 
+<div class="scroller" id="scroller">
+<div class="track">
+<section class="zone" aria-label="Left panel"></section>
+<section class="zone zone-center">
 <div class="controls">
 <div class="rotate-pill">
   <button type="button" id="rotate" aria-label="Rotate to landscape" data-tip="Rotate to landscape">
@@ -413,6 +440,10 @@ body {
   <input type="file" id="fileInput" accept="image/*" hidden>
 </div>
 </div>
+</section>
+<section class="zone" aria-label="Right panel"></section>
+</div>
+</div>
 
 <script>
   const empty = document.getElementById('empty');
@@ -447,6 +478,19 @@ body {
   // Postmark shows the current month and year
   document.getElementById('pmDate').textContent =
     new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase();
+
+  // Open centred on the postcard
+  const scroller = document.getElementById('scroller');
+  scroller.scrollLeft = (scroller.scrollWidth - scroller.clientWidth) / 2;
+
+  // A plain mouse wheel scrolls sideways (except inside the message box)
+  scroller.addEventListener('wheel', (e) => {
+    if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    if (e.target.closest('textarea')) return;
+    if (scroller.scrollHeight > scroller.clientHeight) return;
+    scroller.scrollLeft += e.deltaY;
+    e.preventDefault();
+  }, { passive: false });
 
   // Front / back toggle
   const photoArea = document.getElementById('photoArea');
