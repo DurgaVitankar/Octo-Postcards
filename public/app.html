@@ -23,7 +23,9 @@ body {
 
 /* Postcard: white frame with a soft shadow, photo inset inside it */
 .postcard {
-  width: min(360px, 100%);
+  /* Portrait width; capped so the card turned on its side still fits the screen */
+  --pw: min(360px, calc(28px + (100% - 28px) * 416 / 667));
+  width: var(--pw);
   padding: 14px;
   background: #fff;
   border-radius: 10px;
@@ -89,7 +91,10 @@ body {
 
 .empty:hover .plus { transform: scale(1.05); }
 
+/* Label sits below the plus without pushing it off centre */
 .add-label {
+  position: absolute;
+  top: calc(50% + 25px);
   font-size: 13px;
   letter-spacing: 0.01em;
   opacity: 0;
@@ -199,7 +204,8 @@ body {
 .stage > * { grid-area: 1 / 1; }
 
 .ghost {
-  width: min(360px, 100%);
+  --pw: min(360px, calc(28px + (100% - 28px) * 416 / 667));
+  width: var(--pw);
   padding: 14px;
   visibility: hidden;
 }
@@ -207,7 +213,8 @@ body {
 .ghost div { aspect-ratio: 416 / 667; }
 
 /* Landscape orientation */
-.postcard.landscape { width: min(560px, 100%); }
+/* Landscape is the portrait card turned on its side: same dimensions, swapped */
+.postcard.landscape { width: calc(28px + (var(--pw) - 28px) * 667 / 416); }
 .postcard.landscape .photo-area,
 .postcard.landscape .back-area { aspect-ratio: 667 / 416; }
 
