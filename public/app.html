@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Postcards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500&family=Libre+Baskerville:wght@700&display=swap">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -168,28 +171,114 @@ body {
   outline-offset: 1px;
 }
 
-/* Back of the postcard: a plain writing surface */
+/* Back of the postcard: postcard header, stamp, address and lined message.
+   Sizes use cqmin (the card's short side) so both orientations match. */
 .back-area {
+  --ink: #1d1d1d;
+  --rule: #e6e3df;
+  --hint: #c9c5c7;
+  --mauve: #a8979e;
+  --script: 'Dancing Script', 'Apple Chancery', 'Segoe Script', cursive;
   width: 100%;
   aspect-ratio: 416 / 667;
-  display: flex;
+  container-type: size;
+  display: grid;
   padding: 12px;
+  column-gap: 16px;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    "head stamp"
+    "addr stamp"
+    "msg  msg";
+}
+
+.back-head { grid-area: head; padding-top: 1cqmin; }
+
+.back-title {
+  font-family: 'Libre Baskerville', Georgia, 'Times New Roman', serif;
+  font-weight: 700;
+  font-size: 4.2cqmin;
+  letter-spacing: 0.22em;
+  color: var(--ink);
+}
+
+.back-sub {
+  font-family: var(--script);
+  font-size: 4.8cqmin;
+  line-height: 1;
+  color: var(--mauve);
+}
+
+.stamp { grid-area: stamp; width: 28cqmin; }
+.stamp svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+.address {
+  grid-area: addr;
+  display: flex;
+  flex-direction: column;
+  max-width: 60cqw;
+  margin-top: 3cqmin;
+}
+
+.address input,
+.message {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #3a3a3a;
+  font-family: var(--script);
+  font-size: 6cqmin;
+}
+
+.address input {
+  border-bottom: 1px solid var(--rule);
+  padding: 2cqmin 1cqmin 0.4cqmin;
 }
 
 .message {
-  flex: 1;
-  width: 100%;
-  border: none;
+  grid-area: msg;
+  margin-top: 7cqmin;
+  padding: 0 1cqmin;
+  line-height: 9.5cqmin;
   resize: none;
-  background: transparent;
-  color: #222;
-  font: inherit;
-  font-size: 15px;
-  line-height: 1.6;
+  /* Ruled lines that scroll with the text */
+  background-image: repeating-linear-gradient(to bottom,
+    transparent 0 calc(9.5cqmin - 1px),
+    var(--rule) calc(9.5cqmin - 1px) 9.5cqmin);
+  background-attachment: local;
 }
 
-.message::placeholder { color: #b5b5b5; }
+.address input::placeholder,
+.message::placeholder { color: var(--hint); }
+.address input:focus,
 .message:focus { outline: none; }
+.address input:focus { border-bottom-color: #cfcac4; }
+
+.back-divider { grid-area: div; display: none; background: var(--rule); }
+
+/* Landscape back: message on the left, address side on the right */
+.postcard.landscape .back-area {
+  aspect-ratio: 667 / 416;
+  grid-template-columns: 1.35fr 1px 1fr auto;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "msg div head stamp"
+    "msg div addr addr";
+}
+
+.postcard.landscape .back-divider {
+  display: block;
+  margin-block: -26px;
+}
+
+.postcard.landscape .address {
+  align-self: end;
+  max-width: none;
+  margin-top: 0;
+}
+
+.postcard.landscape .message { margin-top: 6cqmin; }
 
 /* Stage keeps the portrait card's height in both orientations,
    so rotating never moves the controls above it */
@@ -264,7 +353,30 @@ body {
     <button class="replace" id="replace" type="button" hidden>Replace</button>
   </div>
   <div class="back-area" id="backArea" hidden>
-    <textarea class="message" id="message" placeholder="Write a message…" aria-label="Message"></textarea>
+    <div class="back-head">
+      <div class="back-title">POSTCARD</div>
+      <div class="back-sub">with love</div>
+    </div>
+    <div class="stamp" aria-hidden="true">
+      <svg viewBox="0 0 100 92" fill="none">
+        <rect x="34" y="8" width="58" height="56" rx="1.5" stroke="#c9a6ad" stroke-width="1.2" stroke-dasharray="3 2"/>
+        <rect x="42" y="0" width="54" height="56" rx="2" fill="#eeece9"/>
+        <defs><path id="pmArc" d="M 12 54 A 26 26 0 0 1 64 54"/><path id="pmArcLow" d="M 16 62 A 23 23 0 0 0 60 62"/></defs>
+        <circle cx="38" cy="58" r="31" stroke="#cdc3c7" stroke-width="1"/>
+        <circle cx="38" cy="58" r="27" stroke="#cdc3c7" stroke-width="0.6"/>
+        <text font-family="'Libre Baskerville', Georgia, serif" font-size="5.2" letter-spacing="1.6" fill="#b9adb2"><textPath href="#pmArc" startOffset="50%" text-anchor="middle">YOUR LOCATION</textPath></text>
+        <text font-family="'Libre Baskerville', Georgia, serif" font-size="5.2" letter-spacing="1.4" fill="#b9adb2"><textPath href="#pmArcLow" startOffset="50%" text-anchor="middle" id="pmDate">SEP 2026</textPath></text>
+        <path d="M 6 58 q 7 -6 14 0 t 14 0 t 14 0 t 14 0 t 14 0 t 14 0" stroke="#cdc3c7" stroke-width="1"/>
+      </svg>
+    </div>
+    <div class="address">
+      <input type="text" id="toName" placeholder="Name" aria-label="Name" autocomplete="off">
+      <input type="text" id="toAddress" placeholder="Address" aria-label="Address" autocomplete="off">
+      <input type="text" id="toCity" placeholder="City, Country" aria-label="City and country" autocomplete="off">
+      <input type="text" id="toPostal" placeholder="Postal code" aria-label="Postal code" autocomplete="off">
+    </div>
+    <div class="back-divider"></div>
+    <textarea class="message" id="message" placeholder="Write your message…" aria-label="Message"></textarea>
   </div>
   <input type="file" id="fileInput" accept="image/*" hidden>
 </div>
@@ -293,6 +405,10 @@ body {
     showPhoto(fileInput.files[0]);
     fileInput.value = '';
   });
+
+  // Postmark shows the current month and year
+  document.getElementById('pmDate').textContent =
+    new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase();
 
   // Front / back toggle
   const photoArea = document.getElementById('photoArea');
