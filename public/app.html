@@ -184,8 +184,26 @@ body {
 .message::placeholder { color: #b5b5b5; }
 .message:focus { outline: none; }
 
+/* Stage keeps the portrait card's height in both orientations,
+   so rotating never moves the controls above it */
+.stage {
+  display: grid;
+  justify-items: center;
+  align-items: start;
+  width: 100%;
+}
+
+.stage > * { grid-area: 1 / 1; }
+
+.ghost {
+  width: min(360px, 100%);
+  padding: 14px;
+  visibility: hidden;
+}
+
+.ghost div { aspect-ratio: 416 / 667; }
+
 /* Landscape orientation */
-.postcard { transition: width 0.25s ease; }
 .postcard.landscape { width: min(560px, 100%); }
 .postcard.landscape .photo-area,
 .postcard.landscape .back-area { aspect-ratio: 667 / 416; }
@@ -194,10 +212,6 @@ body {
 .rotate-pill .icon-portrait { display: none; }
 .postcard-landscape .rotate-pill .icon-portrait { display: block; }
 .postcard-landscape .rotate-pill .icon-landscape { display: none; }
-
-@media (prefers-reduced-motion: reduce) {
-  .postcard { transition: none; }
-}
 
 [hidden] { display: none !important; }
 </style>
@@ -225,6 +239,8 @@ body {
 </div>
 </div>
 
+<div class="stage">
+<div class="ghost" aria-hidden="true"><div></div></div>
 <div class="postcard" id="postcard">
   <div class="photo-area" id="photoArea">
     <button class="empty" id="empty" type="button" aria-label="Add photo">
@@ -241,6 +257,7 @@ body {
     <textarea class="message" id="message" placeholder="Write a message…" aria-label="Message"></textarea>
   </div>
   <input type="file" id="fileInput" accept="image/*" hidden>
+</div>
 </div>
 
 <script>
