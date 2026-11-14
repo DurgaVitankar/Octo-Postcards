@@ -119,8 +119,16 @@ body {
 .photo-area:hover .replace,
 .replace:focus-visible { opacity: 1; }
 
-/* Front / back toggle above the postcard */
-.side-toggle {
+/* Controls row above the postcard */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Front / back toggle and rotate button share the pill style */
+.side-toggle,
+.rotate-pill {
   display: inline-flex;
   gap: 4px;
   padding: 4px;
@@ -128,7 +136,8 @@ body {
   border-radius: 14px;
 }
 
-.side-toggle button {
+.side-toggle button,
+.rotate-pill button {
   width: 44px;
   height: 40px;
   display: flex;
@@ -142,10 +151,12 @@ body {
   transition: background 0.15s;
 }
 
-.side-toggle button:hover { background: #f4f4f4; }
+.side-toggle button:hover,
+.rotate-pill button:hover { background: #f4f4f4; }
 .side-toggle button[aria-pressed="true"] { background: #efefef; }
 
-.side-toggle button:focus-visible {
+.side-toggle button:focus-visible,
+.rotate-pill button:focus-visible {
   outline: 2px solid #8a8a8a;
   outline-offset: 1px;
 }
@@ -173,11 +184,27 @@ body {
 .message::placeholder { color: #b5b5b5; }
 .message:focus { outline: none; }
 
+/* Landscape orientation */
+.postcard { transition: width 0.25s ease; }
+.postcard.landscape { width: min(560px, 100%); }
+.postcard.landscape .photo-area,
+.postcard.landscape .back-area { aspect-ratio: 667 / 416; }
+
+/* The rotate button shows the orientation it will switch to */
+.rotate-pill .icon-portrait { display: none; }
+.postcard-landscape .rotate-pill .icon-portrait { display: block; }
+.postcard-landscape .rotate-pill .icon-landscape { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .postcard { transition: none; }
+}
+
 [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 
+<div class="controls">
 <div class="side-toggle" role="group" aria-label="Postcard side">
   <button type="button" id="showFront" aria-pressed="true" aria-label="Front" title="Front">
     <!-- Custom icon: front (Frame 1) -->
@@ -189,7 +216,16 @@ body {
   </button>
 </div>
 
-<div class="postcard">
+<div class="rotate-pill">
+  <button type="button" id="rotate" aria-label="Rotate to landscape" title="Rotate to landscape">
+    <!-- Custom icons: landscape (Frame) and portrait (Frame 74) -->
+    <svg class="icon-landscape" width="24" height="24" viewBox="-0.67 -1 16 16" stroke="currentColor" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1.66602 3.66699L2.99935 5.00033L4.33268 3.66699"/><path d="M3 5.00033L3 3.00033C3 2.26395 3.65124 1.66699 4.45455 1.66699L7 1.66699"/><path d="M12.7092 12.3337L4.62027 12.3337C4.46071 12.3337 4.33138 12.2342 4.33138 12.1114L4.33138 5.88921C4.33138 5.76648 4.46071 5.66699 4.62027 5.66699L12.7092 5.66699C12.8687 5.66699 12.998 5.76648 12.998 5.88921L12.998 12.1114C12.998 12.2342 12.8687 12.3337 12.7092 12.3337Z"/></svg>
+    <svg class="icon-portrait" width="24" height="24" viewBox="3.33 3 16 16" stroke="currentColor" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8.66602 4.66699L9.99935 6.00033L8.66602 7.33366"/><path d="M9.99935 6H7.99935C7.26297 6 6.66602 6.65124 6.66602 7.45455V10"/><path d="M15.9987 8.95588V17.0448C15.9987 17.2043 15.8992 17.3337 15.7765 17.3337H9.55425C9.43152 17.3337 9.33203 17.2043 9.33203 17.0448V8.95588C9.33203 8.79633 9.43152 8.66699 9.55425 8.66699H15.7765C15.8992 8.66699 15.9987 8.79633 15.9987 8.95588Z"/></svg>
+  </button>
+</div>
+</div>
+
+<div class="postcard" id="postcard">
   <div class="photo-area" id="photoArea">
     <button class="empty" id="empty" type="button" aria-label="Add photo">
       <span class="plus" aria-hidden="true">
@@ -246,6 +282,17 @@ body {
   }
   showFront.addEventListener('click', () => setSide('front'));
   showBack.addEventListener('click', () => setSide('back'));
+
+  // Rotate between portrait and landscape
+  const postcard = document.getElementById('postcard');
+  const rotate = document.getElementById('rotate');
+  rotate.addEventListener('click', () => {
+    const landscape = postcard.classList.toggle('landscape');
+    document.body.classList.toggle('postcard-landscape', landscape);
+    const label = landscape ? 'Rotate to portrait' : 'Rotate to landscape';
+    rotate.setAttribute('aria-label', label);
+    rotate.title = label;
+  });
 
   // Drag and drop onto the empty postcard
   empty.addEventListener('dragover', (e) => { e.preventDefault(); empty.classList.add('dragging'); });
