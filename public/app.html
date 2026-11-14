@@ -7,69 +7,170 @@
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body { height: 100%; }
+
 body {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 24px 16px;
   background: #fff;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+/* Postcard: white frame with a soft shadow, photo inset inside it */
 .postcard {
-  width: 432px;
-  height: 600px;
+  width: min(452px, 100%);
+  padding: 18px;
   background: #fff;
-  border-radius: 6px;
-  box-shadow: 0 2px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
+  border-radius: 10px;
+  box-shadow: 0 2px 24px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.photo-area {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 416 / 667;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.photo-area img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Empty state: a quiet surface with a plus in the centre */
+.empty {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
+  width: 100%;
+  border: 1.5px dashed #e2e2e2;
+  border-radius: 2px;
+  background: #fafafa;
+  color: #b5b5b5;
+  font: inherit;
   cursor: pointer;
-  position: relative;
-  overflow: hidden;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 
-.plus-icon {
-  width: 44px;
-  height: 44px;
-  border: 1.5px solid #c8c8c8;
+.empty:hover,
+.empty.dragging {
+  background: #f4f4f4;
+  border-color: #cfcfcf;
+  color: #8a8a8a;
+}
+
+.empty:focus-visible {
+  outline: 2px solid #8a8a8a;
+  outline-offset: 2px;
+}
+
+.plus {
+  width: 52px;
+  height: 52px;
+  border: 1.5px solid currentColor;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #c0c0c0;
-  font-size: 22px;
-  line-height: 1;
-  transition: border-color 0.2s, color 0.2s;
+  transition: transform 0.2s;
 }
+
+.empty:hover .plus { transform: scale(1.05); }
 
 .add-label {
   font-size: 13px;
-  color: #c0c0c0;
+  letter-spacing: 0.01em;
   opacity: 0;
   transition: opacity 0.2s;
-  letter-spacing: 0.01em;
 }
 
-.postcard:hover .plus-icon {
-  border-color: #999;
-  color: #888;
+.empty:hover .add-label,
+.empty:focus-visible .add-label { opacity: 1; }
+
+/* Replace control shown over a filled postcard */
+.replace {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 
-.postcard:hover .add-label {
-  opacity: 1;
-}
+.photo-area:hover .replace,
+.replace:focus-visible { opacity: 1; }
+
+[hidden] { display: none !important; }
 </style>
 </head>
 <body>
 
 <div class="postcard">
-  <div class="plus-icon">+</div>
-  <span class="add-label">Add photo</span>
+  <div class="photo-area" id="photoArea">
+    <button class="empty" id="empty" type="button" aria-label="Add photo">
+      <span class="plus" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="add-label">Add photo</span>
+    </button>
+    <img id="photo" alt="Postcard photo" hidden>
+    <button class="replace" id="replace" type="button" hidden>Replace</button>
+  </div>
+  <input type="file" id="fileInput" accept="image/*" hidden>
 </div>
+
+<script>
+  const empty = document.getElementById('empty');
+  const photo = document.getElementById('photo');
+  const replace = document.getElementById('replace');
+  const fileInput = document.getElementById('fileInput');
+  let currentUrl = null;
+
+  function showPhoto(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    if (currentUrl) URL.revokeObjectURL(currentUrl);
+    currentUrl = URL.createObjectURL(file);
+    photo.src = currentUrl;
+    photo.hidden = false;
+    replace.hidden = false;
+    empty.hidden = true;
+  }
+
+  empty.addEventListener('click', () => fileInput.click());
+  replace.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    showPhoto(fileInput.files[0]);
+    fileInput.value = '';
+  });
+
+  // Drag and drop onto the empty postcard
+  empty.addEventListener('dragover', (e) => { e.preventDefault(); empty.classList.add('dragging'); });
+  empty.addEventListener('dragleave', () => empty.classList.remove('dragging'));
+  empty.addEventListener('drop', (e) => {
+    e.preventDefault();
+    empty.classList.remove('dragging');
+    showPhoto(e.dataTransfer.files[0]);
+  });
+</script>
 
 </body>
 </html>
