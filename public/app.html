@@ -871,6 +871,30 @@ body {
   const scroller = document.getElementById('scroller');
   scroller.scrollLeft = document.querySelector('.zone-left').offsetWidth;
 
+  // Gentle anchors: scrolling stays free, but if it comes to rest close to the
+  // bookshelf (left end), the postcard (centre) or the mailbox (right end),
+  // it eases the last few pixels onto that frame.
+  (function () {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let timer = null, pressed = false;
+    const settle = () => {
+      if (pressed) return;
+      const max = scroller.scrollWidth - scroller.clientWidth;
+      const anchors = [0, document.querySelector('.zone-left').offsetWidth, max];
+      const x = scroller.scrollLeft;
+      const near = anchors.reduce((a, b) => Math.abs(b - x) < Math.abs(a - x) ? b : a);
+      const pull = Math.min(120, scroller.clientWidth * 0.12);
+      const d = Math.abs(near - x);
+      if (d > 1 && d <= pull) scroller.scrollTo({ left: near, behavior: reduce ? 'auto' : 'smooth' });
+    };
+    scroller.addEventListener('scroll', () => { clearTimeout(timer); timer = setTimeout(settle, 180); }, { passive: true });
+    // don't pull while a finger or the scrollbar is still holding the page
+    scroller.addEventListener('pointerdown', () => { pressed = true; });
+    window.addEventListener('pointerup', () => { pressed = false; clearTimeout(timer); timer = setTimeout(settle, 180); });
+    scroller.addEventListener('touchstart', () => { pressed = true; }, { passive: true });
+    window.addEventListener('touchend', () => { pressed = false; clearTimeout(timer); timer = setTimeout(settle, 180); });
+  })();
+
   // A plain mouse wheel scrolls sideways (except inside the message box)
   scroller.addEventListener('wheel', (e) => {
     if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
