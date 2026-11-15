@@ -145,35 +145,6 @@ body {
   pointer-events: auto;
 }
 
-/* Monstera beside the shelf: its leaves are a separate layer (the shelf image
-   has plain page behind them), so they can sway on hover, pivoting at the pot */
-.monstera {
-  position: absolute;
-  left: 1.900%;
-  top: 26.945%;
-  width: 35.550%;
-  height: 46.956%;
-  max-width: none;
-  transform-origin: 55.1% 100%;
-  pointer-events: auto;
-  user-select: none;
-}
-
-.monstera.swaying { animation: leaf-sway 1.6s ease-in-out; }
-
-@keyframes leaf-sway {
-  0%   { transform: rotate(0deg) skewX(0deg); }
-  14%  { transform: rotate(2.4deg) skewX(-1.2deg); }
-  34%  { transform: rotate(-1.8deg) skewX(0.9deg); }
-  54%  { transform: rotate(1.1deg) skewX(-0.5deg); }
-  74%  { transform: rotate(-0.5deg) skewX(0.2deg); }
-  100% { transform: rotate(0deg) skewX(0deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .monstera.swaying { animation: none; }
-}
-
 .zone-center {
   position: relative;
   z-index: 1;
@@ -634,7 +605,6 @@ body {
 <section class="zone zone-left" aria-label="Left panel">
   <div class="shelf">
     <img class="bookshelf" src="bookshelf.webp" alt="Watercolour bookshelf of plants, books and postcards beside a potted monstera" draggable="false">
-    <img class="monstera" id="monstera" src="monstera-leaves.webp" alt="" draggable="false">
     <canvas class="globe" id="globe" aria-hidden="true"></canvas>
     <button class="stand" id="stand" type="button" aria-label="Postcard stand">
       <img src="stand.webp" alt="" draggable="false">
@@ -901,11 +871,6 @@ body {
       })(start);
     });
   })();
-
-  // Monstera leaves sway when touched (hovered), then settle
-  const monstera = document.getElementById('monstera');
-  monstera.addEventListener('mouseenter', () => monstera.classList.add('swaying'));
-  monstera.addEventListener('animationend', () => monstera.classList.remove('swaying'));
 
   // Front / back toggle
   const photoArea = document.getElementById('photoArea');
