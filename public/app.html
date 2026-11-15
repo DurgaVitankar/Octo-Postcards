@@ -859,7 +859,7 @@ body {
     canvas.addEventListener('mouseenter', () => {
       if (spinning || !tex || reduce) return;
       spinning = true;
-      const start = performance.now(), dur = 2200, turn = BAND;   // one pass of the pattern
+      const start = performance.now(), dur = 1500, turn = BAND;   // one pass of the pattern
       const ease = t => 1 - Math.pow(1 - t, 3);
       (function frame(now) {
         const t = Math.min(1, (now - start) / dur);
