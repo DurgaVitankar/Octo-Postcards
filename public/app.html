@@ -377,7 +377,7 @@ body {
   color: var(--mauve);
 }
 
-.stamp { grid-area: stamp; width: 28cqmin; }
+.stamp { grid-area: stamp; width: 28cqmin; padding-top: 1cqmin; /* top aligns with the heading */ }
 .stamp svg { display: block; width: 100%; height: auto; overflow: visible; }
 
 .address {
@@ -759,15 +759,15 @@ body {
     </div>
     <div class="stamp" aria-hidden="true">
       <svg viewBox="0 0 100 92" fill="none">
-        <rect x="34" y="8" width="58" height="56" rx="1.5" stroke="#c9a6ad" stroke-width="1.2" stroke-dasharray="3 2"/>
-        <rect id="stampSlot" x="42" y="0" width="54" height="56" rx="2" fill="#eeece9"/>
-        <image id="stampImg" x="42" y="-2" width="54" height="60" preserveAspectRatio="xMidYMid meet" style="visibility:hidden"/>
-        <defs><path id="pmArc" d="M 12 54 A 26 26 0 0 1 64 54"/><path id="pmArcLow" d="M 16 62 A 23 23 0 0 0 60 62"/></defs>
-        <circle cx="38" cy="58" r="31" stroke="#cdc3c7" stroke-width="1"/>
-        <circle cx="38" cy="58" r="27" stroke="#cdc3c7" stroke-width="0.6"/>
-        <text font-family="'Libre Baskerville', Georgia, serif" font-size="5.2" letter-spacing="1.6" fill="#b9adb2"><textPath href="#pmArc" startOffset="50%" text-anchor="middle">YOUR LOCATION</textPath></text>
-        <text font-family="'Libre Baskerville', Georgia, serif" font-size="5.2" letter-spacing="1.4" fill="#b9adb2"><textPath href="#pmArcLow" startOffset="50%" text-anchor="middle" id="pmDate">SEP 2026</textPath></text>
-        <path d="M 6 58 q 7 -6 14 0 t 14 0 t 14 0 t 14 0 t 14 0 t 14 0" stroke="#cdc3c7" stroke-width="1"/>
+        <rect x="48.5" y="0.5" width="51" height="71" rx="1.5" stroke="#c9a6ad" stroke-width="1" stroke-dasharray="3 2"/>
+        <rect id="stampSlot" x="52" y="4" width="44" height="64" rx="1.5" fill="#eeece9"/>
+        <image id="stampImg" x="52" y="4" width="44" height="64" preserveAspectRatio="xMidYMid meet" style="visibility:hidden"/>
+        <defs><path id="pmArc" d="M 31.89 64 A 20.5 20.5 0 0 1 72.11 64"/><path id="pmArcLow" d="M 34.96 72 A 17.5 17.5 0 0 0 69.04 72"/></defs>
+        <circle cx="52" cy="68" r="23" stroke="#cdc3c7" stroke-width="1"/>
+        <circle cx="52" cy="68" r="19.5" stroke="#cdc3c7" stroke-width="0.6"/>
+        <text font-family="'Libre Baskerville', Georgia, serif" font-size="4.2" letter-spacing="1.3" fill="#b9adb2"><textPath href="#pmArc" startOffset="50%" text-anchor="middle">YOUR LOCATION</textPath></text>
+        <text font-family="'Libre Baskerville', Georgia, serif" font-size="4.2" letter-spacing="1.2" fill="#b9adb2"><textPath href="#pmArcLow" startOffset="50%" text-anchor="middle" id="pmDate">SEP 2026</textPath></text>
+        <path d="M 18 68 q 6 -5 12 0 t 12 0 t 12 0 t 12 0 t 12 0 t 12 0" stroke="#cdc3c7" stroke-width="1"/>
       </svg>
     </div>
     <div class="address">
