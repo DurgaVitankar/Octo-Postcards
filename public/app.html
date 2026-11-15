@@ -6,7 +6,7 @@
 <title>Postcards</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500&family=Libre+Baskerville:wght@700&family=Special+Elite&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500&family=Libre+Baskerville:wght@700&family=Tangerine:wght@400;700&family=Geist+Pixel&display=swap">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -383,25 +383,25 @@ body {
   border: none;
   background: transparent;
   color: #3a3a3a;
-  font-family: var(--write-font, var(--script));
-  font-size: var(--write-size, 6cqmin);
+  font-family: var(--write-font, var(--font-hand));
+  font-size: var(--write-size, 8.5cqmin);
 }
 
 /* Writing font, switched by the "Aa" tool: handwritten (default) or typewriter */
 :root {
-  --font-hand: 'Dancing Script', 'Apple Chancery', 'Segoe Script', cursive;
-  --font-type: 'Special Elite', 'American Typewriter', 'Courier New', monospace;
+  --font-hand: 'Tangerine', 'Apple Chancery', 'Segoe Script', cursive;
+  --font-type: 'Geist Pixel', 'Geist Mono', 'Courier New', monospace;
 }
 
 .font-typewriter .back-area {
   --write-font: var(--font-type);
-  --write-size: 4.6cqmin;
+  --write-size: 4.4cqmin;
 }
 
 .address input {
   border-bottom: 1px solid var(--rule);
   padding: 2cqmin 1cqmin 0.4cqmin;
-  line-height: 7.5cqmin; /* same row height in both fonts */
+  line-height: 9cqmin; /* same row height in both fonts */
 }
 
 .message {
@@ -546,7 +546,8 @@ body {
   align-items: center;
   justify-content: center;
   font-family: var(--font-hand);
-  font-size: 46px;
+  font-size: 64px;
+  font-weight: 700;
   line-height: 1;
   color: #111;
   pointer-events: none;
@@ -555,7 +556,8 @@ body {
 
 .font-typewriter .font-preview {
   font-family: var(--font-type);
-  font-size: 38px;
+  font-size: 34px;
+  font-weight: 400;
 }
 
 .tool img {
@@ -712,7 +714,9 @@ body {
   if (document.fonts) {
     document.fonts.load('16px "Dancing Script"');
     document.fonts.load('700 16px "Libre Baskerville"');
-    document.fonts.load('16px "Special Elite"');
+    document.fonts.load('16px "Tangerine"');
+    document.fonts.load('700 16px "Tangerine"');
+    document.fonts.load('16px "Geist Pixel"');
   }
 
   // Postmark shows the current month and year
