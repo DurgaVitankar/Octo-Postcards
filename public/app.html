@@ -595,54 +595,30 @@ body {
   .tool, .tool path { transition: none; }
 }
 
-/* Stamp tray: opens beside the postcard from the Stamp tool */
+/* Stamp tray: opens below the postcard, above the tools, as one row */
 .stamp-tray {
-  position: absolute;
-  z-index: 3;
-  width: 196px;
-  padding: 12px 12px 14px;
+  max-width: 100%;
+  padding: 8px 10px;
   border-radius: 14px;
   background: #fff;
   box-shadow: 0 2px 24px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.05);
   pointer-events: auto;
 }
 
-.tray-head {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  margin-bottom: 8px;
-  font-size: 13px;
-  color: #5c422f;
-  letter-spacing: 0.02em;
-}
-
-.tray-close {
-  width: 26px;
-  height: 26px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: #8c6d55;
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.tray-close:hover { background: #f4efe9; }
-
 .stamp-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
 }
 
 .tray-stamp {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 104px;
-  padding: 6px;
+  width: 60px;
+  height: 84px;
+  padding: 4px;
   border: none;
   border-radius: 10px;
   background: transparent;
@@ -663,28 +639,6 @@ body {
 .tray-stamp:active { cursor: grabbing; }
 .tray-stamp[aria-pressed="true"] { background: #efe6dc; }
 .tray-stamp:focus-visible { outline: 2px solid #8c6d55; outline-offset: 1px; }
-
-/* Narrow screens: the tray becomes a strip along the bottom */
-.stamp-tray.sheet {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: auto;
-  border-radius: 14px 14px 0 0;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-}
-
-.stamp-tray.sheet .stamp-grid {
-  grid-template-columns: none;
-  grid-auto-flow: column;
-  grid-auto-columns: 72px;
-  overflow-x: auto;
-}
-
-.stamp-tray.sheet .tray-stamp { height: 96px; }
 
 /* The stamp being dragged */
 .stamp-ghost {
@@ -796,6 +750,10 @@ body {
 </div>
 </div>
 
+<div class="stamp-tray" id="stampTray" role="dialog" aria-label="Stamps" hidden>
+  <div class="stamp-grid" id="stampGrid"></div>
+</div>
+
 <div class="tools" role="group" aria-label="Postcard tools">
   <button type="button" class="tool" id="toolFont" aria-label="Font: handwritten. Switch to typewriter" data-tip="Switch to typewriter">
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M5 4 C30 2 62 6 95 3 C97 32 93 66 97 96 C66 98 34 94 3 97 C6 66 2 34 5 4 Z"/></svg>
@@ -811,9 +769,6 @@ body {
   </button>
 </div>
 
-<div class="stamp-tray" id="stampTray" role="dialog" aria-label="Stamps" hidden>
-  <div class="stamp-grid" id="stampGrid"></div>
-</div>
 
 </section>
 <section class="zone zone-right" aria-label="Right panel">
@@ -1008,8 +963,6 @@ body {
     const grid = document.getElementById('stampGrid');
     const slot = document.getElementById('stampSlot');
     const placed = document.getElementById('stampImg');
-    const zone = document.querySelector('.zone-center');
-    const card = document.getElementById('postcard');
     const backArea = document.getElementById('backArea');
     let current = null;   // id of the stamp on the postcard, or null
 
@@ -1041,24 +994,10 @@ body {
 
     function showBack() { if (backArea.hidden) setSide('back'); }
 
-    function positionTray() {
-      const z = zone.getBoundingClientRect(), c = card.getBoundingClientRect();
-      tray.classList.remove('sheet');
-      const room = z.right - c.right - 32;
-      if (room < tray.offsetWidth + 16) {
-        tray.classList.add('sheet');            // narrow screens: a strip along the bottom
-        tray.style.left = tray.style.top = '';
-      } else {
-        tray.style.left = (c.right - z.left + 32) + 'px';
-        tray.style.top = (c.top - z.top) + 'px';
-      }
-    }
-
     function open() {
       tray.hidden = false;
       tool.setAttribute('aria-expanded', 'true');
       showBack();
-      positionTray();
     }
     function close() {
       tray.hidden = true;
@@ -1067,10 +1006,6 @@ body {
     tool.setAttribute('aria-expanded', 'false');
     tool.addEventListener('click', () => (tray.hidden ? open() : close()));
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !tray.hidden) close(); });
-    window.addEventListener('resize', () => { if (!tray.hidden) positionTray(); });
-    document.getElementById('rotate').addEventListener('click', () => {
-      if (!tray.hidden) setTimeout(positionTray, 450);
-    });
 
     function overSlot(x, y) {
       const r = slot.getBoundingClientRect(), pad = 16;
