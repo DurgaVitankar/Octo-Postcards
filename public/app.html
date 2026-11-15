@@ -445,8 +445,9 @@ body {
   margin-top: 24px;
 }
 
-/* Tiles overlap by 12px, like hand-placed cards */
-.tool + .tool { margin-left: -12px; }
+/* Spacing, tilt and height measured from the mock-up (cards ~400px there, 112px here) */
+.tool:nth-child(2) { margin-left: 4px; }
+.tool:nth-child(3) { margin-left: 5px; }
 
 /* The left card sits over the middle one so "Aa" isn't covered */
 .tool:nth-child(1) { z-index: 1; }
@@ -456,6 +457,7 @@ body {
 
 .tool {
   --r: 0deg;
+  --y: 0px;
   --fill: #f3efe9;
   position: relative;
   width: 112px;
@@ -464,14 +466,14 @@ body {
   border: none;
   background: none;
   cursor: pointer;
-  transform: rotate(var(--r));
-  transform-origin: 50% 100%;
+  transform: translateY(var(--y)) rotate(var(--r));
+  transform-origin: 50% 50%;
   transition: transform 0.25s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
-.tool:nth-child(1) { --r: 7deg;  --fill: #f1ece4; }
-.tool:nth-child(2) { --r: -6deg; --fill: #e3ebfa; }
-.tool:nth-child(3) { --r: 7deg;  --fill: #fbe5ea; }
+.tool:nth-child(1) { --r: 8deg;  --y: 0px;  --fill: #f1ece4; }
+.tool:nth-child(2) { --r: -5deg; --y: -3px; --fill: #e3ebfa; }
+.tool:nth-child(3) { --r: 8deg;  --y: -5px; --fill: #fbe5ea; }
 
 .tool svg {
   position: absolute;
@@ -483,7 +485,7 @@ body {
 
 .tool path {
   fill: #fff;
-  stroke: #111;
+  stroke: #c8b09a; /* light brown */
   stroke-width: 2;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
@@ -502,13 +504,13 @@ body {
 
 /* Hover: the whole card grows up from its base and sits above its neighbours */
 .tool:hover,
-.tool:focus-visible { transform: rotate(var(--r)) scale(1.15); }
+.tool:focus-visible { transform: translateY(var(--y)) rotate(var(--r)) scale(1.15); }
 
 .tool:hover path,
-.tool:focus-visible path { fill: var(--fill); stroke: #111; }
+.tool:focus-visible path { fill: var(--fill); stroke: #5c422f; /* shelf outline brown */ }
 
 .tool:focus-visible { outline: none; }
-.tool:focus-visible path { stroke: #8a8a8a; }
+.tool:focus-visible path { stroke: #5c422f; }
 
 @media (prefers-reduced-motion: reduce) {
   .tool, .tool path { transition: none; }
