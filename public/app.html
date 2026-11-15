@@ -6,7 +6,7 @@
 <title>Postcards</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500&family=Libre+Baskerville:wght@700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500&family=Libre+Baskerville:wght@700&family=Special+Elite&display=swap">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -383,13 +383,25 @@ body {
   border: none;
   background: transparent;
   color: #3a3a3a;
-  font-family: var(--script);
-  font-size: 6cqmin;
+  font-family: var(--write-font, var(--script));
+  font-size: var(--write-size, 6cqmin);
+}
+
+/* Writing font, switched by the "Aa" tool: handwritten (default) or typewriter */
+:root {
+  --font-hand: 'Dancing Script', 'Apple Chancery', 'Segoe Script', cursive;
+  --font-type: 'Special Elite', 'American Typewriter', 'Courier New', monospace;
+}
+
+.font-typewriter .back-area {
+  --write-font: var(--font-type);
+  --write-size: 4.6cqmin;
 }
 
 .address input {
   border-bottom: 1px solid var(--rule);
   padding: 2cqmin 1cqmin 0.4cqmin;
+  line-height: 7.5cqmin; /* same row height in both fonts */
 }
 
 .message {
@@ -526,6 +538,26 @@ body {
   transition: fill 0.2s ease, stroke 0.2s ease;
 }
 
+/* Live "Aa" preview in the current writing font */
+.font-preview {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-hand);
+  font-size: 46px;
+  line-height: 1;
+  color: #111;
+  pointer-events: none;
+  user-select: none;
+}
+
+.font-typewriter .font-preview {
+  font-family: var(--font-type);
+  font-size: 38px;
+}
+
 .tool img {
   position: absolute;
   inset: 0;
@@ -632,9 +664,9 @@ body {
 </div>
 
 <div class="tools" role="group" aria-label="Postcard tools">
-  <button type="button" class="tool" id="toolFont" aria-label="Font" data-tip="Font">
+  <button type="button" class="tool" id="toolFont" aria-label="Font: handwritten. Switch to typewriter" data-tip="Switch to typewriter">
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M5 4 C30 2 62 6 95 3 C97 32 93 66 97 96 C66 98 34 94 3 97 C6 66 2 34 5 4 Z"/></svg>
-    <img src="tool-font.webp" alt="" draggable="false">
+    <span class="font-preview" aria-hidden="true">Aa</span>
   </button>
   <button type="button" class="tool" id="toolStamp" aria-label="Stamp" data-tip="Stamp">
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M3 6 C34 3 64 5 96 3 C94 34 98 64 95 95 C64 97 36 96 4 97 C2 64 5 36 3 6 Z"/></svg>
@@ -680,6 +712,7 @@ body {
   if (document.fonts) {
     document.fonts.load('16px "Dancing Script"');
     document.fonts.load('700 16px "Libre Baskerville"');
+    document.fonts.load('16px "Special Elite"');
   }
 
   // Postmark shows the current month and year
@@ -705,7 +738,17 @@ body {
   });
 
   // Tools under the postcard: clickable, actions still to be decided
-  ['toolFont', 'toolStamp', 'toolStickers'].forEach(id => {
+  // Font tool: each click switches between handwritten and typewriter.
+  // Applies to everything written on the postcard and to the "Aa" preview.
+  const toolFont = document.getElementById('toolFont');
+  toolFont.addEventListener('click', () => {
+    const typewriter = document.body.classList.toggle('font-typewriter');
+    const next = typewriter ? 'handwritten' : 'typewriter';
+    toolFont.dataset.tip = `Switch to ${next}`;
+    toolFont.setAttribute('aria-label', `Font: ${typewriter ? 'typewriter' : 'handwritten'}. Switch to ${next}`);
+  });
+
+  ['toolStamp', 'toolStickers'].forEach(id => {
     document.getElementById(id).addEventListener('click', () => {
       // TODO: decide what each tool does
     });
