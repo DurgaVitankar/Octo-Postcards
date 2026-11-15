@@ -42,21 +42,56 @@ body {
    the page. A quarter of it peeks into the postcard's screen. */
 .zone-left { position: relative; }
 
-.bookshelf {
+.shelf {
   position: absolute;
   top: 0;
   right: 0;
-  transform: translateX(25%);
   height: 85%;
+  transform: translateX(25%);
+}
+
+.bookshelf {
+  display: block;
+  height: 100%;
   width: auto;
   max-width: none;
   user-select: none;
   pointer-events: none;
 }
 
+/* Postcard stand: a feathered copy of that patch of the illustration, laid
+   exactly over it. Invisible at rest; zooms a little on hover. */
+.stand {
+  position: absolute;
+  left: 73.50%;
+  top: 36.53%;
+  width: 18.50%;
+  height: 23.03%;
+  background: url("bookshelf.webp") 90.18% 47.46% / 540.54% 434.25% no-repeat;
+  -webkit-mask-image:
+    linear-gradient(to right, transparent, #000 8%, #000 92%, transparent),
+    linear-gradient(to bottom, transparent, #000 6%, #000 94%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, transparent, #000 8%, #000 92%, transparent),
+    linear-gradient(to bottom, transparent, #000 6%, #000 94%, transparent);
+  mask-composite: intersect;
+  transform-origin: 50% 95%;
+  transition: transform 0.25s ease;
+}
+
+.stand:hover { transform: scale(1.06); }
+
+@media (prefers-reduced-motion: reduce) {
+  .stand { transition: none; }
+}
+
 .zone-center {
   position: relative;
   z-index: 1;
+  /* Let the pointer reach the bookshelf where it peeks in; only the
+     controls and the postcard take clicks */
+  pointer-events: none;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -385,6 +420,9 @@ body {
 .postcard-landscape .rotate-pill .icon-portrait { display: block; }
 .postcard-landscape .rotate-pill .icon-landscape { display: none; }
 
+.controls,
+.postcard { pointer-events: auto; }
+
 [hidden] { display: none !important; }
 </style>
 </head>
@@ -393,7 +431,10 @@ body {
 <div class="scroller" id="scroller">
 <div class="track">
 <section class="zone zone-left" aria-label="Left panel">
-  <img class="bookshelf" src="bookshelf.webp" alt="Watercolour bookshelf of plants, books and postcards beside a potted monstera" draggable="false">
+  <div class="shelf">
+    <img class="bookshelf" src="bookshelf.webp" alt="Watercolour bookshelf of plants, books and postcards beside a potted monstera" draggable="false">
+    <div class="stand" aria-hidden="true"></div>
+  </div>
 </section>
 <section class="zone zone-center">
 <div class="controls">
