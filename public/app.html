@@ -714,6 +714,20 @@ body {
 #stampSlot { transition: fill 0.15s; }
 #stampSlot.hot { fill: #e6dccf; stroke: #8c6d55; stroke-width: 1.2; stroke-dasharray: 3 2; }
 
+/* File input stays in the page (not display:none) so its label can open the
+   picker natively, which works in sandboxed frames and on phones */
+.file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.photo-area.dragging .empty,
+.photo-area.dragging #photo { outline: 2px dashed #8a8a8a; outline-offset: -6px; }
+
 [hidden] { display: none !important; }
 </style>
 </head>
@@ -756,16 +770,16 @@ body {
 <div class="ghost" aria-hidden="true"><div></div></div>
 <div class="postcard" id="postcard">
   <div class="photo-area" id="photoArea">
-    <button class="empty" id="empty" type="button" aria-label="Add photo">
+    <label class="empty" id="empty" for="fileInput" tabindex="0" role="button" aria-label="Add photo">
       <span class="plus" aria-hidden="true">
         <!-- Remix Icon: add-line (Apache 2.0) -->
         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" shape-rendering="crispEdges"><path d="M11 11V5H13V11H19V13H13V19H11V13H5V11H11Z"/></svg>
       </span>
       <span class="add-label">Add photo</span>
-    </button>
+    </label>
     <img id="photo" alt="Postcard photo" hidden>
     <div class="decor" id="decorFront"></div>
-    <button class="replace" id="replace" type="button" hidden>Replace</button>
+    <label class="replace" id="replace" for="fileInput" tabindex="0" role="button" hidden>Replace</label>
   </div>
   <div class="back-area" id="backArea" hidden>
     <div class="back-head">
@@ -795,7 +809,7 @@ body {
     <textarea class="message" id="message" placeholder="Write your message…" aria-label="Message"></textarea>
     <div class="decor" id="decorBack"></div>
   </div>
-  <input type="file" id="fileInput" accept="image/*" hidden>
+  <input type="file" id="fileInput" class="file-input" accept="image/*" tabindex="-1" aria-hidden="true">
 </div>
 </div>
 
@@ -837,18 +851,26 @@ body {
   const fileInput = document.getElementById('fileInput');
   let currentUrl = null;
 
+  // Read the photo in as image data (works inside sandboxed viewers that refuse blob: links)
   function showPhoto(file) {
-    if (!file || !file.type.startsWith('image/')) return;
-    if (currentUrl) URL.revokeObjectURL(currentUrl);
-    currentUrl = URL.createObjectURL(file);
-    photo.src = currentUrl;
-    photo.hidden = false;
-    replace.hidden = false;
-    empty.hidden = true;
+    if (!file || !file.type || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      photo.src = reader.result;
+      photo.hidden = false;
+      replace.hidden = false;
+      empty.hidden = true;
+      if (!document.getElementById('photoArea').hidden) return;
+      setSide('front');                          // show the photo if the back was up
+    };
+    reader.readAsDataURL(file);
   }
 
-  empty.addEventListener('click', () => fileInput.click());
-  replace.addEventListener('click', () => fileInput.click());
+  // The empty card and Replace are labels for the file input, so a click opens
+  // the picker natively; Enter / Space do the same from the keyboard
+  [empty, replace].forEach(el => el.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+  }));
   fileInput.addEventListener('change', () => {
     showPhoto(fileInput.files[0]);
     fileInput.value = '';
@@ -1448,13 +1470,25 @@ body {
     };
   });
 
-  // Drag and drop onto the empty postcard
-  empty.addEventListener('dragover', (e) => { e.preventDefault(); empty.classList.add('dragging'); });
-  empty.addEventListener('dragleave', () => empty.classList.remove('dragging'));
-  empty.addEventListener('drop', (e) => {
+  // Drop an image file onto the front (empty or filled) to add or replace the photo
+  const dropZone = document.getElementById('photoArea');
+  const hasFiles = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+  dropZone.addEventListener('dragover', e => { if (!hasFiles(e)) return; e.preventDefault(); dropZone.classList.add('dragging'); });
+  dropZone.addEventListener('dragleave', e => { if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('dragging'); });
+  dropZone.addEventListener('drop', e => {
+    if (!hasFiles(e)) return;
     e.preventDefault();
-    empty.classList.remove('dragging');
-    showPhoto(e.dataTransfer.files[0]);
+    dropZone.classList.remove('dragging');
+    showPhoto([...e.dataTransfer.files].find(f => f.type.startsWith('image/')));
+  });
+
+  // Paste an image (Cmd/Ctrl+V) to add it as the photo, unless typing in a field
+  document.addEventListener('paste', e => {
+    if (e.target.closest && e.target.closest('input, textarea')) return;
+    const item = [...(e.clipboardData ? e.clipboardData.items : [])].find(i => i.type.startsWith('image/'));
+    if (!item) return;
+    e.preventDefault();
+    showPhoto(item.getAsFile());
   });
 </script>
 
