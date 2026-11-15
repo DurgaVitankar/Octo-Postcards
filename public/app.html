@@ -59,28 +59,24 @@ body {
   pointer-events: none;
 }
 
-/* Postcard stand: a feathered copy of that patch of the illustration, laid
-   exactly over it. Invisible at rest; zooms a little on hover. */
+/* Postcard stand: a transparent cut-out of just the stand, laid exactly over
+   it in the illustration. Only the stand grows on hover, not the shelf. */
 .stand {
   position: absolute;
-  left: 73.50%;
-  top: 36.53%;
-  width: 18.50%;
-  height: 23.03%;
-  background: url("bookshelf.webp") 90.18% 47.46% / 540.54% 434.25% no-repeat;
-  -webkit-mask-image:
-    linear-gradient(to right, transparent, #000 8%, #000 92%, transparent),
-    linear-gradient(to bottom, transparent, #000 6%, #000 94%, transparent);
-  -webkit-mask-composite: source-in;
-  mask-image:
-    linear-gradient(to right, transparent, #000 8%, #000 92%, transparent),
-    linear-gradient(to bottom, transparent, #000 6%, #000 94%, transparent);
-  mask-composite: intersect;
-  transform-origin: 50% 95%;
-  transition: transform 0.25s ease;
+  left: 74.850%;
+  top: 37.215%;
+  width: 17.650%;
+  height: 21.810%;
+  max-width: none;
+  transform-origin: 50% 100%;
+  transition: transform 0.25s ease, filter 0.25s ease;
+  user-select: none;
 }
 
-.stand:hover { transform: scale(1.06); }
+.stand:hover {
+  transform: scale(1.06);
+  filter: drop-shadow(0 4px 6px rgba(60, 40, 20, 0.18));
+}
 
 @media (prefers-reduced-motion: reduce) {
   .stand { transition: none; }
@@ -433,7 +429,7 @@ body {
 <section class="zone zone-left" aria-label="Left panel">
   <div class="shelf">
     <img class="bookshelf" src="bookshelf.webp" alt="Watercolour bookshelf of plants, books and postcards beside a potted monstera" draggable="false">
-    <div class="stand" aria-hidden="true"></div>
+    <img class="stand" src="stand.webp" alt="" draggable="false">
   </div>
 </section>
 <section class="zone zone-center">
