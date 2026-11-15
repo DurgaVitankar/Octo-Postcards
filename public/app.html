@@ -596,8 +596,10 @@ body {
 }
 
 /* Stamp tray: opens below the postcard, above the tools, as one row */
+/* Takes the tools' place while open */
 .stamp-tray {
   max-width: 100%;
+  margin-top: 24px;
   padding: 8px 10px;
   border-radius: 14px;
   background: #fff;
@@ -607,7 +609,7 @@ body {
 
 .stamp-grid {
   display: flex;
-  gap: 6px;
+  gap: 12px;
   overflow-x: auto;
 }
 
@@ -994,18 +996,26 @@ body {
 
     function showBack() { if (backArea.hidden) setSide('back'); }
 
+    const tools = document.querySelector('.tools');
     function open() {
       tray.hidden = false;
+      tools.hidden = true;
       tool.setAttribute('aria-expanded', 'true');
       showBack();
     }
     function close() {
       tray.hidden = true;
+      tools.hidden = false;
       tool.setAttribute('aria-expanded', 'false');
     }
     tool.setAttribute('aria-expanded', 'false');
     tool.addEventListener('click', () => (tray.hidden ? open() : close()));
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !tray.hidden) close(); });
+    // Clicking anywhere outside the tray and the postcard brings the tools back
+    document.addEventListener('pointerdown', e => {
+      if (tray.hidden || e.target.closest('#stampTray, #postcard, .controls')) return;
+      close();
+    });
 
     function overSlot(x, y) {
       const r = slot.getBoundingClientRect(), pad = 16;
