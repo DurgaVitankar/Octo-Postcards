@@ -778,7 +778,7 @@ body {
     const canvas = document.getElementById('globe');
     if (!canvas || !canvas.getContext) return;
     const CX = 1390, CY = 388, R = 92;      // sphere in the 2000px illustration
-    const INNER = 0.92;                      // redraw inside the painted outline
+    const EDGE = 0.965;                      // redraw out to the painted ink outline
     const TILT = 22 * Math.PI / 180;         // axis leans right, like the pin
     const BAND = 2 * Math.PI / 3;            // 120° band, repeated 3x around
     const BLEND = 10 * Math.PI / 180;        // seam crossfade
@@ -791,7 +791,7 @@ body {
     // Point on the painted sphere -> source colour (bilinear)
     function sample(src, S, lon, lat, out, k) {
       const x = Math.cos(lat) * Math.sin(lon), y = Math.sin(lat);
-      const u = (x * cosT - y * sinT) * INNER, v = (x * sinT + y * cosT) * INNER;
+      const u = x * cosT - y * sinT, v = x * sinT + y * cosT;
       const fx = Math.min(S - 1.001, Math.max(0, (u + 1) / 2 * S - 0.5));
       const fy = Math.min(S - 1.001, Math.max(0, (v + 1) / 2 * S - 0.5));
       const x0 = fx | 0, y0 = fy | 0, ax = fx - x0, ay = fy - y0, d = src.data;
@@ -814,8 +814,8 @@ body {
       tex = new Float32Array(TW * TH * 3);
       const a = [0, 0, 0], b = [0, 0, 0];
       for (let j = 0; j < TH; j++) {
-        // caps above ~70° reuse the 70° row: the painting is squeezed there too
-        const lat = Math.max(-1.22, Math.min(1.22, ((j + 0.5) / TH - 0.5) * Math.PI));
+        // caps above 60° reuse the 60° row: the painting is squeezed there too
+        const lat = Math.max(-1.05, Math.min(1.05, ((j + 0.5) / TH - 0.5) * Math.PI));
         for (let i = 0; i < TW; i++) {
           const lon = ((i + 0.5) / TW - 0.5) * BAND;        // -60°..60°
           sample(src, S, lon, lat, a, 0);
@@ -836,9 +836,9 @@ body {
       const out = ctx.createImageData(N, N), o = out.data;
       for (let py = 0; py < N; py++) {
         for (let px = 0; px < N; px++) {
-          const u = ((px + 0.5) / N * 2 - 1) / INNER, v = ((py + 0.5) / N * 2 - 1) / INNER;
-          const d2 = u * u + v * v;
-          if (d2 > 1) continue;
+          const u = (px + 0.5) / N * 2 - 1, v = (py + 0.5) / N * 2 - 1;
+          const r = Math.sqrt(u * u + v * v);
+          if (r > EDGE) continue;
           const x = u * cosT + v * sinT, y = -u * sinT + v * cosT;   // axis frame
           const z = Math.sqrt(Math.max(0, 1 - x * x - y * y));
           const lat = Math.asin(Math.max(-1, Math.min(1, y)));
@@ -847,8 +847,9 @@ body {
           const fi = Math.min(TW - 1, lon / BAND * TW);
           const fj = Math.min(TH - 1, (lat / Math.PI + 0.5) * TH);
           const k = ((fj | 0) * TW + (fi | 0)) * 3, oi = (py * N + px) * 4;
-          o[oi] = tex[k]; o[oi + 1] = tex[k + 1]; o[oi + 2] = tex[k + 2];
-          o[oi + 3] = Math.round(255 * alpha * Math.min(1, (1 - Math.sqrt(d2)) * N / 3));
+          const shade = 0.84 + 0.16 * Math.sqrt(z);                   // round-ball edge shading
+          o[oi] = tex[k] * shade; o[oi + 1] = tex[k + 1] * shade; o[oi + 2] = tex[k + 2] * shade;
+          o[oi + 3] = Math.round(255 * alpha * Math.min(1, (EDGE - r) * N / 3));
         }
       }
       ctx.putImageData(out, 0, 0);
