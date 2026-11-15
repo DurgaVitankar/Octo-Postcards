@@ -100,6 +100,21 @@ body {
   .stand { transition: none; }
 }
 
+/* Right panel: mailbox with flying letters, centred */
+.zone-right { position: relative; overflow: hidden; }
+
+.mailbox {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 85%;
+  width: auto;
+  max-width: none;
+  user-select: none;
+  pointer-events: none;
+}
+
 .zone-center {
   position: relative;
   z-index: 1;
@@ -612,7 +627,9 @@ body {
   </button>
 </div>
 </section>
-<section class="zone" aria-label="Right panel"></section>
+<section class="zone zone-right" aria-label="Right panel">
+  <img class="mailbox" src="mailbox.webp" alt="Watercolour green mailbox with letters flying out and two small birds below" draggable="false">
+</section>
 </div>
 </div>
 
