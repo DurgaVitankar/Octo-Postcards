@@ -435,7 +435,73 @@ body {
 .postcard-landscape .rotate-pill .icon-landscape { display: none; }
 
 .controls,
-.postcard { pointer-events: auto; }
+.postcard,
+.tools { pointer-events: auto; }
+
+/* Tools under the postcard: hand-drawn tiles that zoom and fill with colour */
+.tools {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.tool {
+  --r: 0deg;
+  --fill: #f3efe9;
+  position: relative;
+  width: 96px;
+  height: 96px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transform: rotate(var(--r));
+  transition: transform 0.2s ease;
+}
+
+.tool:nth-child(1) { --r: -3deg; --fill: #f1ece4; }
+.tool:nth-child(2) { --r: 2deg;  --fill: #e3ebfa; }
+.tool:nth-child(3) { --r: -2deg; --fill: #fbe5ea; }
+
+.tool svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.tool path {
+  fill: transparent;
+  stroke: #ececec;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  transition: fill 0.2s ease, stroke 0.2s ease;
+}
+
+.tool img {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  max-width: 64%;
+  max-height: 64%;
+  pointer-events: none;
+  user-select: none;
+}
+
+.tool:hover,
+.tool:focus-visible { transform: rotate(var(--r)) scale(1.08); }
+
+.tool:hover path,
+.tool:focus-visible path { fill: var(--fill); stroke: transparent; }
+
+.tool:focus-visible { outline: none; }
+.tool:focus-visible path { stroke: #8a8a8a; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tool, .tool path { transition: none; }
+}
 
 [hidden] { display: none !important; }
 </style>
@@ -517,6 +583,21 @@ body {
   <input type="file" id="fileInput" accept="image/*" hidden>
 </div>
 </div>
+
+<div class="tools" role="group" aria-label="Postcard tools">
+  <button type="button" class="tool" id="toolFont" aria-label="Font" data-tip="Font">
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M5 4 C30 2 62 6 95 3 C97 32 93 66 97 96 C66 98 34 94 3 97 C6 66 2 34 5 4 Z"/></svg>
+    <img src="tool-font.webp" alt="" draggable="false">
+  </button>
+  <button type="button" class="tool" id="toolStamp" aria-label="Stamp" data-tip="Stamp">
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M3 6 C34 3 64 5 96 3 C94 34 98 64 95 95 C64 97 36 96 4 97 C2 64 5 36 3 6 Z"/></svg>
+    <img src="tool-stamp.webp" alt="" draggable="false">
+  </button>
+  <button type="button" class="tool" id="toolStickers" aria-label="Stickers" data-tip="Stickers">
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M4 3 C36 5 66 2 97 5 C95 36 98 66 96 97 C64 95 34 98 3 95 C5 64 2 34 4 3 Z"/></svg>
+    <img src="tool-stickers.webp" alt="" draggable="false">
+  </button>
+</div>
 </section>
 <section class="zone" aria-label="Right panel"></section>
 </div>
@@ -572,6 +653,13 @@ body {
   // Postcard stand on the bookshelf: clickable, action still to be decided
   document.getElementById('stand').addEventListener('click', () => {
     // TODO: decide what clicking the stand does
+  });
+
+  // Tools under the postcard: clickable, actions still to be decided
+  ['toolFont', 'toolStamp', 'toolStickers'].forEach(id => {
+    document.getElementById(id).addEventListener('click', () => {
+      // TODO: decide what each tool does
+    });
   });
 
   // Front / back toggle
