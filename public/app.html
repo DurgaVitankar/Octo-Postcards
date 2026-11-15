@@ -657,7 +657,7 @@ body {
 .decor .flower {
   position: absolute;
   display: block;
-  width: 22cqmin;
+  width: 15cqmin;
   height: auto;
   max-width: none;
   object-fit: contain;
@@ -1039,9 +1039,9 @@ body {
       const r = el.getBoundingClientRect();
       return r.width > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
     };
-    const flowerWidth = el => {                 // matches .flower width: 22cqmin of the layer
+    const flowerWidth = el => {                 // matches .flower width: 15cqmin of the layer
       const r = el.getBoundingClientRect();
-      return 0.22 * Math.min(r.width, r.height);
+      return 0.15 * Math.min(r.width, r.height);
     };
 
     function place(layer, id, x, y, rot) {
