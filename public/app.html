@@ -812,9 +812,6 @@ body {
 </div>
 
 <div class="stamp-tray" id="stampTray" role="dialog" aria-label="Stamps" hidden>
-  <div class="tray-head">
-    <button type="button" class="tray-close" id="stampTrayClose" aria-label="Close stamps">×</button>
-  </div>
   <div class="stamp-grid" id="stampGrid"></div>
 </div>
 
@@ -1069,7 +1066,6 @@ body {
     }
     tool.setAttribute('aria-expanded', 'false');
     tool.addEventListener('click', () => (tray.hidden ? open() : close()));
-    document.getElementById('stampTrayClose').addEventListener('click', close);
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !tray.hidden) close(); });
     window.addEventListener('resize', () => { if (!tray.hidden) positionTray(); });
     document.getElementById('rotate').addEventListener('click', () => {
