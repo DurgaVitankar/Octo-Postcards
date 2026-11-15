@@ -67,15 +67,33 @@ body {
   top: 37.110%;
   width: 24.700%;
   height: 22.234%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.stand img {
+  display: block;
+  width: 100%;
+  height: 100%;
   max-width: none;
   transform-origin: 50% 100%;
   transition: transform 0.25s ease, filter 0.25s ease;
   user-select: none;
 }
 
-.stand:hover {
+.stand:hover img,
+.stand:focus-visible img {
   transform: scale(1.06);
   filter: drop-shadow(0 4px 6px rgba(60, 40, 20, 0.18));
+}
+
+.stand:focus-visible {
+  outline: 2px solid #8a8a8a;
+  outline-offset: 6px;
+  border-radius: 4px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -429,7 +447,9 @@ body {
 <section class="zone zone-left" aria-label="Left panel">
   <div class="shelf">
     <img class="bookshelf" src="bookshelf.webp" alt="Watercolour bookshelf of plants, books and postcards beside a potted monstera" draggable="false">
-    <img class="stand" src="stand.webp" alt="" draggable="false">
+    <button class="stand" id="stand" type="button" aria-label="Postcard stand">
+      <img src="stand.webp" alt="" draggable="false">
+    </button>
   </div>
 </section>
 <section class="zone zone-center">
@@ -548,6 +568,11 @@ body {
     scroller.scrollLeft += e.deltaY;
     e.preventDefault();
   }, { passive: false });
+
+  // Postcard stand on the bookshelf: clickable, action still to be decided
+  document.getElementById('stand').addEventListener('click', () => {
+    // TODO: decide what clicking the stand does
+  });
 
   // Front / back toggle
   const photoArea = document.getElementById('photoArea');
