@@ -642,6 +642,51 @@ body {
 .tray-stamp[aria-pressed="true"] { background: #efe6dc; }
 .tray-stamp:focus-visible { outline: 2px solid #8c6d55; outline-offset: 1px; }
 
+/* Pressed flowers: a decoration layer on each side of the card */
+.back-area { position: relative; }
+
+.decor {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  container-type: size;
+}
+
+/* .decor .flower beats ".photo-area img", which would stretch it to fill the photo */
+.decor .flower {
+  position: absolute;
+  display: block;
+  width: 22cqmin;
+  height: auto;
+  max-width: none;
+  object-fit: contain;
+  transform: translate(-50%, -50%) rotate(var(--r, 0deg));
+  filter: drop-shadow(0 1px 1.5px rgba(60, 40, 20, 0.18));
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition: opacity 0.18s ease;
+}
+
+.flower.dragging { cursor: grabbing; filter: drop-shadow(0 6px 10px rgba(60, 40, 20, 0.25)); }
+.flower.leaving { opacity: 0.4; }
+.flower.removing { opacity: 0; }
+
+.flower-ghost {
+  position: fixed;
+  z-index: 50;
+  transform: translate(-50%, -50%) rotate(-6deg);
+  filter: drop-shadow(0 6px 10px rgba(60, 40, 20, 0.25));
+  pointer-events: none;
+}
+
+.flower-ghost.landing { transition: left 0.18s ease-out, top 0.18s ease-out, opacity 0.18s ease-out; }
+
+/* The card shows a soft outline while a flower is over it */
+.postcard.drop-ok { outline: 2px dashed #c8b09a; outline-offset: 6px; }
+
 /* The stamp being dragged */
 .stamp-ghost {
   position: fixed;
@@ -719,6 +764,7 @@ body {
       <span class="add-label">Add photo</span>
     </button>
     <img id="photo" alt="Postcard photo" hidden>
+    <div class="decor" id="decorFront"></div>
     <button class="replace" id="replace" type="button" hidden>Replace</button>
   </div>
   <div class="back-area" id="backArea" hidden>
@@ -747,6 +793,7 @@ body {
     </div>
     <div class="back-divider"></div>
     <textarea class="message" id="message" placeholder="Write your message…" aria-label="Message"></textarea>
+    <div class="decor" id="decorBack"></div>
   </div>
   <input type="file" id="fileInput" accept="image/*" hidden>
 </div>
@@ -754,6 +801,10 @@ body {
 
 <div class="stamp-tray" id="stampTray" role="dialog" aria-label="Stamps" hidden>
   <div class="stamp-grid" id="stampGrid"></div>
+</div>
+
+<div class="stamp-tray" id="flowerTray" role="dialog" aria-label="Pressed flowers" hidden>
+  <div class="stamp-grid" id="flowerGrid"></div>
 </div>
 
 <div class="tools" role="group" aria-label="Postcard tools">
@@ -765,7 +816,7 @@ body {
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M3 6 C34 3 64 5 96 3 C94 34 98 64 95 95 C64 97 36 96 4 97 C2 64 5 36 3 6 Z"/></svg>
     <img src="tool-stamp.webp" alt="" draggable="false">
   </button>
-  <button type="button" class="tool" id="toolStickers" aria-label="Stickers" data-tip="Stickers">
+  <button type="button" class="tool" id="toolStickers" aria-label="Pressed flowers" data-tip="Pressed flowers">
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M4 3 C36 5 66 2 97 5 C95 36 98 66 96 97 C64 95 34 98 3 95 C5 64 2 34 4 3 Z"/></svg>
     <img src="tool-stickers.webp" alt="" draggable="false">
   </button>
@@ -845,11 +896,6 @@ body {
     toolFont.setAttribute('aria-label', `Font: ${typewriter ? 'typewriter' : 'handwritten'}. Switch to ${next}`);
   });
 
-  ['toolStickers'].forEach(id => {
-    document.getElementById(id).addEventListener('click', () => {
-      // TODO: decide what each tool does
-    });
-  });
 
   // Globe spin: turn the painted globe on its tilted axis. The painting only
   // shows one side, so a wrap-around map is built from its crisp centre (120°
@@ -950,6 +996,172 @@ body {
         if (t < 1) requestAnimationFrame(frame);
         else { spinning = false; ctx.clearRect(0, 0, canvas.width, canvas.height); }
       })(start);
+    });
+  })();
+
+  // Pressed flowers: the flower tool opens a tray (in place of the tools).
+  // Drag a flower anywhere onto the side of the postcard that's showing; drag a
+  // placed flower to move it, or off the card to remove it.
+  (function () {
+    const FLOWERS = [
+      ['chamomile', 'Chamomile'], ['wildflowers', 'Wildflowers'], ['lily', 'Lily'],
+      ['lavender', 'Lavender'], ['cosmos', 'Cosmos']
+    ];
+    const tool = document.getElementById('toolStickers');
+    const tray = document.getElementById('flowerTray');
+    const grid = document.getElementById('flowerGrid');
+    const tools = document.querySelector('.tools');
+    const card = document.getElementById('postcard');
+
+    FLOWERS.forEach(([id, name]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tray-stamp';
+      b.dataset.flower = id;
+      b.setAttribute('aria-label', `Add ${name}`);
+      b.innerHTML = `<img src="flowers/flower-${id}.webp" alt="" draggable="false">`;
+      grid.appendChild(b);
+    });
+
+    const open = () => { tray.hidden = false; tools.hidden = true; tool.setAttribute('aria-expanded', 'true'); };
+    const close = () => { tray.hidden = true; tools.hidden = false; tool.setAttribute('aria-expanded', 'false'); };
+    tool.setAttribute('aria-expanded', 'false');
+    tool.addEventListener('click', () => (tray.hidden ? open() : close()));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !tray.hidden) close(); });
+    document.addEventListener('pointerdown', e => {
+      if (tray.hidden || e.target.closest('#flowerTray, #postcard, .controls')) return;
+      close();
+    });
+
+    // The decoration layer on whichever side is showing
+    const decor = () => document.getElementById(document.getElementById('backArea').hidden ? 'decorFront' : 'decorBack');
+    const inside = (el, x, y) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    };
+    const flowerWidth = el => {                 // matches .flower width: 22cqmin of the layer
+      const r = el.getBoundingClientRect();
+      return 0.22 * Math.min(r.width, r.height);
+    };
+
+    function place(layer, id, x, y, rot) {
+      const r = layer.getBoundingClientRect();
+      const img = document.createElement('img');
+      img.className = 'flower';
+      img.src = `flowers/flower-${id}.webp`;
+      img.alt = '';
+      img.draggable = false;
+      img.style.left = ((x - r.left) / r.width * 100) + '%';
+      img.style.top = ((y - r.top) / r.height * 100) + '%';
+      img.style.setProperty('--r', rot + 'deg');
+      layer.appendChild(img);
+    }
+    const randomTilt = () => Math.round((Math.random() * 2 - 1) * 14);
+
+    // One pointer-drag helper that always finishes, however the drag ends
+    function track(e, el, { onMove, onEnd }) {
+      let done = false, lastX = e.clientX, lastY = e.clientY;
+      try { el.setPointerCapture(e.pointerId); } catch (_) {}
+      const move = ev => {
+        if (ev.pointerId !== e.pointerId) return;
+        if (ev.pointerType === 'mouse' && (ev.buttons & 1) === 0) { finish(true); return; }
+        lastX = ev.clientX; lastY = ev.clientY;
+        onMove(lastX, lastY);
+      };
+      const up = ev => { if (ev.pointerId === e.pointerId) { lastX = ev.clientX; lastY = ev.clientY; finish(true); } };
+      const cancel = () => finish(false);
+      const lost = () => setTimeout(() => finish(true), 0);
+      function finish(ok) {
+        if (done) return;
+        done = true;
+        window.removeEventListener('pointermove', move, true);
+        window.removeEventListener('pointerup', up, true);
+        window.removeEventListener('pointercancel', cancel, true);
+        window.removeEventListener('blur', cancel);
+        el.removeEventListener('lostpointercapture', lost);
+        onEnd(lastX, lastY, ok);
+      }
+      window.addEventListener('pointermove', move, true);
+      window.addEventListener('pointerup', up, true);
+      window.addEventListener('pointercancel', cancel, true);
+      window.addEventListener('blur', cancel);
+      el.addEventListener('lostpointercapture', lost);
+    }
+
+    // From the tray onto the card
+    grid.addEventListener('pointerdown', e => {
+      const btn = e.target.closest('.tray-stamp');
+      if (!btn || e.button > 0) return;
+      e.preventDefault();
+      document.querySelectorAll('.flower-ghost').forEach(g => g.remove());
+      const id = btn.dataset.flower, sx = e.clientX, sy = e.clientY;
+      let ghost = null;
+      track(e, btn, {
+        onMove(x, y) {
+          if (!ghost && Math.hypot(x - sx, y - sy) < 5) return;
+          if (!ghost) {
+            ghost = document.createElement('img');
+            ghost.className = 'flower-ghost';
+            ghost.src = `flowers/flower-${id}.webp`;
+            ghost.alt = '';
+            ghost.style.width = flowerWidth(decor()) + 'px';   // same size it will land at
+            document.body.appendChild(ghost);
+          }
+          ghost.style.left = x + 'px';
+          ghost.style.top = y + 'px';
+          card.classList.toggle('drop-ok', inside(decor(), x, y));
+        },
+        onEnd(x, y, ok) {
+          card.classList.remove('drop-ok');
+          const layer = decor();
+          if (!ghost) {                                     // a plain click drops it on the card
+            if (!ok) return;
+            const r = layer.getBoundingClientRect();
+            place(layer, id, r.left + r.width * (0.2 + Math.random() * 0.6),
+                  r.top + r.height * (0.2 + Math.random() * 0.6), randomTilt());
+            return;
+          }
+          if (ok && inside(layer, x, y)) {
+            place(layer, id, x, y, -6 + randomTilt() / 2);
+            ghost.remove();
+          } else {                                          // float back to the tray
+            const b = btn.getBoundingClientRect(), g = ghost;
+            g.classList.add('landing');
+            requestAnimationFrame(() => {
+              g.style.left = (b.left + b.width / 2) + 'px';
+              g.style.top = (b.top + b.height / 2) + 'px';
+              g.style.opacity = '0';
+            });
+            setTimeout(() => g.remove(), 200);
+          }
+        }
+      });
+    });
+
+    // Move a placed flower, or drag it off the card to remove it
+    card.addEventListener('pointerdown', e => {
+      const img = e.target.closest('.flower');
+      if (!img || e.button > 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const layer = img.parentElement;
+      layer.appendChild(img);                              // bring to the front
+      img.classList.add('dragging');
+      track(e, img, {
+        onMove(x, y) {
+          const r = layer.getBoundingClientRect();
+          img.style.left = ((x - r.left) / r.width * 100) + '%';
+          img.style.top = ((y - r.top) / r.height * 100) + '%';
+          img.classList.toggle('leaving', !inside(layer, x, y));
+        },
+        onEnd(x, y) {
+          img.classList.remove('dragging');
+          if (!inside(layer, x, y)) {
+            img.classList.add('removing');
+            setTimeout(() => img.remove(), 180);
+          }
+        }
+      });
     });
   })();
 
