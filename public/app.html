@@ -462,7 +462,8 @@ body {
   background: none;
   cursor: pointer;
   transform: rotate(var(--r));
-  transition: transform 0.2s ease;
+  transform-origin: 50% 100%;
+  transition: transform 0.25s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
 .tool:nth-child(1) { --r: -3deg; --fill: #f1ece4; }
@@ -478,7 +479,7 @@ body {
 }
 
 .tool path {
-  fill: transparent;
+  fill: #fff;
   stroke: #ececec;
   stroke-width: 2;
   stroke-linejoin: round;
@@ -496,11 +497,12 @@ body {
   user-select: none;
 }
 
+/* Hover: the whole card grows up from its base and sits above its neighbours */
 .tool:hover,
-.tool:focus-visible { transform: rotate(var(--r)) scale(1.08); }
+.tool:focus-visible { transform: rotate(var(--r)) scale(1.15); }
 
 .tool:hover path,
-.tool:focus-visible path { fill: var(--fill); stroke: transparent; }
+.tool:focus-visible path { fill: var(--fill); stroke: #dcdcdc; }
 
 .tool:focus-visible { outline: none; }
 .tool:focus-visible path { stroke: #8a8a8a; }
