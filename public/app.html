@@ -442,9 +442,14 @@ body {
 .tools {
   display: flex;
   justify-content: center;
-  gap: 8px;
   margin-top: 24px;
 }
+
+/* Tiles overlap by 12px, like hand-placed cards */
+.tool + .tool { margin-left: -12px; }
+
+.tool:hover,
+.tool:focus-visible { z-index: 1; }
 
 .tool {
   --r: 0deg;
