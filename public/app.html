@@ -694,6 +694,19 @@ body {
   transform: translate(-50%, -50%) rotate(-4deg);
   filter: drop-shadow(0 6px 10px rgba(60, 40, 20, 0.25));
   pointer-events: none;
+  transition: width 0.15s ease, transform 0.15s ease, filter 0.15s ease;
+}
+
+/* Over the stamp box: preview at the exact size it will be placed */
+.stamp-ghost.snap {
+  transform: translate(-50%, -50%) rotate(0deg);
+  filter: drop-shadow(0 2px 3px rgba(60, 40, 20, 0.2));
+}
+
+/* Settling into the box, or floating back to the tray */
+.stamp-ghost.landing {
+  transition: left 0.18s ease-out, top 0.18s ease-out, width 0.18s ease-out,
+              transform 0.18s ease-out, opacity 0.18s ease-out, filter 0.18s ease-out;
 }
 
 /* Stamp box on the back lights up when a stamp is over it */
@@ -1093,7 +1106,10 @@ body {
         }
         ghost.style.left = ev.clientX + 'px';
         ghost.style.top = ev.clientY + 'px';
-        slot.classList.toggle('hot', overSlot(ev.clientX, ev.clientY));
+        const hot = overSlot(ev.clientX, ev.clientY);
+        slot.classList.toggle('hot', hot);
+        ghost.classList.toggle('snap', hot);
+        ghost.style.width = hot ? slot.getBoundingClientRect().width + 'px' : '';
       };
       const end = ev => {
         btn.removeEventListener('pointermove', move);
@@ -1102,11 +1118,25 @@ body {
         slot.classList.remove('hot');
         if (!ghost) {                                  // a plain click toggles that stamp
           if (ev.type === 'pointerup') current = (current === id) ? null : id;
-        } else {
-          ghost.remove();
-          if (ev.type === 'pointerup' && overSlot(ev.clientX, ev.clientY)) current = id;
+          render();
+          return;
         }
-        render();
+        const g = ghost, dropped = ev.type === 'pointerup' && overSlot(ev.clientX, ev.clientY);
+        // glide into the box, or float back to the tray, then hand over
+        const target = (dropped ? slot : btn).getBoundingClientRect();
+        g.classList.add('landing');
+        g.classList.toggle('snap', dropped);
+        requestAnimationFrame(() => {
+          g.style.left = (target.left + target.width / 2) + 'px';
+          g.style.top = (target.top + target.height / 2) + 'px';
+          g.style.width = (dropped ? target.width : 40) + 'px';
+          if (!dropped) g.style.opacity = '0';
+        });
+        setTimeout(() => {
+          if (dropped) current = id;
+          render();
+          g.remove();
+        }, 190);
       };
       btn.addEventListener('pointermove', move);
       btn.addEventListener('pointerup', end);
