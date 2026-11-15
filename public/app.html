@@ -1087,11 +1087,19 @@ body {
       const btn = e.target.closest('.tray-stamp');
       if (!btn || e.button > 0) return;
       e.preventDefault();
+      document.querySelectorAll('.stamp-ghost').forEach(g => g.remove());   // never leave a stray copy
       const id = btn.dataset.stamp, sx = e.clientX, sy = e.clientY;
-      let ghost = null;
-      btn.setPointerCapture(e.pointerId);
+      let ghost = null, done = false, lastX = sx, lastY = sy;
+      try { btn.setPointerCapture(e.pointerId); } catch (_) {}
 
       const move = ev => {
+        if (ev.pointerId !== e.pointerId) return;
+        // button already released (e.g. let go outside the frame): finish here
+        if (ev.pointerType === 'mouse' && (ev.buttons & 1) === 0) {
+          end({ type: 'pointerup', clientX: ev.clientX, clientY: ev.clientY });
+          return;
+        }
+        lastX = ev.clientX; lastY = ev.clientY;
         if (!ghost && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 5) return;
         if (!ghost) {
           showBack();
@@ -1112,9 +1120,13 @@ body {
         ghost.style.width = hot ? slot.getBoundingClientRect().width + 'px' : '';
       };
       const end = ev => {
-        btn.removeEventListener('pointermove', move);
-        btn.removeEventListener('pointerup', end);
-        btn.removeEventListener('pointercancel', end);
+        if (done) return;
+        done = true;
+        window.removeEventListener('pointermove', move, true);
+        window.removeEventListener('pointerup', end, true);
+        window.removeEventListener('pointercancel', cancel, true);
+        window.removeEventListener('blur', cancel);
+        btn.removeEventListener('lostpointercapture', lost);
         slot.classList.remove('hot');
         if (!ghost) {                                  // a plain click toggles that stamp
           if (ev.type === 'pointerup') current = (current === id) ? null : id;
@@ -1138,9 +1150,14 @@ body {
           g.remove();
         }, 190);
       };
-      btn.addEventListener('pointermove', move);
-      btn.addEventListener('pointerup', end);
-      btn.addEventListener('pointercancel', end);
+      // Any way a drag can finish ends it: release, cancel, lost capture, window blur
+      const cancel = () => end({ type: 'pointercancel', clientX: lastX, clientY: lastY });
+      const lost = () => setTimeout(() => end({ type: 'pointerup', clientX: lastX, clientY: lastY }), 0);
+      window.addEventListener('pointermove', move, true);
+      window.addEventListener('pointerup', end, true);
+      window.addEventListener('pointercancel', cancel, true);
+      window.addEventListener('blur', cancel);
+      btn.addEventListener('lostpointercapture', lost);
     });
 
     // Keyboard: Enter / Space on a stamp toggles it
