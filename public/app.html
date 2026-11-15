@@ -23,7 +23,7 @@ body {
 .scroller {
   height: 100%;
   overflow-x: auto;
-  overflow-y: auto;
+  overflow-y: hidden; /* the page always fits the window height */
   overscroll-behavior-x: contain;
 }
 
@@ -162,7 +162,7 @@ body {
 /* Postcard: white frame with a soft shadow, photo inset inside it */
 .postcard {
   /* Portrait width; capped so the card turned on its side still fits the screen */
-  --pw: min(370px, calc(28px + (100% - 28px) * 416 / 667));
+  --pw: min(370px, calc(28px + (100% - 28px) * 416 / 667), calc(28px + (100vh - 304px) * 416 / 667), calc(28px + (100dvh - 304px) * 416 / 667));
   width: var(--pw);
   padding: 14px;
   background: #fff;
@@ -472,7 +472,7 @@ body {
 .stage > * { grid-area: 1 / 1; }
 
 .ghost {
-  --pw: min(370px, calc(28px + (100% - 28px) * 416 / 667));
+  --pw: min(370px, calc(28px + (100% - 28px) * 416 / 667), calc(28px + (100vh - 304px) * 416 / 667), calc(28px + (100dvh - 304px) * 416 / 667));
   width: var(--pw);
   padding: 14px;
   visibility: hidden;
@@ -899,7 +899,6 @@ body {
   scroller.addEventListener('wheel', (e) => {
     if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
     if (e.target.closest('textarea')) return;
-    if (scroller.scrollHeight > scroller.clientHeight) return;
     scroller.scrollLeft += e.deltaY;
     e.preventDefault();
   }, { passive: false });
