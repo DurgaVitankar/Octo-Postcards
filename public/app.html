@@ -28,15 +28,26 @@ body {
 }
 
 .track {
+  /* Illustration widths, from their heights (85% of the window) and aspect ratios */
+  --shelf-w: calc(85vh * 2000 / 1889);
+  --mail-w: calc(85vh * 1262 / 2000);
   display: flex;
-  width: 300%;
+  width: max-content;
   min-height: 100%;
 }
 
 .zone {
-  flex: 0 0 calc(100% / 3);
+  flex: 0 0 auto;
   min-width: 0;
 }
+
+/* Side panels are only as wide as the part of each illustration outside the
+   postcard's screen, plus 60px at the outer end */
+/* Measured from the artwork, not the image edges: the shelf art starts 39px
+   into its 2000px image; the mailbox art ends 149px before its 1262px edge */
+.zone-left  { width: calc(var(--shelf-w) * (0.75 - 39 / 2000) + 60px); }
+.zone-right { width: calc(var(--mail-w) * (0.75 - 149 / 1262) + 60px); }
+.zone-center { width: 100vw; }
 
 /* Left panel: bookshelf and plant at its right edge, running off the top of
    the page. A quarter of it peeks into the postcard's screen. */
@@ -46,7 +57,7 @@ body {
   position: absolute;
   top: 0;
   right: 0;
-  height: 85%;
+  height: 85vh;
   transform: translateX(25%);
 }
 
@@ -104,12 +115,19 @@ body {
    peeks into the postcard's screen, mirroring the bookshelf. */
 .zone-right { position: relative; }
 
-.mailbox {
+/* The frame crops the image's empty right margin so it adds no scroll space */
+.mail-frame {
   position: absolute;
   top: 0;
-  left: 0;
-  transform: translateX(-25%);
-  height: 85%;
+  left: calc(var(--mail-w) * -0.25);
+  width: calc(var(--mail-w) * (1 - 149 / 1262));
+  height: 85vh;
+  overflow: hidden;
+}
+
+.mailbox {
+  display: block;
+  height: 100%;
   width: auto;
   max-width: none;
   user-select: none;
@@ -629,7 +647,7 @@ body {
 </div>
 </section>
 <section class="zone zone-right" aria-label="Right panel">
-  <img class="mailbox" src="mailbox.webp" alt="Watercolour green mailbox with letters flying out and two small birds below" draggable="false">
+  <div class="mail-frame"><img class="mailbox" src="mailbox.webp" alt="Watercolour green mailbox with letters flying out and two small birds below" draggable="false"></div>
 </section>
 </div>
 </div>
@@ -670,7 +688,7 @@ body {
 
   // Open centred on the postcard
   const scroller = document.getElementById('scroller');
-  scroller.scrollLeft = (scroller.scrollWidth - scroller.clientWidth) / 2;
+  scroller.scrollLeft = document.querySelector('.zone-left').offsetWidth;
 
   // A plain mouse wheel scrolls sideways (except inside the message box)
   scroller.addEventListener('wheel', (e) => {
