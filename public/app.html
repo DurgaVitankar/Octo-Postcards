@@ -38,14 +38,15 @@ body {
   min-width: 0;
 }
 
-/* Left panel: bookshelf and plant, centred, running off the top of the page */
-.zone-left { position: relative; overflow: hidden; }
+/* Left panel: bookshelf and plant at its right edge, running off the top of
+   the page. A quarter of it peeks into the postcard's screen. */
+.zone-left { position: relative; }
 
 .bookshelf {
   position: absolute;
   top: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 0;
+  transform: translateX(25%);
   height: 85%;
   width: auto;
   max-width: none;
@@ -54,6 +55,8 @@ body {
 }
 
 .zone-center {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
