@@ -770,68 +770,101 @@ body {
     });
   });
 
-  // Globe spin: map the painted sphere onto a 3D globe and turn it on its axis
+  // Globe spin: turn the painted globe on its tilted axis. The painting only
+  // shows one side, so a wrap-around map is built from its crisp centre (120°
+  // of longitude), repeated three times with blended seams. Nothing is taken
+  // from the squeezed edges, so nothing stretches as it turns.
   (function () {
     const canvas = document.getElementById('globe');
     if (!canvas || !canvas.getContext) return;
     const CX = 1390, CY = 388, R = 92;      // sphere in the 2000px illustration
     const INNER = 0.92;                      // redraw inside the painted outline
     const TILT = 22 * Math.PI / 180;         // axis leans right, like the pin
+    const BAND = 2 * Math.PI / 3;            // 120° band, repeated 3x around
+    const BLEND = 10 * Math.PI / 180;        // seam crossfade
+    const TW = 240, TH = 240;                // map resolution (lon x lat)
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const ctx = canvas.getContext('2d');
-    let src = null, spinning = false;
+    const cosT = Math.cos(TILT), sinT = Math.sin(TILT);
+    let tex = null, spinning = false;
+
+    // Point on the painted sphere -> source colour (bilinear)
+    function sample(src, S, lon, lat, out, k) {
+      const x = Math.cos(lat) * Math.sin(lon), y = Math.sin(lat);
+      const u = (x * cosT - y * sinT) * INNER, v = (x * sinT + y * cosT) * INNER;
+      const fx = Math.min(S - 1.001, Math.max(0, (u + 1) / 2 * S - 0.5));
+      const fy = Math.min(S - 1.001, Math.max(0, (v + 1) / 2 * S - 0.5));
+      const x0 = fx | 0, y0 = fy | 0, ax = fx - x0, ay = fy - y0, d = src.data;
+      for (let c = 0; c < 3; c++) {
+        const i00 = (y0 * S + x0) * 4 + c, i10 = i00 + 4, i01 = i00 + S * 4, i11 = i01 + 4;
+        const top = d[i00] + (d[i10] - d[i00]) * ax, bot = d[i01] + (d[i11] - d[i01]) * ax;
+        out[k + c] = top + (bot - top) * ay;
+      }
+    }
 
     const img = new Image();
     img.src = 'bookshelf.webp';
     img.onload = () => {
-      const c = document.createElement('canvas');
-      c.width = c.height = 2 * R;
+      const S = 2 * R, c = document.createElement('canvas');
+      c.width = c.height = S;
       const g = c.getContext('2d');
-      g.drawImage(img, CX - R, CY - R, 2 * R, 2 * R, 0, 0, 2 * R, 2 * R);
-      try { src = g.getImageData(0, 0, 2 * R, 2 * R); } catch (e) { src = null; }
+      g.drawImage(img, CX - R, CY - R, S, S, 0, 0, S, S);
+      let src;
+      try { src = g.getImageData(0, 0, S, S); } catch (e) { return; }
+      tex = new Float32Array(TW * TH * 3);
+      const a = [0, 0, 0], b = [0, 0, 0];
+      for (let j = 0; j < TH; j++) {
+        // caps above ~70° reuse the 70° row: the painting is squeezed there too
+        const lat = Math.max(-1.22, Math.min(1.22, ((j + 0.5) / TH - 0.5) * Math.PI));
+        for (let i = 0; i < TW; i++) {
+          const lon = ((i + 0.5) / TW - 0.5) * BAND;        // -60°..60°
+          sample(src, S, lon, lat, a, 0);
+          let w = 0, other = 0;
+          if (lon > BAND / 2 - BLEND) { w = 0.5 * (lon - (BAND / 2 - BLEND)) / BLEND; other = lon - BAND; }
+          else if (lon < -BAND / 2 + BLEND) { w = 0.5 * ((-BAND / 2 + BLEND) - lon) / BLEND; other = lon + BAND; }
+          if (w > 0) sample(src, S, other, lat, b, 0);
+          const k = (j * TW + i) * 3;
+          for (let ch = 0; ch < 3; ch++) tex[k + ch] = a[ch] * (1 - w) + b[ch] * w;
+        }
+      }
     };
 
-    const cosT = Math.cos(TILT), sinT = Math.sin(TILT);
-    function draw(rot) {
+    function draw(rot, alpha) {
       const rect = canvas.getBoundingClientRect();
       const N = Math.max(8, Math.round(rect.width * (window.devicePixelRatio || 1)));
       if (canvas.width !== N) { canvas.width = canvas.height = N; }
-      const out = ctx.createImageData(N, N), o = out.data, s = src.data, S = 2 * R;
+      const out = ctx.createImageData(N, N), o = out.data;
       for (let py = 0; py < N; py++) {
         for (let px = 0; px < N; px++) {
           const u = ((px + 0.5) / N * 2 - 1) / INNER, v = ((py + 0.5) / N * 2 - 1) / INNER;
           const d2 = u * u + v * v;
           if (d2 > 1) continue;
-          // into the globe's own frame (axis vertical)
-          const x = u * cosT + v * sinT, y = -u * sinT + v * cosT;
+          const x = u * cosT + v * sinT, y = -u * sinT + v * cosT;   // axis frame
           const z = Math.sqrt(Math.max(0, 1 - x * x - y * y));
           const lat = Math.asin(Math.max(-1, Math.min(1, y)));
-          let lon = Math.atan2(x, z) - rot;
-          lon = Math.atan2(Math.sin(lon), Math.cos(lon));      // wrap to [-pi, pi]
-          if (lon > Math.PI / 2) lon = Math.PI - lon;          // back half mirrors the front
-          else if (lon < -Math.PI / 2) lon = -Math.PI - lon;
-          const xs = Math.cos(lat) * Math.sin(lon), ys = y;
-          // back to the painting's frame, sampled inside the outline
-          const us = (xs * cosT - ys * sinT) * INNER, vs = (xs * sinT + ys * cosT) * INNER;
-          const sx = Math.min(S - 1, Math.max(0, Math.round((us + 1) / 2 * S - 0.5)));
-          const sy = Math.min(S - 1, Math.max(0, Math.round((vs + 1) / 2 * S - 0.5)));
-          const si = (sy * S + sx) * 4, oi = (py * N + px) * 4;
-          o[oi] = s[si]; o[oi + 1] = s[si + 1]; o[oi + 2] = s[si + 2];
-          o[oi + 3] = Math.round(255 * Math.min(1, (1 - Math.sqrt(d2)) * N / 3)); // soft edge
+          let lon = Math.atan2(x, z) - rot + BAND / 2;
+          lon = ((lon % BAND) + BAND) % BAND;                         // into the band
+          const fi = Math.min(TW - 1, lon / BAND * TW);
+          const fj = Math.min(TH - 1, (lat / Math.PI + 0.5) * TH);
+          const k = ((fj | 0) * TW + (fi | 0)) * 3, oi = (py * N + px) * 4;
+          o[oi] = tex[k]; o[oi + 1] = tex[k + 1]; o[oi + 2] = tex[k + 2];
+          o[oi + 3] = Math.round(255 * alpha * Math.min(1, (1 - Math.sqrt(d2)) * N / 3));
         }
       }
       ctx.putImageData(out, 0, 0);
     }
-    window.__drawGlobe = (r) => src && draw(r);   // used by tests
+    window.__drawGlobe = (r, a = 1) => tex && draw(r, a);   // used by tests
 
     canvas.addEventListener('mouseenter', () => {
-      if (spinning || !src || reduce) return;
+      if (spinning || !tex || reduce) return;
       spinning = true;
-      const start = performance.now(), dur = 2400, turn = 2 * Math.PI;
+      const start = performance.now(), dur = 2600, turn = 2 * Math.PI;
       const ease = t => 1 - Math.pow(1 - t, 3);
       (function frame(now) {
         const t = Math.min(1, (now - start) / dur);
-        draw(turn * ease(t));
+        // fade in fast, fade out as it settles, so it hands back to the painting
+        const alpha = Math.min(1, t / 0.06, (1 - t) / 0.2);
+        draw(turn * ease(t), alpha);
         if (t < 1) requestAnimationFrame(frame);
         else { spinning = false; ctx.clearRect(0, 0, canvas.width, canvas.height); }
       })(start);
