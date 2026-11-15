@@ -100,14 +100,15 @@ body {
   .stand { transition: none; }
 }
 
-/* Right panel: mailbox with flying letters, centred */
-.zone-right { position: relative; overflow: hidden; }
+/* Right panel: mailbox with flying letters at its left edge. A quarter of it
+   peeks into the postcard's screen, mirroring the bookshelf. */
+.zone-right { position: relative; }
 
 .mailbox {
   position: absolute;
   top: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  transform: translateX(-25%);
   height: 85%;
   width: auto;
   max-width: none;
