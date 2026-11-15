@@ -38,6 +38,21 @@ body {
   min-width: 0;
 }
 
+/* Left panel: bookshelf and plant, centred, running off the top of the page */
+.zone-left { position: relative; overflow: hidden; }
+
+.bookshelf {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 100%;
+  width: auto;
+  max-width: none;
+  user-select: none;
+  pointer-events: none;
+}
+
 .zone-center {
   display: flex;
   flex-direction: column;
@@ -374,7 +389,9 @@ body {
 
 <div class="scroller" id="scroller">
 <div class="track">
-<section class="zone" aria-label="Left panel"></section>
+<section class="zone zone-left" aria-label="Left panel">
+  <img class="bookshelf" src="bookshelf.webp" alt="Watercolour bookshelf of plants, books and postcards beside a potted monstera" draggable="false">
+</section>
 <section class="zone zone-center">
 <div class="controls">
 <div class="rotate-pill">
