@@ -299,26 +299,21 @@ body {
 .replace:focus-visible { opacity: 1; }
 
 /* Controls row above the postcard */
-/* Controls span the postcard's width: rotate + front/back on its left edge,
-   Send on its right edge (same width formula as .postcard) */
 .controls {
-  --pw: min(370px, calc(28px + (100% - 28px) * 416 / 667), calc(28px + (100vh - 304px) * 416 / 667), calc(28px + (100dvh - 304px) * 416 / 667));
   position: relative;
   z-index: 1;
   display: flex;
   align-items: center;
   gap: 8px;
-  width: var(--pw);
-  min-width: max-content;
 }
 
-.postcard-landscape .controls { width: calc(28px + (var(--pw) - 28px) * 667 / 416); }
-
-.controls .send-btn { margin-left: auto; }
-
 /* Front / back toggle and rotate button share the pill style */
-/* Send: the one filled control, in black */
+/* Send: fixed in the window's top-right corner, visible from every frame */
 .send-btn {
+  position: fixed;
+  top: calc(20px + env(safe-area-inset-top, 0px));
+  right: max(20px, env(safe-area-inset-right, 0px));
+  z-index: 20;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -845,6 +840,12 @@ body {
 </head>
 <body>
 
+<button type="button" class="send-btn" id="sendBtn">
+  <!-- Remix Icon: send-plane-line (Apache 2.0) -->
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.7267 2.95694L16.2734 22.0432C16.1225 22.5716 15.7979 22.5956 15.5563 22.1126L11 13L1.9229 9.36919C1.41322 9.16532 1.41953 8.86022 1.95695 8.68108L21.0432 2.31901C21.5716 2.14285 21.8747 2.43866 21.7267 2.95694ZM19.0353 5.09647L6.81221 9.17085L12.4488 11.4255L15.4895 17.5068L19.0353 5.09647Z"/></svg>
+  Send
+</button>
+
 <div class="scroller" id="scroller">
 <div class="track">
 <section class="zone zone-left" aria-label="Left panel">
@@ -876,11 +877,6 @@ body {
     <svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M11.3327 4.28889V12.3778C11.3327 12.5373 11.2332 12.6667 11.1105 12.6667H4.88824C4.76551 12.6667 4.66602 12.5373 4.66602 12.3778V4.28889C4.66602 4.12934 4.76551 4 4.88824 4H11.1105C11.2332 4 11.3327 4.12934 11.3327 4.28889Z"/><path d="M6.66602 6.66699H9.33268"/><path d="M6.66602 8.33301H9.33268"/><path d="M6.66602 10H9.33268"/></svg>
   </button>
 </div>
-<button type="button" class="send-btn" id="sendBtn">
-  <!-- Remix Icon: send-plane-line (Apache 2.0) -->
-  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.7267 2.95694L16.2734 22.0432C16.1225 22.5716 15.7979 22.5956 15.5563 22.1126L11 13L1.9229 9.36919C1.41322 9.16532 1.41953 8.86022 1.95695 8.68108L21.0432 2.31901C21.5716 2.14285 21.8747 2.43866 21.7267 2.95694ZM19.0353 5.09647L6.81221 9.17085L12.4488 11.4255L15.4895 17.5068L19.0353 5.09647Z"/></svg>
-  Send
-</button>
 </div>
 
 <div class="stage">
