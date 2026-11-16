@@ -162,7 +162,7 @@ body {
 /* Postcard: white frame with a soft shadow, photo inset inside it */
 .postcard {
   /* Portrait width; capped so the card turned on its side still fits the screen */
-  --pw: min(370px, calc(28px + (100% - 28px) * 416 / 667), calc(28px + (100vh - var(--reserve)) * 416 / 667), calc(28px + (100dvh - var(--reserve)) * 416 / 667));
+  --pw: min(370px, calc(28px + (100% - 28px) * 416 / 667), calc(28px + (100vh - 304px) * 416 / 667), calc(28px + (100dvh - 304px) * 416 / 667));
   width: var(--pw);
   padding: 14px;
   background: #fff;
@@ -308,38 +308,6 @@ body {
 }
 
 /* Front / back toggle and rotate button share the pill style */
-/* Height the page needs besides the card; on narrow screens it also keeps a
-   strip free at the bottom so the Send button never covers the tiles */
-:root { --reserve: 304px; }
-@media (max-width: 560px) { :root { --reserve: 360px; } }
-
-/* Send: fixed in the window's bottom-right corner, visible from every frame */
-.send-btn {
-  position: fixed;
-  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-  right: max(20px, env(safe-area-inset-right, 0px));
-  z-index: 20;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 14px 0 12px;
-  border: none;
-  border-radius: 10px;
-  background: #111;
-  color: #fff;
-  font: inherit;
-  font-size: 13px;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  pointer-events: auto;
-  transition: background 0.15s, transform 0.15s;
-}
-
-.send-btn svg { width: 14px; height: 14px; }
-.send-btn:hover { background: #333; }
-.send-btn:active { transform: scale(0.97); }
-.send-btn:focus-visible { outline: 2px solid #8c6d55; outline-offset: 2px; }
 
 .side-toggle,
 .rotate-pill {
@@ -541,7 +509,7 @@ body {
 .stage > * { grid-area: 1 / 1; }
 
 .ghost {
-  --pw: min(370px, calc(28px + (100% - 28px) * 416 / 667), calc(28px + (100vh - var(--reserve)) * 416 / 667), calc(28px + (100dvh - var(--reserve)) * 416 / 667));
+  --pw: min(370px, calc(28px + (100% - 28px) * 416 / 667), calc(28px + (100vh - 304px) * 416 / 667), calc(28px + (100dvh - 304px) * 416 / 667));
   width: var(--pw);
   padding: 14px;
   visibility: hidden;
@@ -574,6 +542,7 @@ body {
 /* Spacing, tilt and height measured from the mock-up (cards ~400px there, 112px here) */
 .tool:nth-child(2) { margin-left: -4px; }
 .tool:nth-child(3) { margin-left: -4px; }
+.tool:nth-child(4) { margin-left: -4px; }
 
 /* The left card sits over the middle one so "Aa" isn't covered */
 .tool:nth-child(1) { z-index: 1; }
@@ -586,8 +555,11 @@ body {
   --y: 0px;
   --fill: #f3efe9;
   position: relative;
-  width: 112px;
-  height: 112px;
+  /* four tiles fit any width: 112px, smaller on narrow screens */
+  width: clamp(64px, calc((100vw - 32px) / 4 + 3px), 112px);
+  aspect-ratio: 1;
+  height: auto;
+  container-type: size;
   padding: 0;
   border: none;
   background: none;
@@ -600,6 +572,7 @@ body {
 .tool:nth-child(1) { --r: 8deg;  --y: 0px;  --fill: #f1ece4; }
 .tool:nth-child(2) { --r: -5deg; --y: -3px; --fill: #e3ebfa; }
 .tool:nth-child(3) { --r: 8deg;  --y: -5px; --fill: #fbe5ea; }
+.tool:nth-child(4) { --r: -6deg; --y: -2px; --fill: #e6efe3; }
 
 .tool svg {
   position: absolute;
@@ -626,7 +599,7 @@ body {
   align-items: center;
   justify-content: center;
   font-family: var(--font-hand);
-  font-size: 58px;
+  font-size: 52cqw;
   font-weight: 700;
   line-height: 1;
   color: #111;
@@ -636,9 +609,25 @@ body {
 
 .font-typewriter .font-preview {
   font-family: var(--font-type);
-  font-size: 46px;
+  font-size: 41cqw;
   font-weight: 400;
 }
+
+/* Paper plane on the Send tile */
+.tool .send-icon {
+  position: absolute;
+  inset: 0;
+  width: 36%;
+  height: 36%;
+  margin: auto;
+  color: #111;
+  pointer-events: none;
+}
+
+/* keep the plane solid ink, not styled like the tile's frame */
+.tool .send-icon path,
+.tool:hover .send-icon path,
+.tool:focus-visible .send-icon path { fill: currentColor; stroke: none; }
 
 .tool img {
   position: absolute;
@@ -845,12 +834,6 @@ body {
 </head>
 <body>
 
-<button type="button" class="send-btn" id="sendBtn">
-  <!-- Remix Icon: send-plane-line (Apache 2.0) -->
-  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.7267 2.95694L16.2734 22.0432C16.1225 22.5716 15.7979 22.5956 15.5563 22.1126L11 13L1.9229 9.36919C1.41322 9.16532 1.41953 8.86022 1.95695 8.68108L21.0432 2.31901C21.5716 2.14285 21.8747 2.43866 21.7267 2.95694ZM19.0353 5.09647L6.81221 9.17085L12.4488 11.4255L15.4895 17.5068L19.0353 5.09647Z"/></svg>
-  Send
-</button>
-
 <div class="scroller" id="scroller">
 <div class="track">
 <section class="zone zone-left" aria-label="Left panel">
@@ -952,6 +935,11 @@ body {
   <button type="button" class="tool" id="toolStickers" aria-label="Pressed flowers" data-tip="Pressed flowers">
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M4 3 C36 5 66 2 97 5 C95 36 98 66 96 97 C64 95 34 98 3 95 C5 64 2 34 4 3 Z"/></svg>
     <img src="tool-stickers.webp" alt="" draggable="false">
+  </button>
+  <button type="button" class="tool" id="toolSend" aria-label="Send" data-tip="Send">
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M5 5 C34 2 66 6 96 4 C98 34 94 66 97 96 C66 98 34 95 4 97 C2 66 6 34 5 5 Z"/></svg>
+    <!-- Remix Icon: send-plane-line (Apache 2.0) -->
+    <svg class="send-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.7267 2.95694L16.2734 22.0432C16.1225 22.5716 15.7979 22.5956 15.5563 22.1126L11 13L1.9229 9.36919C1.41322 9.16532 1.41953 8.86022 1.95695 8.68108L21.0432 2.31901C21.5716 2.14285 21.8747 2.43866 21.7267 2.95694ZM19.0353 5.09647L6.81221 9.17085L12.4488 11.4255L15.4895 17.5068L19.0353 5.09647Z"/></svg>
   </button>
 </div>
 
@@ -1579,8 +1567,8 @@ body {
     });
   })();
 
-  // Send: clickable, action still to be wired (the repo's /api/send emails a card)
-  document.getElementById('sendBtn').addEventListener('click', () => {
+  // Send tile: clickable, action still to be wired (the repo's /api/send emails a card)
+  document.getElementById('toolSend').addEventListener('click', () => {
     // TODO: collect the recipient's email and send the postcard
   });
 
