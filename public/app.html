@@ -162,7 +162,7 @@ body {
 /* Postcard: white frame with a soft shadow, photo inset inside it */
 .postcard {
   /* Portrait width; capped so the card turned on its side still fits the screen */
-  --pw: min(370px, calc(28px + (100% - 28px) * 416 / 667), calc(28px + (100vh - 304px) * 416 / 667), calc(28px + (100dvh - 304px) * 416 / 667));
+  --pw: min(370px, calc(28px + (100% - 28px) * 416 / 667), calc(28px + (100vh - var(--reserve)) * 416 / 667), calc(28px + (100dvh - var(--reserve)) * 416 / 667));
   width: var(--pw);
   padding: 14px;
   background: #fff;
@@ -308,10 +308,15 @@ body {
 }
 
 /* Front / back toggle and rotate button share the pill style */
-/* Send: fixed in the window's top-right corner, visible from every frame */
+/* Height the page needs besides the card; on narrow screens it also keeps a
+   strip free at the bottom so the Send button never covers the tiles */
+:root { --reserve: 304px; }
+@media (max-width: 560px) { :root { --reserve: 360px; } }
+
+/* Send: fixed in the window's bottom-right corner, visible from every frame */
 .send-btn {
   position: fixed;
-  top: calc(20px + env(safe-area-inset-top, 0px));
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   right: max(20px, env(safe-area-inset-right, 0px));
   z-index: 20;
   display: inline-flex;
@@ -536,7 +541,7 @@ body {
 .stage > * { grid-area: 1 / 1; }
 
 .ghost {
-  --pw: min(370px, calc(28px + (100% - 28px) * 416 / 667), calc(28px + (100vh - 304px) * 416 / 667), calc(28px + (100dvh - 304px) * 416 / 667));
+  --pw: min(370px, calc(28px + (100% - 28px) * 416 / 667), calc(28px + (100vh - var(--reserve)) * 416 / 667), calc(28px + (100dvh - var(--reserve)) * 416 / 667));
   width: var(--pw);
   padding: 14px;
   visibility: hidden;
