@@ -858,7 +858,7 @@ body {
     </label>
     <img id="photo" alt="Postcard photo" tabindex="0" draggable="false" hidden>
     <div class="decor" id="decorFront"></div>
-    <span class="photo-hint" id="photoHint" hidden>Drag to move · pinch or Ctrl+scroll to zoom</span>
+    <span class="photo-hint" id="photoHint" hidden>Drag to move the photo</span>
     <label class="replace" id="replace" for="fileInput" tabindex="0" role="button" hidden>Replace</label>
   </div>
   <div class="back-area" id="backArea" hidden>
@@ -932,22 +932,20 @@ body {
   let currentUrl = null;
 
   // Read the photo in as image data (works inside sandboxed viewers that refuse blob: links)
-  // Reposition the photo: drag to move it within the frame, pinch or Ctrl/⌘ +
-  // scroll to zoom, double-click to reset. It always fills the frame. The framing
-  // is kept as "which point of the photo sits in the middle" plus a zoom, so it
-  // survives rotating the card and resizing the window.
+  // Reposition the photo: drag to move it within the frame, double-click to
+  // recentre. It always fills the frame. The framing is kept as "which point of
+  // the photo sits in the middle", so it survives rotating and resizing.
   const framer = (function () {
     const frame = document.getElementById('photoArea');
-    let cx = 0.5, cy = 0.5, zoom = 1, MAX = 4;
+    let cx = 0.5, cy = 0.5;
 
     function layout() {
       const fw = frame.clientWidth, fh = frame.clientHeight;
       const iw = photo.naturalWidth, ih = photo.naturalHeight;
       if (!fw || !fh || !iw || !ih || photo.hidden) return;
-      const s = Math.max(fw / iw, fh / ih) * zoom;     // "cover" size times zoom
+      const s = Math.max(fw / iw, fh / ih);            // "cover" size
       const w = iw * s, h = ih * s;
-      // keep the frame covered: clamp the centre point
-      const hx = fw / 2 / w, hy = fh / 2 / h;
+      const hx = fw / 2 / w, hy = fh / 2 / h;          // keep the frame covered
       cx = Math.min(1 - hx, Math.max(hx, cx));
       cy = Math.min(1 - hy, Math.max(hy, cy));
       photo.style.width = w + 'px';
@@ -955,81 +953,44 @@ body {
       photo.style.left = (fw / 2 - cx * w) + 'px';
       photo.style.top = (fh / 2 - cy * h) + 'px';
     }
-    function reset() { cx = cy = 0.5; zoom = 1; layout(); }
-    function zoomAt(factor, px, py) {
-      // keep the point under the pointer still while zooming
-      const r = frame.getBoundingClientRect(), w = photo.offsetWidth, h = photo.offsetHeight;
-      const ux = (px - r.left - photo.offsetLeft) / w, uy = (py - r.top - photo.offsetTop) / h;
-      const nz = Math.min(MAX, Math.max(1, zoom * factor));
-      if (nz === zoom) return;
-      const k = zoom / nz;
-      cx = ux + (cx - ux) * k;
-      cy = uy + (cy - uy) * k;
-      zoom = nz;
-      layout();
-    }
+    function reset() { cx = cy = 0.5; layout(); }
 
     photo.addEventListener('load', layout);
     if (window.ResizeObserver) new ResizeObserver(layout).observe(frame);
 
-    // Drag to move (one pointer), pinch to zoom (two pointers)
-    const pts = new Map();
-    let pinch = null;
+    // Drag to move
+    let last = null, id = null;
     photo.addEventListener('pointerdown', e => {
-      if (e.button > 0) return;
+      if (e.button > 0 || id !== null) return;
       e.preventDefault();
-      try { photo.setPointerCapture(e.pointerId); } catch (_) {}
-      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      id = e.pointerId;
+      last = { x: e.clientX, y: e.clientY };
+      try { photo.setPointerCapture(id); } catch (_) {}
       photo.classList.add('panning');
-      if (pts.size === 2) {
-        const [a, b] = [...pts.values()];
-        pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) };
-      }
     });
     photo.addEventListener('pointermove', e => {
-      const prev = pts.get(e.pointerId);
-      if (!prev) return;
-      if ((e.buttons & 1) === 0 && e.pointerType === 'mouse') { end(e); return; }
-      const cur = { x: e.clientX, y: e.clientY };
-      pts.set(e.pointerId, cur);
-      if (pts.size >= 2 && pinch) {
-        const [a, b] = [...pts.values()];
-        const d = Math.hypot(a.x - b.x, a.y - b.y);
-        if (pinch.d > 0) zoomAt(d / pinch.d, (a.x + b.x) / 2, (a.y + b.y) / 2);
-        pinch.d = d;
-        return;
-      }
-      cx -= (cur.x - prev.x) / photo.offsetWidth;
-      cy -= (cur.y - prev.y) / photo.offsetHeight;
+      if (e.pointerId !== id) return;
+      if (e.pointerType === 'mouse' && (e.buttons & 1) === 0) { end(e); return; }
+      cx -= (e.clientX - last.x) / photo.offsetWidth;
+      cy -= (e.clientY - last.y) / photo.offsetHeight;
+      last = { x: e.clientX, y: e.clientY };
       layout();
     });
     function end(e) {
-      pts.delete(e.pointerId);
-      if (pts.size < 2) pinch = null;
-      if (pts.size === 0) photo.classList.remove('panning');
+      if (e && e.pointerId !== undefined && e.pointerId !== id) return;
+      id = null;
+      photo.classList.remove('panning');
     }
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => photo.addEventListener(t, end));
-    window.addEventListener('blur', () => { pts.clear(); pinch = null; photo.classList.remove('panning'); });
-
-    // Trackpad pinch arrives as Ctrl + wheel; Ctrl/⌘ + mouse wheel zooms too
-    photo.addEventListener('wheel', e => {
-      if (!(e.ctrlKey || e.metaKey)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const d = Math.max(-25, Math.min(25, e.deltaY));   // a mouse notch = ~1.28x
-      zoomAt(Math.exp(-d * 0.01), e.clientX, e.clientY);
-    }, { passive: false });
+    window.addEventListener('blur', () => end());
 
     photo.addEventListener('dblclick', reset);
 
-    // Keyboard: arrows move, + / - zoom, 0 resets
+    // Keyboard: arrows move, 0 recentres
     photo.addEventListener('keydown', e => {
       const step = 0.02;
-      const r = frame.getBoundingClientRect(), mx = r.left + r.width / 2, my = r.top + r.height / 2;
       const k = { ArrowLeft: () => cx -= step, ArrowRight: () => cx += step,
-                  ArrowUp: () => cy -= step, ArrowDown: () => cy += step,
-                  '+': () => zoomAt(1.1, mx, my), '=': () => zoomAt(1.1, mx, my),
-                  '-': () => zoomAt(1 / 1.1, mx, my), '0': reset }[e.key];
+                  ArrowUp: () => cy -= step, ArrowDown: () => cy += step, '0': reset }[e.key];
       if (!k) return;
       e.preventDefault();
       k();
