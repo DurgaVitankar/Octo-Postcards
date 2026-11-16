@@ -299,13 +299,22 @@ body {
 .replace:focus-visible { opacity: 1; }
 
 /* Controls row above the postcard */
+/* Controls span the postcard's width: rotate + front/back on its left edge,
+   Send on its right edge (same width formula as .postcard) */
 .controls {
+  --pw: min(370px, calc(28px + (100% - 28px) * 416 / 667), calc(28px + (100vh - 304px) * 416 / 667), calc(28px + (100dvh - 304px) * 416 / 667));
   position: relative;
   z-index: 1;
   display: flex;
   align-items: center;
   gap: 8px;
+  width: var(--pw);
+  min-width: max-content;
 }
+
+.postcard-landscape .controls { width: calc(28px + (var(--pw) - 28px) * 667 / 416); }
+
+.controls .send-btn { margin-left: auto; }
 
 /* Front / back toggle and rotate button share the pill style */
 /* Send: the one filled control, in the shelf's brown */
