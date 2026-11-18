@@ -873,6 +873,104 @@ body {
 @starting-style { .gallery[open] { opacity: 0; } }
 .gallery::backdrop { background: transparent; }
 
+/* Gallery layout: thumbnail column | opened card | thumbnail column */
+.gallery-body {
+  display: grid;
+  grid-template-columns: 120px 1fr 120px;
+  gap: 24px;
+  height: 100%;
+  padding: 24px max(28px, env(safe-area-inset-right, 0px)) 24px max(28px, env(safe-area-inset-left, 0px));
+}
+
+.gallery-body:focus { outline: none; }
+
+.gallery-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: center;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.thumb {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100px;
+  height: 84px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.thumb:hover { transform: scale(1.06); }
+.thumb[aria-current="true"] .pc { outline: 2px solid #c8b09a; outline-offset: 3px; }
+.thumb:focus-visible { outline: none; }
+.thumb:focus-visible .pc { outline: 2px solid #8c6d55; outline-offset: 3px; }
+
+/* A postcard: white border around a picture, soft shadow */
+.pc {
+  background: #fff;
+  padding: 4%;
+  border-radius: 3px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
+}
+
+.pc svg { display: block; width: 100%; height: 100%; }
+.pc-thumb.pc-port { height: 78px; aspect-ratio: 10 / 14; }
+.pc-thumb.pc-land { width: 96px; aspect-ratio: 14 / 10; }
+.pc-thumb { padding: 4px; }
+
+.gallery-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  min-width: 0;
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.gallery-stage.show { opacity: 1; transform: none; transition: opacity 0.3s ease, transform 0.3s ease; }
+
+.gallery-card { display: flex; justify-content: center; }
+.pc-big { border-radius: 6px; padding: 14px; box-shadow: 0 6px 30px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06); }
+.pc-big.pc-port { height: min(58vh, 520px); aspect-ratio: 10 / 14; max-width: 100%; }
+.pc-big.pc-land { width: min(46vw, 640px); aspect-ratio: 14 / 10; max-height: 58vh; }
+
+.gallery-caption { text-align: center; }
+.gallery-meta { font-size: 13px; color: #6b6b6b; letter-spacing: 0.01em; }
+.gallery-title {
+  margin-top: 6px;
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-size: clamp(20px, 2.4vw, 28px);
+  font-weight: 700;
+  color: #1d1d1d;
+  text-wrap: balance;
+}
+
+/* Phones: opened card on top, thumbnails as one scrolling strip below */
+@media (max-width: 640px) {
+  .gallery-body { grid-template-columns: 1fr; grid-template-rows: 1fr auto auto; padding-top: 72px; }
+  .gallery-stage { grid-row: 1; }
+  .gallery-col { flex-direction: row; justify-content: flex-start; overflow-x: auto; overflow-y: hidden; }
+  #galleryLeft { grid-row: 2; }
+  #galleryRight { grid-row: 3; }
+  .pc-big.pc-port { height: min(46vh, 420px); }
+  .pc-big.pc-land { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-stage.show, .thumb { transition: none; }
+}
+
 .gallery-close {
   position: absolute;
   top: calc(20px + env(safe-area-inset-top, 0px));
@@ -906,6 +1004,17 @@ body {
     <!-- Remix Icon: close-line (Apache 2.0) -->
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.9997 10.5865L16.9495 5.63672L18.3637 7.05093L13.4139 12.0007L18.3637 16.9504L16.9495 18.3646L11.9997 13.4149L7.04996 18.3646L5.63574 16.9504L10.5855 12.0007L5.63574 7.05093L7.04996 5.63672L11.9997 10.5865Z"/></svg>
   </button>
+  <div class="gallery-body" tabindex="-1" autofocus>
+    <div class="gallery-col" id="galleryLeft"></div>
+    <div class="gallery-stage" id="galleryStage" aria-live="polite">
+      <div class="gallery-card" id="galleryCard"></div>
+      <div class="gallery-caption">
+        <div class="gallery-meta" id="galleryMeta"></div>
+        <h2 class="gallery-title" id="galleryTitle"></h2>
+      </div>
+    </div>
+    <div class="gallery-col" id="galleryRight"></div>
+  </div>
 </dialog>
 
 <div class="scroller" id="scroller">
@@ -1189,6 +1298,104 @@ body {
     if (gallery.showModal) gallery.showModal(); else gallery.setAttribute('open', '');
   });
   document.getElementById('galleryClose').addEventListener('click', () => gallery.close());
+
+  // Gallery content: dummy postcards in two thumbnail columns, the selected one
+  // opened in the centre. Each card's picture is a small scene drawn in SVG.
+  (function () {
+    const CARDS = [
+      { title: 'Golden hour on the Tagus', from: 'Maya', place: 'Lisbon', date: '12 Aug 2026', scene: 'sea',    pal: ['#f7c59f', '#ef8354', '#2d6a8a', '#fbe3c5'], land: false },
+      { title: 'Morning in the hills',     from: 'Arjun', place: 'Munnar', date: '3 Jul 2026',  scene: 'hills',  pal: ['#e8f1e4', '#9cc5a1', '#49a078', '#216869'], land: true  },
+      { title: 'Rooftops after rain',      from: 'Léa', place: 'Paris', date: '21 Mar 2026',    scene: 'city',   pal: ['#d7dde8', '#9aa9c0', '#4f5d75', '#2d3142'], land: false },
+      { title: 'Dunes at noon',            from: 'Omar', place: 'Merzouga', date: '9 Feb 2026', scene: 'desert', pal: ['#fdf0d5', '#f4a261', '#e76f51', '#c8553d'], land: true  },
+      { title: 'Stars over the lake',      from: 'Ines', place: 'Bled', date: '14 Jan 2026',    scene: 'night',  pal: ['#1b263b', '#415a77', '#e0e1dd', '#778da9'], land: false },
+      { title: 'Lavender fields',          from: 'Theo', place: 'Valensole', date: '1 Jul 2026', scene: 'hills', pal: ['#f3e8ff', '#c8b6e2', '#8e7dbe', '#5b4b8a'], land: false },
+      { title: 'Harbour lights',           from: 'Sana', place: 'Kochi', date: '28 Oct 2026',   scene: 'night',  pal: ['#22223b', '#4a4e69', '#f2e9e4', '#c9ada7'], land: true  },
+      { title: 'Cherry blossom walk',      from: 'Ken', place: 'Kyoto', date: '4 Apr 2026',     scene: 'hills',  pal: ['#fff0f3', '#ffccd5', '#ff8fa3', '#c9184a'], land: false },
+      { title: 'Surf check',               from: 'Noa', place: 'Ericeira', date: '17 Sep 2026', scene: 'sea',    pal: ['#caf0f8', '#90e0ef', '#0077b6', '#03045e'], land: true  },
+      { title: 'Blue city',                from: 'Priya', place: 'Jodhpur', date: '22 Nov 2026', scene: 'city',  pal: ['#e0f2fe', '#7dd3fc', '#0369a1', '#0c4a6e'], land: false },
+      { title: 'Last light on the ridge',  from: 'Sam', place: 'Snowdonia', date: '30 Sep 2026', scene: 'hills', pal: ['#ffd6a5', '#ffadad', '#6d597a', '#355070'], land: true  },
+      { title: 'Salt flats',               from: 'Lucía', place: 'Uyuni', date: '6 May 2026',   scene: 'desert', pal: ['#f1faee', '#a8dadc', '#e9c46a', '#457b9d'], land: false },
+      { title: 'Lighthouse weather',       from: 'Finn', place: 'Cornwall', date: '11 Aug 2026', scene: 'sea',   pal: ['#e9ecef', '#adb5bd', '#495057', '#212529'], land: false },
+      { title: 'Northern lights',          from: 'Aino', place: 'Tromsø', date: '2 Dec 2026',   scene: 'night',  pal: ['#0b132b', '#1c2541', '#6fffe9', '#5bc0be'], land: true  }
+    ];
+
+    // Simple illustrated scenes in a 100 x 100 box, stretched to the card's shape
+    function scene(c, uid) {
+      const [a, b, c2, d] = c.pal, g = 'g' + uid;
+      const sky = `<defs><linearGradient id="${g}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><rect width="100" height="100" fill="url(#${g})"/>`;
+      switch (c.scene) {
+        case 'sea': return sky +
+          `<circle cx="64" cy="46" r="13" fill="${d}" opacity="0.9"/>` +
+          `<rect y="58" width="100" height="42" fill="${c2}"/>` +
+          `<path d="M0 66 q8 -3 16 0 t16 0 t16 0 t16 0 t16 0 t16 0 t16 0" stroke="${a}" stroke-width="1" fill="none" opacity="0.6"/>` +
+          `<path d="M0 76 q8 -3 16 0 t16 0 t16 0 t16 0 t16 0 t16 0 t16 0" stroke="${a}" stroke-width="1" fill="none" opacity="0.4"/>`;
+        case 'hills': return sky +
+          `<circle cx="30" cy="30" r="9" fill="#fff" opacity="0.7"/>` +
+          `<path d="M0 62 Q25 40 50 58 T100 52 V100 H0Z" fill="${b}"/>` +
+          `<path d="M0 74 Q30 56 60 72 T100 68 V100 H0Z" fill="${c2}"/>` +
+          `<path d="M0 86 Q35 74 70 86 T100 84 V100 H0Z" fill="${d}"/>`;
+        case 'city': return sky +
+          [[4,52,14],[20,40,12],[34,58,10],[46,30,14],[62,48,11],[75,36,13],[90,56,10]]
+            .map(([x, y, w], i) => `<rect x="${x}" y="${y}" width="${w}" height="${100 - y}" fill="${i % 2 ? c2 : d}"/>`).join('') +
+          `<g fill="${a}" opacity="0.7">${Array.from({ length: 14 }, (_, i) => `<rect x="${8 + (i * 13) % 86}" y="${62 + (i * 7) % 30}" width="2" height="3"/>`).join('')}</g>`;
+        case 'desert': return sky +
+          `<circle cx="70" cy="30" r="11" fill="#fff" opacity="0.85"/>` +
+          `<path d="M0 70 Q30 52 60 68 T100 62 V100 H0Z" fill="${c2}"/>` +
+          `<path d="M0 84 Q40 70 80 82 T100 80 V100 H0Z" fill="${d}"/>`;
+        case 'night': return `<rect width="100" height="100" fill="${a}"/>` +
+          `<g fill="${c2}">${Array.from({ length: 22 }, (_, i) => `<circle cx="${(i * 37) % 100}" cy="${(i * 23) % 55}" r="${i % 3 ? 0.6 : 1}"/>`).join('')}</g>` +
+          `<circle cx="72" cy="22" r="8" fill="${c2}"/><circle cx="76" cy="20" r="7" fill="${a}"/>` +
+          `<path d="M0 70 Q30 58 55 68 T100 64 V100 H0Z" fill="${b}"/>` +
+          `<rect y="82" width="100" height="18" fill="${d}" opacity="0.6"/>`;
+      }
+      return sky;
+    }
+
+    function cardHTML(c, i, cls) {
+      return `<div class="pc ${cls} ${c.land ? 'pc-land' : 'pc-port'}">` +
+        `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, cls + i)}</svg></div>`;
+    }
+
+    const left = document.getElementById('galleryLeft'), right = document.getElementById('galleryRight');
+    const stage = document.getElementById('galleryStage');
+    const half = Math.ceil(CARDS.length / 2);
+    let current = 0;
+
+    CARDS.forEach((c, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'thumb';
+      b.dataset.i = i;
+      b.setAttribute('aria-label', `${c.title}, from ${c.from}`);
+      b.innerHTML = cardHTML(c, i, 'pc-thumb');
+      (i < half ? left : right).appendChild(b);
+    });
+    const thumbs = [...document.querySelectorAll('.thumb')];
+
+    function select(i, focus) {
+      current = (i + CARDS.length) % CARDS.length;
+      const c = CARDS[current];
+      stage.classList.remove('show');
+      document.getElementById('galleryCard').innerHTML = cardHTML(c, current, 'pc-big');
+      document.getElementById('galleryMeta').textContent = `From ${c.from} · ${c.place}, ${c.date}`;
+      document.getElementById('galleryTitle').textContent = c.title;
+      void stage.offsetWidth;                      // restart the fade
+      stage.classList.add('show');
+      thumbs.forEach((t, k) => t.setAttribute('aria-current', String(k === current)));
+      if (focus) thumbs[current].focus();
+      thumbs[current].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    thumbs.forEach(t => t.addEventListener('click', () => select(+t.dataset.i)));
+    document.getElementById('gallery').addEventListener('keydown', e => {
+      const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
+      if (!step) return;
+      e.preventDefault();
+      select(current + step, document.activeElement && document.activeElement.classList.contains('thumb'));
+    });
+    select(0);
+  })();
+
 
   // Tools under the postcard: clickable, actions still to be decided
   // Font tool: each click switches between handwritten and typewriter.
