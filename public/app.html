@@ -853,10 +853,60 @@ body {
 .photo-area.dragging .empty,
 .photo-area.dragging #photo { outline: 2px dashed #8a8a8a; outline-offset: -6px; }
 
+/* Postcard gallery modal (opened from the stand on the bookshelf): blank for now */
+.gallery {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: #f5f5f4;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.gallery[open] { opacity: 1; }
+@starting-style { .gallery[open] { opacity: 0; } }
+.gallery::backdrop { background: transparent; }
+
+.gallery-close {
+  position: absolute;
+  top: calc(20px + env(safe-area-inset-top, 0px));
+  right: max(20px, env(safe-area-inset-right, 0px));
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: #111;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+}
+
+.gallery-close svg { width: 18px; height: 18px; }
+.gallery-close:hover { background: #f0efed; }
+.gallery-close:focus-visible { outline: 2px solid #8c6d55; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) { .gallery { transition: none; } }
+
 [hidden] { display: none !important; }
 </style>
 </head>
 <body>
+
+<dialog class="gallery" id="gallery" aria-label="Postcards">
+  <button type="button" class="gallery-close" id="galleryClose" aria-label="Close">
+    <!-- Remix Icon: close-line (Apache 2.0) -->
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.9997 10.5865L16.9495 5.63672L18.3637 7.05093L13.4139 12.0007L18.3637 16.9504L16.9495 18.3646L11.9997 13.4149L7.04996 18.3646L5.63574 16.9504L10.5855 12.0007L5.63574 7.05093L7.04996 5.63672L11.9997 10.5865Z"/></svg>
+  </button>
+</dialog>
 
 <div class="scroller" id="scroller">
 <div class="track">
@@ -1133,9 +1183,12 @@ body {
   }, { passive: false });
 
   // Postcard stand on the bookshelf: clickable, action still to be decided
+  // Postcard stand on the bookshelf opens the postcard gallery modal
+  const gallery = document.getElementById('gallery');
   document.getElementById('stand').addEventListener('click', () => {
-    // TODO: decide what clicking the stand does
+    if (gallery.showModal) gallery.showModal(); else gallery.setAttribute('open', '');
   });
+  document.getElementById('galleryClose').addEventListener('click', () => gallery.close());
 
   // Tools under the postcard: clickable, actions still to be decided
   // Font tool: each click switches between handwritten and typewriter.
