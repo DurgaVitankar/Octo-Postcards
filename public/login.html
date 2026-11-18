@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Sign in · Postcards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@700&family=Tangerine:wght@400;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+/* Sign-in card styled as the back of a postcard, centred on a white page */
+:root {
+  --ink: #1d1d1d;
+  --muted: #8a8a8a;
+  --rule: #e6e3df;
+  --brown: #5c422f;
+  --brown-soft: #c8b09a;
+  --mauve: #a8979e;
+  --error: #a3402f;
+  --serif: 'Libre Baskerville', Georgia, 'Times New Roman', serif;
+  --script: 'Tangerine', 'Apple Chancery', 'Segoe Script', cursive;
+  --ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-block: 24px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: #fff;
+  color: var(--ink);
+  font-family: var(--ui);
+}
+
+.card {
+  position: relative;
+  width: min(440px, 100%);
+  padding: 32px 32px 28px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 2px 24px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+
+.title {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.22em;
+}
+
+.sub {
+  font-family: var(--script);
+  font-size: 26px;
+  line-height: 1;
+  color: var(--mauve);
+}
+
+.stamp {
+  width: 52px;
+  flex: none;
+  transform: rotate(4deg);
+  filter: drop-shadow(0 1px 2px rgba(60, 40, 20, 0.18));
+}
+
+.lede {
+  margin-top: 28px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #444;
+}
+
+form { margin-top: 20px; display: grid; gap: 16px; }
+
+.field label {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.field input {
+  width: 100%;
+  margin-top: 2px;
+  padding: 6px 2px 8px;
+  border: none;
+  border-bottom: 1px solid var(--rule);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--script);
+  font-size: 30px;
+  line-height: 1.2;
+  transition: border-color 0.15s;
+}
+
+.field input::placeholder { color: #cfc9c4; }
+.field input:focus { outline: none; border-bottom-color: var(--brown-soft); }
+.field input[aria-invalid="true"] { border-bottom-color: var(--error); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: #111;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.btn:hover { background: #333; }
+.btn:disabled { opacity: 0.6; cursor: default; }
+.btn:focus-visible, .link:focus-visible { outline: 2px solid var(--brown-soft); outline-offset: 2px; }
+.btn svg { width: 16px; height: 16px; }
+
+.note { font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+
+.error {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--error);
+}
+
+/* "Check your inbox" state */
+.sent h2 {
+  margin-top: 28px;
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.sent p { margin-top: 10px; font-size: 15px; line-height: 1.5; color: #444; }
+.sent p.note { font-size: 12.5px; color: var(--muted); }
+.sent strong { color: var(--ink); font-weight: 600; word-break: break-all; }
+
+.actions { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+
+.link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--brown);
+  font: inherit;
+  font-size: 13.5px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.link:disabled { color: var(--muted); text-decoration: none; cursor: default; }
+
+[hidden] { display: none !important; }
+
+@media (max-width: 400px) {
+  .card { padding: 26px 22px 22px; }
+}
+</style>
+</head>
+<body>
+
+<main class="card">
+  <div class="head">
+    <div>
+      <div class="title">POSTCARD</div>
+      <div class="sub">with love</div>
+    </div>
+    <img class="stamp" src="stamps/stamp-yarrow.webp" alt="">
+  </div>
+
+  <!-- Step 1: ask for an email -->
+  <section id="askStep">
+    <p class="lede">Sign in to write and send postcards. No password: we'll email you a link.</p>
+    <form id="form" novalidate>
+      <div class="field">
+        <label for="email">Your email</label>
+        <input id="email" name="email" type="email" autocomplete="email" inputmode="email"
+               placeholder="you@example.com" required aria-describedby="error">
+      </div>
+      <p class="error" id="error" role="alert" hidden></p>
+      <button class="btn" id="submit" type="submit">
+        <!-- Remix Icon: send-plane-line (Apache 2.0) -->
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.7267 2.95694L16.2734 22.0432C16.1225 22.5716 15.7979 22.5956 15.5563 22.1126L11 13L1.9229 9.36919C1.41322 9.16532 1.41953 8.86022 1.95695 8.68108L21.0432 2.31901C21.5716 2.14285 21.8747 2.43866 21.7267 2.95694ZM19.0353 5.09647L6.81221 9.17085L12.4488 11.4255L15.4895 17.5068L19.0353 5.09647Z"/></svg>
+        <span id="submitLabel">Send magic link</span>
+      </button>
+      <p class="note">The link signs you in on this device and works once.</p>
+    </form>
+  </section>
+
+  <!-- Step 2: link sent -->
+  <section class="sent" id="sentStep" hidden>
+    <h2>Check your inbox</h2>
+    <p>We sent a sign-in link to <strong id="sentTo"></strong>. Open it on this device to continue.</p>
+    <p class="note" style="margin-top:10px">Can't find it? Check your spam folder.</p>
+    <p class="error" id="resendError" role="alert" hidden style="margin-top:12px"></p>
+    <div class="actions">
+      <button class="link" id="resend" type="button">Resend link</button>
+      <button class="link" id="changeEmail" type="button">Use a different email</button>
+    </div>
+  </section>
+
+  <!-- Signing in after the link is opened -->
+  <section id="signingIn" hidden>
+    <p class="lede">Signing you in…</p>
+  </section>
+</main>
+
+<script>
+  // Where to go once signed in, and where the email link should return to
+  const APP_URL = '/app.html';
+  const RETURN_URL = location.origin + location.pathname;
+  const RESEND_WAIT = 60;   // seconds before the link can be sent again
+
+  const $ = id => document.getElementById(id);
+  const form = $('form'), email = $('email'), error = $('error');
+  const submit = $('submit'), submitLabel = $('submitLabel');
+  let client = null, lastEmail = '', timer = null;
+
+  // Supabase settings come from the Next.js app's /api/env route
+  async function getClient() {
+    if (client) return client;
+    if (!window.supabase) throw new Error('setup');
+    const res = await fetch('/api/env');
+    if (!res.ok) throw new Error('setup');
+    const { url, key } = await res.json();
+    if (!url || !key) throw new Error('setup');
+    client = window.supabase.createClient(url, key, { auth: { detectSessionInUrl: true, persistSession: true } });
+    return client;
+  }
+
+  function show(step) {
+    $('askStep').hidden = step !== 'ask';
+    $('sentStep').hidden = step !== 'sent';
+    $('signingIn').hidden = step !== 'signing';
+  }
+
+  function showError(el, msg) {
+    el.textContent = msg;
+    el.hidden = !msg;
+  }
+
+  function friendly(err) {
+    if (err && err.message === 'setup') return "Sign-in isn't set up on this site yet. Please try again later.";
+    const status = err && err.status;
+    if (status === 429) return 'Too many requests. Please wait a minute, then try again.';
+    if (err && /network|fetch/i.test(err.message || '')) return "Couldn't reach the sign-in service. Check your connection and try again.";
+    return (err && err.message) ? err.message : 'Something went wrong. Please try again.';
+  }
+
+  async function sendLink(address) {
+    const sb = await getClient();
+    const { error: err } = await sb.auth.signInWithOtp({
+      email: address,
+      options: { emailRedirectTo: RETURN_URL, shouldCreateUser: true }
+    });
+    if (err) throw err;
+  }
+
+  function startCooldown() {
+    const btn = $('resend');
+    let left = RESEND_WAIT;
+    btn.disabled = true;
+    btn.textContent = `Resend link in ${left}s`;
+    clearInterval(timer);
+    timer = setInterval(() => {
+      left -= 1;
+      if (left <= 0) { clearInterval(timer); btn.disabled = false; btn.textContent = 'Resend link'; }
+      else btn.textContent = `Resend link in ${left}s`;
+    }, 1000);
+  }
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const address = email.value.trim();
+    if (!email.checkValidity() || !address) {
+      email.setAttribute('aria-invalid', 'true');
+      showError(error, address ? "That doesn't look like an email address." : 'Enter your email address.');
+      email.focus();
+      return;
+    }
+    email.removeAttribute('aria-invalid');
+    showError(error, '');
+    submit.disabled = true;
+    submitLabel.textContent = 'Sending…';
+    try {
+      await sendLink(address);
+      lastEmail = address;
+      $('sentTo').textContent = address;
+      show('sent');
+      startCooldown();
+    } catch (err) {
+      showError(error, friendly(err));
+    } finally {
+      submit.disabled = false;
+      submitLabel.textContent = 'Send magic link';
+    }
+  });
+
+  email.addEventListener('input', () => {
+    if (email.getAttribute('aria-invalid')) { email.removeAttribute('aria-invalid'); showError(error, ''); }
+  });
+
+  $('resend').addEventListener('click', async () => {
+    showError($('resendError'), '');
+    $('resend').disabled = true;
+    $('resend').textContent = 'Sending…';
+    try {
+      await sendLink(lastEmail);
+      startCooldown();
+    } catch (err) {
+      $('resend').disabled = false;
+      $('resend').textContent = 'Resend link';
+      showError($('resendError'), friendly(err));
+    }
+  });
+
+  $('changeEmail').addEventListener('click', () => {
+    clearInterval(timer);
+    show('ask');
+    email.focus();
+    email.select();
+  });
+
+  // Returning from the email link (or already signed in): continue to the app
+  (async function init() {
+    const fromLink = /access_token=|[?&]code=|error_description=/.test(location.hash + location.search);
+    if (fromLink) show('signing');
+    try {
+      const sb = await getClient();
+      const params = new URLSearchParams(location.hash.slice(1) + '&' + location.search.slice(1));
+      if (params.get('error_description')) {
+        show('ask');
+        showError(error, params.get('error_description').replace(/\+/g, ' ') + '. Send yourself a new link.');
+        history.replaceState(null, '', location.pathname);
+        return;
+      }
+      const code = new URLSearchParams(location.search).get('code');
+      if (code) await sb.auth.exchangeCodeForSession(code).catch(() => {});
+      const { data } = await sb.auth.getSession();
+      if (data && data.session) { location.replace(APP_URL); return; }
+      if (fromLink) {
+        show('ask');
+        showError(error, 'That link has expired or was already used. Send yourself a new one.');
+        history.replaceState(null, '', location.pathname);
+      }
+    } catch (_) {
+      if (fromLink) { show('ask'); showError(error, friendly({ message: 'setup' })); }
+    }
+  })();
+</script>
+</body>
+</html>
