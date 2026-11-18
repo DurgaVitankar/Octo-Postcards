@@ -58,7 +58,31 @@ body {
   top: 0;
   right: 0;
   height: 85vh;
+  width: var(--shelf-w);   /* exactly the painting's width, so overlays line up */
   transform: translateX(25%);
+}
+
+/* Sketchy floor line the bookshelf and pot stand on (feet at y≈1776 of 1889).
+   The painting has a white background, so the line is drawn over it, blended as ink. */
+.groundline {
+  position: absolute;
+  top: calc(1776 / 1889 * 100% - 0.55vh);
+  left: calc(39 / 2000 * 100% - 120px);
+  /* explicit width: an SVG would otherwise keep its viewBox ratio */
+  width: calc((1947 - 39) / 2000 * 100% + 180px);
+  height: 1.1vh;
+  min-height: 8px;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 1;
+  mix-blend-mode: multiply;   /* sits on the painting like ink */
+}
+
+.groundline path {
+  fill: none;
+  stroke: #8c6d55;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
 }
 
 .bookshelf {
@@ -838,6 +862,11 @@ body {
 <div class="track">
 <section class="zone zone-left" aria-label="Left panel">
   <div class="shelf">
+    <svg class="groundline" viewBox="0 0 1000 20" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M 0 9.4 Q 19 10.4 38 8.9 Q 58 7.9 77 10.5 Q 96 10.7 115 8.6 Q 135 9.1 154 10.1 Q 173 9.7 192 9.6 Q 212 9.7 231 8.6 Q 250 7.2 269 10.0 Q 288 8.6 308 8.5 Q 327 7.6 346 9.8 Q 365 10.4 385 8.6 Q 404 8.4 423 8.7 Q 442 8.1 462 9.8 Q 481 10.0 500 11.0 Q 519 10.9 538 8.8 Q 558 8.2 577 9.1 Q 596 10.1 615 10.4 Q 635 11.0 654 11.4 Q 673 10.6 692 10.2 Q 712 10.5 731 9.7 Q 750 9.8 769 11.5 Q 788 12.7 808 8.5 Q 827 9.3 846 11.1 Q 865 10.5 885 9.3 Q 904 10.9 923 8.9 Q 942 7.6 962 8.8 Q 981 8.5 1000 9.4" stroke-width="1.6"/>
+      <path d="M 40 13.2 Q 58 12.3 75 11.5 Q 93 10.5 111 12.5 Q 128 11.2 146 11.2 Q 164 12.0 182 13.0 Q 199 11.9 217 13.2 Q 235 12.5 252 12.7 Q 270 12.4 288 13.6 Q 305 14.6 323 12.0 Q 341 10.8 358 13.0 Q 376 12.9 394 12.8 Q 412 12.9 429 12.7 Q 447 13.8 465 12.4 Q 482 13.3 500 13.5 Q 518 14.5 535 13.7 Q 553 13.1 571 12.4 Q 588 12.2 606 13.0 Q 624 12.6 642 11.3 Q 659 12.3 677 13.1 Q 695 14.3 712 12.9 Q 730 11.9 748 13.9 Q 765 13.0 783 13.4 Q 801 12.7 818 11.9 Q 836 11.2 854 12.2 Q 872 12.1 889 13.0 Q 907 13.2 925 11.2 Q 942 10.5 960 12.4" stroke-width="1" opacity="0.55"/>
+      <path d="M 0 7.8 Q 4 7.5 8 8.8 Q 13 7.7 17 8.7 Q 21 9.6 25 9.2 Q 30 9.4 34 10.1 Q 38 9.2 42 9.5 Q 47 8.9 51 9.0 Q 55 8.7 59 9.3 Q 63 9.0 68 9.4 Q 72 8.5 76 7.9 Q 80 8.8 85 10.0 Q 89 11.1 93 9.7 Q 97 9.6 102 9.9 Q 106 9.9 110 9.7 Q 114 8.7 118 8.7 Q 123 7.8 127 8.8 Q 131 8.4 135 8.0 Q 140 7.5 144 9.3 Q 148 10.1 152 7.9 Q 157 7.1 161 8.0 Q 165 6.8 169 8.3 Q 173 9.4 178 8.2 Q 182 8.3 186 8.6 Q 190 7.8 195 7.9 Q 199 8.0 203 7.8 Q 207 6.7 212 8.2 Q 216 8.2 220 8.0" stroke-width="1.2" opacity="0.7"/>
+    </svg>
     <img class="bookshelf" src="bookshelf.webp" alt="Watercolour bookshelf of plants, books and postcards beside a potted monstera" draggable="false">
     <canvas class="globe" id="globe" aria-hidden="true"></canvas>
     <button class="stand" id="stand" type="button" aria-label="Postcard stand">
