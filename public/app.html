@@ -1130,6 +1130,143 @@ body {
 
 @media (prefers-reduced-motion: reduce) { .gallery { transition: none; } }
 
+/* Mailbox: clickable (opens your postcards). On a first visit it carries a
+   game-style cue: a soft pulse, a "1" badge and a bouncing pointer. */
+.mail-hotspot {
+  position: absolute;
+  /* the mailbox frame starts 25% of the painting's width to the left */
+  left: calc(var(--mail-w) * (45 / 1262 - 0.25));
+  top: calc(85vh * 895 / 2000);
+  width: calc(var(--mail-w) * 505 / 1262);
+  height: calc(85vh * 365 / 2000);
+  z-index: 1;
+  padding: 0;
+  border: none;
+  border-radius: 40% 40% 10px 10px;
+  background: none;
+  cursor: pointer;
+}
+
+.mail-hotspot:focus-visible { outline: 2px solid #8c6d55; outline-offset: 4px; }
+
+.mail-badge, .mail-pointer, .mail-pulse { display: none; position: absolute; pointer-events: none; }
+.has-mail .mail-badge, .has-mail .mail-pointer, .has-mail .mail-pulse { display: block; }
+
+.mail-pulse {
+  inset: -6%;
+  border-radius: 45% 45% 14px 14px;
+  box-shadow: 0 0 0 0 rgba(214, 120, 70, 0.55);
+  animation: mail-pulse 1.8s ease-out infinite;
+}
+
+@keyframes mail-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(214, 120, 70, 0.5); }
+  70%  { box-shadow: 0 0 0 22px rgba(214, 120, 70, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(214, 120, 70, 0); }
+}
+
+.mail-badge {
+  top: -6px;
+  left: 4%;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 12px;
+  background: #d0543a;
+  color: #fff;
+  font: 700 13px/24px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(120, 40, 20, 0.35);
+}
+
+/* Pointer sits over the part of the mailbox that peeks into the postcard's view */
+.mail-pointer {
+  left: 14%;
+  top: -64px;
+  width: 38px;
+  transform: translateX(-50%);
+  animation: mail-bounce 1s ease-in-out infinite;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.2));
+}
+
+@keyframes mail-bounce {
+  0%, 100% { transform: translate(-50%, 0); }
+  50%      { transform: translate(-50%, 12px); }
+}
+
+/* "You've received a postcard" notification */
+.mail-toast {
+  position: fixed;
+  top: calc(20px + env(safe-area-inset-top, 0px));
+  right: max(20px, env(safe-area-inset-right, 0px));
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(360px, calc(100vw - 40px));
+  padding: 12px 12px 12px 14px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06);
+  opacity: 0;
+  transform: translateY(-12px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+}
+
+.mail-toast.show { opacity: 1; transform: none; pointer-events: auto; }
+
+.mail-toast-icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #f6efe7;
+  color: #8c6d55;
+}
+
+.mail-toast-icon svg { width: 22px; height: 22px; }
+.mail-toast-text { min-width: 0; font-size: 13px; line-height: 1.35; color: #555; }
+.mail-toast-text strong { display: block; font-size: 14px; color: #1d1d1d; font-weight: 600; }
+
+.mail-toast-go {
+  flex: none;
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 8px;
+  background: #111;
+  color: #fff;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.mail-toast-go:hover { background: #333; }
+
+.mail-toast-close {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #999;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mail-toast-go:focus-visible, .mail-toast-close:focus-visible { outline: 2px solid #8c6d55; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mail-pulse, .mail-pointer { animation: none; }
+  .mail-toast { transition: none; }
+}
+
 [hidden] { display: none !important; }
 </style>
 </head>
@@ -1153,6 +1290,16 @@ body {
     </div>
   </div>
 </dialog>
+
+<div class="mail-toast" id="mailToast" role="status" hidden>
+  <span class="mail-toast-icon" aria-hidden="true">
+    <!-- Remix Icon: mail-line (Apache 2.0) -->
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3ZM20 7.23792L12.0718 14.338L4 7.21594V19H20V7.23792ZM4.51146 5L12.0619 11.662L19.501 5H4.51146Z"/></svg>
+  </span>
+  <span class="mail-toast-text"><strong>You've received a postcard</strong>From the Postcards team</span>
+  <button type="button" class="mail-toast-go" id="mailToastGo">Check mailbox</button>
+  <button type="button" class="mail-toast-close" id="mailToastClose" aria-label="Dismiss">×</button>
+</div>
 
 <div class="scroller" id="scroller">
 <div class="track">
@@ -1273,6 +1420,11 @@ body {
 </section>
 <section class="zone zone-right" aria-label="Right panel">
   <div class="mail-frame"><img class="mailbox" src="mailbox.webp" alt="Watercolour green mailbox with letters flying out and two small birds below" draggable="false"></div>
+  <button type="button" class="mail-hotspot" id="mailbox" aria-label="Mailbox: your postcards" data-tip="Mailbox">
+    <span class="mail-pulse"></span>
+    <span class="mail-badge" aria-hidden="true">1</span>
+    <svg class="mail-pointer" viewBox="0 0 40 48" aria-hidden="true"><path d="M14 2h12a2 2 0 0 1 2 2v20h8.5a1.5 1.5 0 0 1 1.1 2.5L21.1 45a1.5 1.5 0 0 1-2.2 0L2.4 26.5A1.5 1.5 0 0 1 3.5 24H12V4a2 2 0 0 1 2-2z" fill="#d0543a" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>
+  </button>
 </section>
 </div>
 </div>
@@ -1436,10 +1588,34 @@ body {
   });
   document.getElementById('galleryClose').addEventListener('click', () => gallery.close());
 
+  // Today's date as "19 Nov 2026"
+  function todayLabel() {
+    const d = new Date();
+    return `${d.getDate()} ${d.toLocaleString('en-GB', { month: 'short' })} ${d.getFullYear()}`;
+  }
+
+  // The signed-in user, read from the session Supabase stores in this browser
+  // (no network call). Returns {} for guests.
+  function welcomeUser() {
+    try {
+      for (let k = 0; k < localStorage.length; k++) {
+        const key = localStorage.key(k);
+        if (!/^sb-.+-auth-token$/.test(key)) continue;
+        const u = (JSON.parse(localStorage.getItem(key)) || {}).user;
+        if (u && u.id) {
+          const local = (u.email || '').split('@')[0].split(/[._-]/)[0];
+          return { id: u.id, name: local ? local[0].toUpperCase() + local.slice(1) : '' };
+        }
+      }
+    } catch (_) {}
+    return {};
+  }
+
   // Gallery content: dummy postcards in two thumbnail columns, the selected one
   // opened in the centre. Each card's picture is a small scene drawn in SVG.
   (function () {
     const CARDS = [
+      { welcome: true, msg: 'Welcome to Postcards! Write a note, add a photo and a stamp, then send it to someone you miss. This first one is from us.', deco: { front: [['cosmos', 82, 18, 12]], back: [['chamomile', 80, 86, -10], ['lavender', 88, 82, 10]] }, from: 'The Postcards team', place: 'Postcards', date: todayLabel(), scene: 'hills', pal: ['#fdf6ec', '#f3d9b1', '#c8b09a', '#8c6d55'], land: false },
       { msg: 'The light here turns everything gold around six. Wish you could see it with me.', title: 'Golden hour on the Tagus', deco: { back: [['lavender', 84, 82, -12]] }, from: 'Maya', place: 'Lisbon', date: '12 Aug 2026', scene: 'sea',    pal: ['#f7c59f', '#ef8354', '#2d6a8a', '#fbe3c5'], land: false },
       { msg: "Tea fields as far as I can see, and the mist hasn't lifted all morning. Thinking of you.", title: 'Morning in the hills',     from: 'Arjun', place: 'Munnar', date: '3 Jul 2026',  scene: 'hills',  pal: ['#e8f1e4', '#9cc5a1', '#49a078', '#216869'], land: true  },
       { msg: 'It rained all day, then the whole city went silver. Found the best little bakery.', title: 'Rooftops after rain',      font: 'type', deco: { front: [['chamomile', 14, 84, 10]] }, from: 'Léa', place: 'Paris', date: '21 Mar 2026',    scene: 'city',   pal: ['#d7dde8', '#9aa9c0', '#4f5d75', '#2d3142'], land: false },
@@ -1519,7 +1695,7 @@ body {
           `<span class="pc pc-big pc-back"><span class="gb${c.font === 'type' ? ' gb-type' : ''}">` +
             `<span class="gb-head"><span class="back-title">POSTCARD</span><span class="back-sub">with love</span></span>` +
             `<span class="gb-stamp">${stampSVG(c, i)}</span>` +
-            `<span class="gb-addr"><span>Alex Rivera</span><span>22 Elm Street</span><span>Toronto, Canada</span><span>M5V 2T6</span></span>` +
+            `<span class="gb-addr">${(c.welcome ? [welcomeUser().name || 'You', 'Your mailbox', 'Postcards', '\u00a0'] : ['Alex Rivera', '22 Elm Street', 'Toronto, Canada', 'M5V 2T6']).map(t => `<span>${t}</span>`).join('')}</span>` +
             `<span class="gb-div"></span>` +
             `<span class="gb-msg">${c.msg}<span class="gb-sign">${c.from}</span></span>` +
           `</span>${decorHTML(c.deco && c.deco.back)}</span>` +
@@ -1575,7 +1751,64 @@ body {
       select(current + step, document.activeElement && document.activeElement.classList.contains('thumb'));
     });
     select(0);
+
+    // Open the gallery on a card, optionally turning it over after it appears
+    window.postcardGallery = {
+      open(i, flipAfter) {
+        select(i);
+        const g = document.getElementById('gallery');
+        if (!g.open) { if (g.showModal) g.showModal(); else g.setAttribute('open', ''); }
+        if (flipAfter) setTimeout(() => {
+          const f = document.querySelector('#galleryCard .pc-flip');
+          if (f && f.getAttribute('aria-pressed') !== 'true') f.click();
+        }, 900);
+      }
+    };
   })();
+
+  // Welcome postcard: the first time someone opens the app (per account on this
+  // browser), a postcard from us is waiting in the mailbox. A notification and a
+  // game-style cue on the mailbox lead them to it; opening it shows the card in
+  // the gallery and turns it over. Afterwards the mailbox just opens the gallery.
+  (function () {
+    const toast = document.getElementById('mailToast');
+    const hotspot = document.getElementById('mailbox');
+    const scroller = document.getElementById('scroller');
+    const userId = welcomeUser().id || 'guest';
+    const KEY = 'postcards.welcomeSeen.' + userId;
+    let seen = false;
+    try { seen = localStorage.getItem(KEY) === '1'; } catch (_) {}
+
+    function markSeen() {
+      seen = true;
+      try { localStorage.setItem(KEY, '1'); } catch (_) {}
+      document.body.classList.remove('has-mail');
+      toast.classList.remove('show');
+      setTimeout(() => { toast.hidden = true; }, 300);
+      hotspot.setAttribute('aria-label', 'Mailbox: your postcards');
+    }
+
+    if (!seen) {
+      document.body.classList.add('has-mail');
+      hotspot.setAttribute('aria-label', 'Mailbox: you have 1 new postcard');
+      toast.hidden = false;
+      setTimeout(() => toast.classList.add('show'), 700);
+    }
+
+    // Glide over to the mailbox (the right end of the page)
+    document.getElementById('mailToastGo').addEventListener('click', () => {
+      scroller.scrollTo({ left: scroller.scrollWidth - scroller.clientWidth, behavior: 'smooth' });
+      toast.classList.remove('show');
+    });
+    document.getElementById('mailToastClose').addEventListener('click', () => toast.classList.remove('show'));
+
+    hotspot.addEventListener('click', () => {
+      const first = !seen;
+      window.postcardGallery.open(0, first);   // the welcome card is first
+      if (first) markSeen();
+    });
+  })();
+
 
 
   // Tools under the postcard: clickable, actions still to be decided
