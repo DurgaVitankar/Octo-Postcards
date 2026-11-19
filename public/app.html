@@ -980,48 +980,92 @@ body {
   -webkit-backface-visibility: hidden;
 }
 
-/* Back of the opened card: heading, stamp, a handwritten note */
-.pc-back {
-  transform: rotateY(180deg);
+/* Back of the opened card: the same layout as the main postcard's back
+   (heading, stamp box with postmark, address lines, ruled message), in both
+   orientations. Sizes use cqmin like the main card so they match. */
+.pc-back { transform: rotateY(180deg); }
+
+.gb {
+  --ink: #1d1d1d;
+  --rule: #e6e3df;
+  --mauve: #a8979e;
+  --script: 'Dancing Script', 'Apple Chancery', 'Segoe Script', cursive;
+  position: absolute;
+  inset: 14px;
   container-type: size;
   display: grid;
+  padding: 12px;
+  column-gap: 16px;
   grid-template-columns: 1fr auto;
-  grid-template-rows: auto 1fr;
-  gap: 4cqmin 4cqmin;
-  padding: 7cqmin;
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    "head stamp"
+    "addr stamp"
+    "msg  msg";
   text-align: left;
+  overflow: hidden;
 }
 
-.pc-back-head { align-self: start; }
-.pc-back-title { font-family: 'Libre Baskerville', Georgia, serif; font-weight: 700; font-size: 4.6cqmin; letter-spacing: 0.22em; color: #1d1d1d; }
-.pc-back-sub { font-family: 'Tangerine', 'Apple Chancery', cursive; font-size: 6cqmin; line-height: 1; color: #a8979e; }
-.pc-back-stamp { width: 17cqmin; transform: rotate(3deg); filter: drop-shadow(0 1px 2px rgba(60, 40, 20, 0.18)); }
+.gb-head { grid-area: head; padding-top: 1cqmin; }
+.gb-head .back-title, .gb-head .back-sub { display: block; }
+.gb-stamp { grid-area: stamp; width: 28cqmin; padding-top: 1cqmin; }
+.gb-stamp svg { display: block; width: 100%; height: auto; overflow: visible; }
 
-.pc-back-note {
-  grid-column: 1 / -1;
-  font-family: 'Tangerine', 'Apple Chancery', cursive;
+.gb-addr {
+  grid-area: addr;
+  display: flex;
+  flex-direction: column;
+  max-width: 60cqw;
+  margin-top: 3cqmin;
+}
+
+.gb-addr span {
+  display: block;
+  border-bottom: 1px solid var(--rule);
+  padding: 2cqmin 1cqmin 0.4cqmin;
+  line-height: 9cqmin;
+  font-family: var(--font-hand);
+  font-size: 8.5cqmin;
+  color: #3a3a3a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gb-msg {
+  grid-area: msg;
+  margin-top: 7cqmin;
+  padding: 0 1cqmin;
+  font-family: var(--font-hand);
   font-size: 8.5cqmin;
   line-height: 9.5cqmin;
   color: #3a3a3a;
   overflow: hidden;
   background-image: repeating-linear-gradient(to bottom,
-    transparent 0 calc(9.5cqmin - 1px), #e6e3df calc(9.5cqmin - 1px) 9.5cqmin);
+    transparent 0 calc(9.5cqmin - 1px),
+    var(--rule) calc(9.5cqmin - 1px) 9.5cqmin);
 }
 
-.pc-back-sign { display: block; text-align: right; }
+.gb-sign { display: block; text-align: right; }
+.gb-div { grid-area: div; display: none; background: var(--rule); }
+
+/* Landscape back: message on the left, address side on the right */
+.pc-land .gb {
+  grid-template-columns: 1.35fr 1px 1fr auto;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "msg div head stamp"
+    "msg div addr addr";
+}
+
+.pc-land .gb-div { display: block; margin-block: -26px; }
+.pc-land .gb-addr { align-self: end; max-width: none; margin-top: 0; }
+.pc-land .gb-msg { margin-top: 6cqmin; }
 
 @media (prefers-reduced-motion: reduce) { .pc-flip-inner { transition: none; } }
 
 .gallery-caption { text-align: center; }
-.gallery-meta { font-size: 13px; color: #6b6b6b; letter-spacing: 0.01em; }
-.gallery-title {
-  margin-top: 6px;
-  font-family: 'Libre Baskerville', Georgia, serif;
-  font-size: clamp(20px, 2.4vw, 28px);
-  font-weight: 700;
-  color: #1d1d1d;
-  text-wrap: balance;
-}
+.gallery-meta { font-size: 15px; color: #4a4a4a; letter-spacing: 0.01em; }
 
 /* Phones: smaller opened card */
 @media (max-width: 640px) {
@@ -1071,7 +1115,6 @@ body {
       <div class="gallery-card" id="galleryCard"></div>
       <div class="gallery-caption">
         <div class="gallery-meta" id="galleryMeta"></div>
-        <h2 class="gallery-title" id="galleryTitle"></h2>
       </div>
     </div>
     <div class="gallery-strip" role="list" aria-label="All postcards">
@@ -1416,16 +1459,33 @@ body {
     }
 
     const STAMP_FILES = ["yarrow", "peppermint", "rosemary", "anemone", "lotus", "laurel"];
+    // The main card's stamp box and postmark, with this card's stamp in it and
+    // its place and date around the postmark
+    function stampSVG(c, i) {
+      const id = 'gpm' + i, when = c.date.split(' ').slice(1).join(' ').toUpperCase();
+      return `<svg viewBox="0 0 100 92" fill="none" aria-hidden="true">` +
+        `<rect x="48.5" y="0.5" width="51" height="71" rx="1.5" stroke="#c9a6ad" stroke-width="1" stroke-dasharray="3 2"/>` +
+        `<image href="stamps/stamp-${STAMP_FILES[i % STAMP_FILES.length]}.webp" x="52" y="4" width="44" height="64" preserveAspectRatio="xMidYMid meet"/>` +
+        `<defs><path id="${id}a" d="M 31.89 64 A 20.5 20.5 0 0 1 72.11 64"/><path id="${id}b" d="M 34.96 72 A 17.5 17.5 0 0 0 69.04 72"/></defs>` +
+        `<circle cx="52" cy="68" r="23" stroke="#cdc3c7" stroke-width="1"/>` +
+        `<circle cx="52" cy="68" r="19.5" stroke="#cdc3c7" stroke-width="0.6"/>` +
+        `<text font-family="'Libre Baskerville', Georgia, serif" font-size="4.2" letter-spacing="1.3" fill="#b9adb2"><textPath href="#${id}a" startOffset="50%" text-anchor="middle">${c.place.toUpperCase()}</textPath></text>` +
+        `<text font-family="'Libre Baskerville', Georgia, serif" font-size="4.2" letter-spacing="1.2" fill="#b9adb2"><textPath href="#${id}b" startOffset="50%" text-anchor="middle">${when}</textPath></text>` +
+        `<path d="M 18 68 q 6 -5 12 0 t 12 0 t 12 0 t 12 0 t 12 0 t 12 0" stroke="#cdc3c7" stroke-width="1"/></svg>`;
+    }
+
     function bigCardHTML(c, i) {
       const shape = c.land ? 'pc-land' : 'pc-port';
       return `<button type="button" class="pc-flip ${shape}" aria-pressed="false" aria-label="Turn the postcard over" data-tip="Turn over">` +
         `<span class="pc-flip-inner">` +
           `<span class="pc pc-big pc-front"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, 'big' + i)}</svg></span>` +
-          `<span class="pc pc-big pc-back">` +
-            `<span class="pc-back-head"><span class="pc-back-title">POSTCARD</span><br><span class="pc-back-sub">with love</span></span>` +
-            `<img class="pc-back-stamp" src="stamps/stamp-${STAMP_FILES[i % STAMP_FILES.length]}.webp" alt="">` +
-            `<span class="pc-back-note">${c.msg}<span class="pc-back-sign">${c.from}</span></span>` +
-          `</span>` +
+          `<span class="pc pc-big pc-back"><span class="gb">` +
+            `<span class="gb-head"><span class="back-title">POSTCARD</span><span class="back-sub">with love</span></span>` +
+            `<span class="gb-stamp">${stampSVG(c, i)}</span>` +
+            `<span class="gb-addr"><span>Alex Rivera</span><span>22 Elm Street</span><span>Toronto, Canada</span><span>M5V 2T6</span></span>` +
+            `<span class="gb-div"></span>` +
+            `<span class="gb-msg">${c.msg}<span class="gb-sign">${c.from}</span></span>` +
+          `</span></span>` +
         `</span></button>`;
     }
 
@@ -1444,7 +1504,7 @@ body {
       b.type = 'button';
       b.className = 'thumb';
       b.dataset.i = i;
-      b.setAttribute('aria-label', `${c.title}, from ${c.from}`);
+      b.setAttribute('aria-label', `Postcard from ${c.from}, ${c.place}`);
       b.innerHTML = cardHTML(c, i, 'pc-thumb');
       (i < half ? left : right).appendChild(b);
     });
@@ -1463,7 +1523,6 @@ body {
         flip.dataset.tip = back ? 'Turn back' : 'Turn over';
       });
       document.getElementById('galleryMeta').textContent = `From ${c.from} · ${c.place}, ${c.date}`;
-      document.getElementById('galleryTitle').textContent = c.title;
       void stage.offsetWidth;                      // restart the fade
       stage.classList.add('show');
       thumbs.forEach((t, k) => t.setAttribute('aria-current', String(k === current)));
