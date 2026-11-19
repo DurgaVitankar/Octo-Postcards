@@ -876,6 +876,17 @@ body {
 .sending .scroller { pointer-events: none; }
 .flying-card { box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18); }
 
+/* Hides the part of a postcard that has gone through the mailbox slot */
+.slot-clip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  z-index: 60;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 /* Dashed trail left behind by a flying postcard */
 .flight-trail {
   position: fixed;
@@ -2448,7 +2459,6 @@ body {
           const k = 1 - Math.pow(1 - e, 1.6);
           const scale = 1 + (s - 1) * k;
           copy.style.transform = `translate(${p.x - a.x}px, ${p.y - a.y}px) rotate(${ang}deg) scale(${scale})`;
-          copy.style.opacity = t > 0.92 ? String((1 - t) / 0.08) : '1';
           pts += (pts ? ' L ' : 'M ') + p.x.toFixed(1) + ' ' + p.y.toFixed(1);
           trail.setAttribute('d', pts);
           if (t < 1) requestAnimationFrame(frame);
@@ -2460,6 +2470,23 @@ body {
           }
         })(start);
       });
+    }
+
+    // Slip the card down through the slot: everything below the slot line is
+    // hidden, so the card looks like it goes inside the mailbox
+    function dropIn(copy, slotY, visH) {
+      const clip = document.createElement('div');
+      clip.className = 'slot-clip';
+      clip.style.height = slotY + 'px';
+      document.body.appendChild(clip);
+      clip.appendChild(copy);
+      copy.style.position = 'absolute';
+      const base = copy.style.transform;
+      return copy.animate([
+        { transform: base },
+        { transform: `translate(0, ${visH + 3}px) ${base}` }
+      ], { duration: 520, easing: 'cubic-bezier(0.5, 0, 0.75, 0)', fill: 'forwards' })
+        .finished.then(() => clip.remove());
     }
 
     async function fly(to) {
@@ -2480,8 +2507,12 @@ body {
         if (!reduce) {
           const { copy, r } = snapshot();
           card.style.visibility = 'hidden';
-          const s = Math.max(0.05, (SLOT.w * m.width * 0.8) / r.width);
-          await along(copy, r, b, s);
+          // once level, the card's long side should just fit the slot
+          const s = Math.max(0.04, (SLOT.w * m.width * 0.85) / Math.max(r.width, r.height));
+          const visH = Math.min(r.width, r.height) * s;      // its height once level
+          // fly to just above the slot, then drop through it
+          await along(copy, r, { x: b.x, y: b.y - visH / 2 - 1 }, s);
+          await dropIn(copy, b.y, visH);
           copy.remove();
         }
         showNote(to);
