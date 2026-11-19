@@ -637,22 +637,6 @@ body {
   font-weight: 400;
 }
 
-/* Paper plane on the Send tile */
-.tool .send-icon {
-  position: absolute;
-  inset: 0;
-  width: 36%;
-  height: 36%;
-  margin: auto;
-  color: #111;
-  pointer-events: none;
-}
-
-/* keep the plane solid ink, not styled like the tile's frame */
-.tool .send-icon path,
-.tool:hover .send-icon path,
-.tool:focus-visible .send-icon path { fill: currentColor; stroke: none; }
-
 .tool img {
   position: absolute;
   inset: 0;
@@ -1459,8 +1443,7 @@ body {
   </button>
   <button type="button" class="tool" id="toolSend" aria-label="Send" data-tip="Send">
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M5 5 C34 2 66 6 96 4 C98 34 94 66 97 96 C66 98 34 95 4 97 C2 66 6 34 5 5 Z"/></svg>
-    <!-- Remix Icon: send-plane-line (Apache 2.0) -->
-    <svg class="send-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.7267 2.95694L16.2734 22.0432C16.1225 22.5716 15.7979 22.5956 15.5563 22.1126L11 13L1.9229 9.36919C1.41322 9.16532 1.41953 8.86022 1.95695 8.68108L21.0432 2.31901C21.5716 2.14285 21.8747 2.43866 21.7267 2.95694ZM19.0353 5.09647L6.81221 9.17085L12.4488 11.4255L15.4895 17.5068L19.0353 5.09647Z"/></svg>
+    <img src="tool-send.webp" alt="" draggable="false">
   </button>
 </div>
 
