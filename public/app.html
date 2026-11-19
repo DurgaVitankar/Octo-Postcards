@@ -2392,22 +2392,34 @@ body {
       setTimeout(() => { note.hidden = true; }, 300);
     }
 
-    // Flight path (viewport px), traced from the reference video: out to the
-    // right, up and back over the top, down the left side, a loop underneath,
-    // then a straight diagonal dash into the mailbox slot, crossing the loop.
+    // Flight path (viewport px), after the reference video: a short run to the
+    // right, one round loop-the-loop (a prolate cycloid, so the curvature is
+    // smooth everywhere), then a gentle glide into the mailbox slot.
     function flightPath(a, b, u) {
-      const dx = b.x - a.x, dy = b.y - a.y;
-      const W = [[0, 0], [0.20, 0.18], [0.42, 0.22], [0.52, -0.12], [0.44, -0.52], [0.30, -0.62],
-                 [0.18, -0.36], [0.19, 0.08], [0.30, 0.34], [0.46, 0.30], [0.70, 0.16]]
-        .map(([x, y]) => ({ x: a.x + x * dx, y: a.y + y * u + x * dy }));
-      W.push({ x: b.x, y: b.y });
-      // Catmull-Rom through the waypoints, as cubic Béziers
-      let d = `M ${W[0].x} ${W[0].y}`;
-      for (let i = 0; i < W.length - 1; i++) {
-        const p0 = W[Math.max(0, i - 1)], p1 = W[i], p2 = W[i + 1], p3 = W[Math.min(W.length - 1, i + 2)];
-        d += ` C ${p1.x + (p2.x - p0.x) / 6} ${p1.y + (p2.y - p0.y) / 6}, ${p2.x - (p3.x - p1.x) / 6} ${p2.y - (p3.y - p1.y) / 6}, ${p2.x} ${p2.y}`;
+      const span = b.x - a.x;
+      const d = Math.min(u * 0.42, span * 0.2);       // loop half-height
+      const R = 0.2 * d;                              // small drift = a round loop
+      const lead = 0.22 * span;
+      const pts = [[a.x, a.y]];
+      // lead-in, level and to the right
+      for (let i = 1; i <= 20; i++) pts.push([a.x + lead * i / 20, a.y]);
+      // the loop: x = R s - d sin s, y = d (1 - cos s), s from π to 3π
+      const x0 = a.x + lead - (R * Math.PI), y0 = a.y - 2 * d;
+      for (let i = 1; i <= 160; i++) {
+        const s = Math.PI + 2 * Math.PI * i / 160;
+        pts.push([x0 + R * s - d * Math.sin(s), y0 + d * (1 - Math.cos(s))]);
       }
-      return d;
+      // glide from the bottom of the loop into the slot (cubic, tangent-matched)
+      const e = pts[pts.length - 1], gx = b.x - e[0];
+      const c1 = [e[0] + 0.45 * gx, e[1]], c2 = [b.x - 0.35 * gx, b.y + 0.08 * (e[1] - b.y)];
+      for (let i = 1; i <= 60; i++) {
+        const t = i / 60, mt = 1 - t;
+        pts.push([
+          mt * mt * mt * e[0] + 3 * mt * mt * t * c1[0] + 3 * mt * t * t * c2[0] + t * t * t * b.x,
+          mt * mt * mt * e[1] + 3 * mt * mt * t * c1[1] + 3 * mt * t * t * c2[1] + t * t * t * b.y
+        ]);
+      }
+      return 'M ' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L ');
     }
 
     function along(copy, r, b, s) {
