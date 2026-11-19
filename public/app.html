@@ -1177,77 +1177,8 @@ body {
   50%      { transform: translate(-50%, 12px); }
 }
 
-/* "You've received a postcard" notification */
-.mail-toast {
-  position: fixed;
-  top: calc(20px + env(safe-area-inset-top, 0px));
-  right: max(20px, env(safe-area-inset-right, 0px));
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  max-width: min(360px, calc(100vw - 40px));
-  padding: 12px 12px 12px 14px;
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06);
-  opacity: 0;
-  transform: translateY(-12px);
-  transition: opacity 0.3s ease, transform 0.3s ease;
-  pointer-events: none;
-}
-
-.mail-toast.show { opacity: 1; transform: none; pointer-events: auto; }
-
-.mail-toast-icon {
-  flex: none;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  background: #f6efe7;
-  color: #8c6d55;
-}
-
-.mail-toast-icon svg { width: 22px; height: 22px; }
-.mail-toast-text { min-width: 0; font-size: 13px; line-height: 1.35; color: #555; }
-.mail-toast-text strong { display: block; font-size: 14px; color: #1d1d1d; font-weight: 600; }
-
-.mail-toast-go {
-  flex: none;
-  height: 32px;
-  padding: 0 12px;
-  border: none;
-  border-radius: 8px;
-  background: #111;
-  color: #fff;
-  font: inherit;
-  font-size: 12.5px;
-  cursor: pointer;
-}
-
-.mail-toast-go:hover { background: #333; }
-
-.mail-toast-close {
-  flex: none;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  background: none;
-  color: #999;
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.mail-toast-go:focus-visible, .mail-toast-close:focus-visible { outline: 2px solid #8c6d55; outline-offset: 2px; }
-
 @media (prefers-reduced-motion: reduce) {
   .mail-pulse, .mail-pointer { animation: none; }
-  .mail-toast { transition: none; }
 }
 
 [hidden] { display: none !important; }
@@ -1273,16 +1204,6 @@ body {
     </div>
   </div>
 </dialog>
-
-<div class="mail-toast" id="mailToast" role="status" hidden>
-  <span class="mail-toast-icon" aria-hidden="true">
-    <!-- Remix Icon: mail-line (Apache 2.0) -->
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3ZM20 7.23792L12.0718 14.338L4 7.21594V19H20V7.23792ZM4.51146 5L12.0619 11.662L19.501 5H4.51146Z"/></svg>
-  </span>
-  <span class="mail-toast-text"><strong>You've received a postcard</strong>From the Postcards team</span>
-  <button type="button" class="mail-toast-go" id="mailToastGo">Show me</button>
-  <button type="button" class="mail-toast-close" id="mailToastClose" aria-label="Dismiss">×</button>
-</div>
 
 <div class="scroller" id="scroller">
 <div class="track">
@@ -1746,13 +1667,10 @@ body {
   })();
 
   // Welcome postcard: the first time someone opens the app (per account on this
-  // browser), a postcard from us is waiting on the postcard stand. A notification and a
-  // game-style cue on the postcard stand lead them to it; opening it shows the card
+  // browser), a postcard from us is waiting on the postcard stand. A game-style cue on the postcard stand lead them to it; opening it shows the card
   // in the gallery and turns it over. Afterwards the stand just opens the gallery.
   (function () {
-    const toast = document.getElementById('mailToast');
     const hotspot = document.getElementById('stand');
-    const scroller = document.getElementById('scroller');
     const userId = welcomeUser().id || 'guest';
     const KEY = 'postcards.welcomeSeen.' + userId;
     let seen = false;
@@ -1762,24 +1680,13 @@ body {
       seen = true;
       try { localStorage.setItem(KEY, '1'); } catch (_) {}
       document.body.classList.remove('has-mail');
-      toast.classList.remove('show');
-      setTimeout(() => { toast.hidden = true; }, 300);
       hotspot.setAttribute('aria-label', 'Your postcards');
     }
 
     if (!seen) {
       document.body.classList.add('has-mail');
       hotspot.setAttribute('aria-label', 'Your postcards: 1 new postcard');
-      toast.hidden = false;
-      setTimeout(() => toast.classList.add('show'), 700);
     }
-
-    // Glide over to the bookshelf (the left end of the page)
-    document.getElementById('mailToastGo').addEventListener('click', () => {
-      scroller.scrollTo({ left: 0, behavior: 'smooth' });
-      toast.classList.remove('show');
-    });
-    document.getElementById('mailToastClose').addEventListener('click', () => toast.classList.remove('show'));
 
     hotspot.addEventListener('click', () => {
       const first = !seen;
