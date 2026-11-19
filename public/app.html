@@ -1130,55 +1130,46 @@ body {
 
 @media (prefers-reduced-motion: reduce) { .gallery { transition: none; } }
 
-/* First-visit cue on the postcard stand: a soft pulse, a "1" badge and a
-   bouncing pointer, leading to the welcome postcard */
-.mail-badge, .mail-pointer, .mail-pulse { display: none; position: absolute; pointer-events: none; }
-.has-mail .mail-badge, .has-mail .mail-pointer, .has-mail .mail-pulse { display: block; }
-
-.mail-pulse {
-  inset: 4% 6% 2% 6%;
-  border-radius: 14px;
-  box-shadow: 0 0 0 0 rgba(214, 120, 70, 0.55);
-  animation: mail-pulse 1.8s ease-out infinite;
-}
-
-@keyframes mail-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(214, 120, 70, 0.5); }
-  70%  { box-shadow: 0 0 0 22px rgba(214, 120, 70, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(214, 120, 70, 0); }
-}
-
-.mail-badge {
-  top: 2%;
-  left: 30%;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 7px;
-  border-radius: 12px;
-  background: #d0543a;
-  color: #fff;
-  font: 700 13px/24px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  text-align: center;
-  box-shadow: 0 2px 6px rgba(120, 40, 20, 0.35);
-}
-
-/* Pointer bounces above the rack of postcards */
-.mail-pointer {
+/* First-visit cue on the postcard stand: a small speech bubble saying
+   "New postcard", floating gently above the rack */
+.mail-bubble {
+  display: none;
+  position: absolute;
   left: 62%;
-  top: -54px;
-  width: 38px;
+  bottom: calc(100% - 4px);
+  padding: 6px 11px;
+  border-radius: 12px;
+  background: #fff;
+  color: #1d1d1d;
+  font: 600 12.5px/1.2 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(60, 40, 20, 0.16), 0 1px 3px rgba(60, 40, 20, 0.12);
   transform: translateX(-50%);
-  animation: mail-bounce 1s ease-in-out infinite;
-  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.2));
+  pointer-events: none;
+  animation: bubble-float 2.4s ease-in-out infinite;
 }
 
-@keyframes mail-bounce {
+/* the bubble's tail, pointing down at the postcards */
+.mail-bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  border: 7px solid transparent;
+  border-top-color: #fff;
+  border-bottom: 0;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 2px 1px rgba(60, 40, 20, 0.08));
+}
+
+.has-mail .mail-bubble { display: block; }
+
+@keyframes bubble-float {
   0%, 100% { transform: translate(-50%, 0); }
-  50%      { transform: translate(-50%, 12px); }
+  50%      { transform: translate(-50%, -4px); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .mail-pulse, .mail-pointer { animation: none; }
+@media (prefers-reduced-motion: reduce) { .mail-bubble { animation: none; } }
 }
 
 [hidden] { display: none !important; }
@@ -1219,9 +1210,7 @@ body {
     <canvas class="globe" id="globe" aria-hidden="true"></canvas>
     <button class="stand" id="stand" type="button" aria-label="Your postcards">
       <img src="stand.webp" alt="" draggable="false">
-      <span class="mail-pulse"></span>
-      <span class="mail-badge" aria-hidden="true">1</span>
-      <svg class="mail-pointer" viewBox="0 0 40 48" aria-hidden="true"><path d="M14 2h12a2 2 0 0 1 2 2v20h8.5a1.5 1.5 0 0 1 1.1 2.5L21.1 45a1.5 1.5 0 0 1-2.2 0L2.4 26.5A1.5 1.5 0 0 1 3.5 24H12V4a2 2 0 0 1 2-2z" fill="#d0543a" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>
+      <span class="mail-bubble" aria-hidden="true">New postcard</span>
     </button>
   </div>
 </section>
