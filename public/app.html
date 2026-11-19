@@ -941,9 +941,71 @@ body {
 .gallery-stage.show { opacity: 1; transform: none; transition: opacity 0.3s ease, transform 0.3s ease; }
 
 .gallery-card { display: flex; justify-content: center; }
-.pc-big { border-radius: 6px; padding: 14px; box-shadow: 0 6px 30px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06); }
-.pc-big.pc-port { height: min(58vh, 520px); aspect-ratio: 10 / 14; max-width: 100%; }
-.pc-big.pc-land { width: min(46vw, 640px); aspect-ratio: 14 / 10; max-height: 58vh; }
+/* The opened card is a button that turns over to show its back */
+.pc-flip {
+  position: relative;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  perspective: 1600px;
+}
+
+.pc-flip.pc-port { height: min(58vh, 520px); aspect-ratio: 10 / 14; max-width: 100%; }
+.pc-flip.pc-land { width: min(46vw, 640px); aspect-ratio: 14 / 10; max-height: 58vh; }
+
+.pc-flip-inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pc-flip[aria-pressed="true"] .pc-flip-inner { transform: rotateY(180deg); }
+.pc-flip:focus-visible { outline: none; }
+.pc-flip:focus-visible .pc-big { outline: 2px solid #8c6d55; outline-offset: 4px; }
+
+.pc-big {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  padding: 14px;
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Back of the opened card: heading, stamp, a handwritten note */
+.pc-back {
+  transform: rotateY(180deg);
+  container-type: size;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto 1fr;
+  gap: 4cqmin 4cqmin;
+  padding: 7cqmin;
+  text-align: left;
+}
+
+.pc-back-head { align-self: start; }
+.pc-back-title { font-family: 'Libre Baskerville', Georgia, serif; font-weight: 700; font-size: 4.6cqmin; letter-spacing: 0.22em; color: #1d1d1d; }
+.pc-back-sub { font-family: 'Tangerine', 'Apple Chancery', cursive; font-size: 6cqmin; line-height: 1; color: #a8979e; }
+.pc-back-stamp { width: 17cqmin; transform: rotate(3deg); filter: drop-shadow(0 1px 2px rgba(60, 40, 20, 0.18)); }
+
+.pc-back-note {
+  grid-column: 1 / -1;
+  font-family: 'Tangerine', 'Apple Chancery', cursive;
+  font-size: 8.5cqmin;
+  line-height: 9.5cqmin;
+  color: #3a3a3a;
+  overflow: hidden;
+  background-image: repeating-linear-gradient(to bottom,
+    transparent 0 calc(9.5cqmin - 1px), #e6e3df calc(9.5cqmin - 1px) 9.5cqmin);
+}
+
+.pc-back-sign { display: block; text-align: right; }
+
+@media (prefers-reduced-motion: reduce) { .pc-flip-inner { transition: none; } }
 
 .gallery-caption { text-align: center; }
 .gallery-meta { font-size: 13px; color: #6b6b6b; letter-spacing: 0.01em; }
@@ -1303,20 +1365,20 @@ body {
   // opened in the centre. Each card's picture is a small scene drawn in SVG.
   (function () {
     const CARDS = [
-      { title: 'Golden hour on the Tagus', from: 'Maya', place: 'Lisbon', date: '12 Aug 2026', scene: 'sea',    pal: ['#f7c59f', '#ef8354', '#2d6a8a', '#fbe3c5'], land: false },
-      { title: 'Morning in the hills',     from: 'Arjun', place: 'Munnar', date: '3 Jul 2026',  scene: 'hills',  pal: ['#e8f1e4', '#9cc5a1', '#49a078', '#216869'], land: true  },
-      { title: 'Rooftops after rain',      from: 'Léa', place: 'Paris', date: '21 Mar 2026',    scene: 'city',   pal: ['#d7dde8', '#9aa9c0', '#4f5d75', '#2d3142'], land: false },
-      { title: 'Dunes at noon',            from: 'Omar', place: 'Merzouga', date: '9 Feb 2026', scene: 'desert', pal: ['#fdf0d5', '#f4a261', '#e76f51', '#c8553d'], land: true  },
-      { title: 'Stars over the lake',      from: 'Ines', place: 'Bled', date: '14 Jan 2026',    scene: 'night',  pal: ['#1b263b', '#415a77', '#e0e1dd', '#778da9'], land: false },
-      { title: 'Lavender fields',          from: 'Theo', place: 'Valensole', date: '1 Jul 2026', scene: 'hills', pal: ['#f3e8ff', '#c8b6e2', '#8e7dbe', '#5b4b8a'], land: false },
-      { title: 'Harbour lights',           from: 'Sana', place: 'Kochi', date: '28 Oct 2026',   scene: 'night',  pal: ['#22223b', '#4a4e69', '#f2e9e4', '#c9ada7'], land: true  },
-      { title: 'Cherry blossom walk',      from: 'Ken', place: 'Kyoto', date: '4 Apr 2026',     scene: 'hills',  pal: ['#fff0f3', '#ffccd5', '#ff8fa3', '#c9184a'], land: false },
-      { title: 'Surf check',               from: 'Noa', place: 'Ericeira', date: '17 Sep 2026', scene: 'sea',    pal: ['#caf0f8', '#90e0ef', '#0077b6', '#03045e'], land: true  },
-      { title: 'Blue city',                from: 'Priya', place: 'Jodhpur', date: '22 Nov 2026', scene: 'city',  pal: ['#e0f2fe', '#7dd3fc', '#0369a1', '#0c4a6e'], land: false },
-      { title: 'Last light on the ridge',  from: 'Sam', place: 'Snowdonia', date: '30 Sep 2026', scene: 'hills', pal: ['#ffd6a5', '#ffadad', '#6d597a', '#355070'], land: true  },
-      { title: 'Salt flats',               from: 'Lucía', place: 'Uyuni', date: '6 May 2026',   scene: 'desert', pal: ['#f1faee', '#a8dadc', '#e9c46a', '#457b9d'], land: false },
-      { title: 'Lighthouse weather',       from: 'Finn', place: 'Cornwall', date: '11 Aug 2026', scene: 'sea',   pal: ['#e9ecef', '#adb5bd', '#495057', '#212529'], land: false },
-      { title: 'Northern lights',          from: 'Aino', place: 'Tromsø', date: '2 Dec 2026',   scene: 'night',  pal: ['#0b132b', '#1c2541', '#6fffe9', '#5bc0be'], land: true  }
+      { msg: 'The light here turns everything gold around six. Wish you could see it with me.', title: 'Golden hour on the Tagus', from: 'Maya', place: 'Lisbon', date: '12 Aug 2026', scene: 'sea',    pal: ['#f7c59f', '#ef8354', '#2d6a8a', '#fbe3c5'], land: false },
+      { msg: "Tea fields as far as I can see, and the mist hasn't lifted all morning. Thinking of you.", title: 'Morning in the hills',     from: 'Arjun', place: 'Munnar', date: '3 Jul 2026',  scene: 'hills',  pal: ['#e8f1e4', '#9cc5a1', '#49a078', '#216869'], land: true  },
+      { msg: 'It rained all day, then the whole city went silver. Found the best little bakery.', title: 'Rooftops after rain',      from: 'Léa', place: 'Paris', date: '21 Mar 2026',    scene: 'city',   pal: ['#d7dde8', '#9aa9c0', '#4f5d75', '#2d3142'], land: false },
+      { msg: "Sand in everything, and I don't even mind. The stars last night were unreal.", title: 'Dunes at noon',            from: 'Omar', place: 'Merzouga', date: '9 Feb 2026', scene: 'desert', pal: ['#fdf0d5', '#f4a261', '#e76f51', '#c8553d'], land: true  },
+      { msg: 'The lake was so still we could see every star twice. Bring a warm coat next time.', title: 'Stars over the lake',      from: 'Ines', place: 'Bled', date: '14 Jan 2026',    scene: 'night',  pal: ['#1b263b', '#415a77', '#e0e1dd', '#778da9'], land: false },
+      { msg: "Purple to the horizon and the bees are everywhere. I'll bring you a little sachet.", title: 'Lavender fields',          from: 'Theo', place: 'Valensole', date: '1 Jul 2026', scene: 'hills', pal: ['#f3e8ff', '#c8b6e2', '#8e7dbe', '#5b4b8a'], land: false },
+      { msg: "Fishing boats lit up the whole harbour tonight. The curry was the best I've had.", title: 'Harbour lights',           from: 'Sana', place: 'Kochi', date: '28 Oct 2026',   scene: 'night',  pal: ['#22223b', '#4a4e69', '#f2e9e4', '#c9ada7'], land: true  },
+      { msg: 'Petals everywhere like snow. We walked the whole river path twice.', title: 'Cherry blossom walk',      from: 'Ken', place: 'Kyoto', date: '4 Apr 2026',     scene: 'hills',  pal: ['#fff0f3', '#ffccd5', '#ff8fa3', '#c9184a'], land: false },
+      { msg: 'Caught three waves and fell off a hundred times. My arms are noodles. Happy.', title: 'Surf check',               from: 'Noa', place: 'Ericeira', date: '17 Sep 2026', scene: 'sea',    pal: ['#caf0f8', '#90e0ef', '#0077b6', '#03045e'], land: true  },
+      { msg: 'Every wall is a different blue. Got lost on purpose all afternoon.', title: 'Blue city',                from: 'Priya', place: 'Jodhpur', date: '22 Nov 2026', scene: 'city',  pal: ['#e0f2fe', '#7dd3fc', '#0369a1', '#0c4a6e'], land: false },
+      { msg: 'Made it up just before sunset. Windy, cold and completely worth it.', title: 'Last light on the ridge',  from: 'Sam', place: 'Snowdonia', date: '30 Sep 2026', scene: 'hills', pal: ['#ffd6a5', '#ffadad', '#6d597a', '#355070'], land: true  },
+      { msg: 'Sky on the ground, ground in the sky. Hard to tell where anything ends.', title: 'Salt flats',               from: 'Lucía', place: 'Uyuni', date: '6 May 2026',   scene: 'desert', pal: ['#f1faee', '#a8dadc', '#e9c46a', '#457b9d'], land: false },
+      { msg: 'Storm rolled in and the lighthouse kept blinking. Cosy with a book now.', title: 'Lighthouse weather',       from: 'Finn', place: 'Cornwall', date: '11 Aug 2026', scene: 'sea',   pal: ['#e9ecef', '#adb5bd', '#495057', '#212529'], land: false },
+      { msg: 'Green ribbons all over the sky at midnight. I cried a little, not going to lie.', title: 'Northern lights',          from: 'Aino', place: 'Tromsø', date: '2 Dec 2026',   scene: 'night',  pal: ['#0b132b', '#1c2541', '#6fffe9', '#5bc0be'], land: true  }
     ];
 
     // Simple illustrated scenes in a 100 x 100 box, stretched to the card's shape
@@ -1351,6 +1413,20 @@ body {
       return sky;
     }
 
+    const STAMP_FILES = ["yarrow", "peppermint", "rosemary", "anemone", "lotus", "laurel"];
+    function bigCardHTML(c, i) {
+      const shape = c.land ? 'pc-land' : 'pc-port';
+      return `<button type="button" class="pc-flip ${shape}" aria-pressed="false" aria-label="Turn the postcard over" data-tip="Turn over">` +
+        `<span class="pc-flip-inner">` +
+          `<span class="pc pc-big pc-front"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, 'big' + i)}</svg></span>` +
+          `<span class="pc pc-big pc-back">` +
+            `<span class="pc-back-head"><span class="pc-back-title">POSTCARD</span><br><span class="pc-back-sub">with love</span></span>` +
+            `<img class="pc-back-stamp" src="stamps/stamp-${STAMP_FILES[i % STAMP_FILES.length]}.webp" alt="">` +
+            `<span class="pc-back-note">${c.msg}<span class="pc-back-sign">${c.from}</span></span>` +
+          `</span>` +
+        `</span></button>`;
+    }
+
     function cardHTML(c, i, cls) {
       return `<div class="pc ${cls} ${c.land ? 'pc-land' : 'pc-port'}">` +
         `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, cls + i)}</svg></div>`;
@@ -1376,7 +1452,14 @@ body {
       current = (i + CARDS.length) % CARDS.length;
       const c = CARDS[current];
       stage.classList.remove('show');
-      document.getElementById('galleryCard').innerHTML = cardHTML(c, current, 'pc-big');
+      const holder = document.getElementById('galleryCard');
+      holder.innerHTML = bigCardHTML(c, current);
+      const flip = holder.querySelector('.pc-flip');
+      flip.addEventListener('click', () => {
+        const back = flip.getAttribute('aria-pressed') !== 'true';
+        flip.setAttribute('aria-pressed', String(back));
+        flip.dataset.tip = back ? 'Turn back' : 'Turn over';
+      });
       document.getElementById('galleryMeta').textContent = `From ${c.from} · ${c.place}, ${c.date}`;
       document.getElementById('galleryTitle').textContent = c.title;
       void stage.offsetWidth;                      // restart the fade
