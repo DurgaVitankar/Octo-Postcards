@@ -876,6 +876,25 @@ body {
 .sending .scroller { pointer-events: none; }
 .flying-card { box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18); }
 
+/* Dashed trail left behind by a flying postcard */
+.flight-trail {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 59;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.flight-trail path {
+  fill: none;
+  stroke: #c8b09a;
+  stroke-width: 1.6;
+  stroke-dasharray: 6 6;
+  stroke-linecap: round;
+}
+
 /* "On its way to …" note above the mailbox */
 .sent-note {
   position: fixed;
@@ -2362,27 +2381,42 @@ body {
       setTimeout(() => { note.hidden = true; }, 300);
     }
 
-    // Flight path (viewport px): right from the card, a loop-the-loop halfway,
-    // then a rising curve into the mailbox slot
+    // Flight path (viewport px), traced from the reference video: out to the
+    // right, up and back over the top, down the left side, a loop underneath,
+    // then a straight diagonal dash into the mailbox slot, crossing the loop.
     function flightPath(a, b, u) {
-      const dx = b.x - a.x, L = a.x + 0.42 * dx;
-      return `M ${a.x} ${a.y}` +
-        ` C ${a.x + 0.22 * dx} ${a.y + 0.10 * u}, ${L - 0.06 * dx} ${a.y + 0.20 * u}, ${L + 0.07 * dx} ${a.y - 0.35 * u}` +
-        ` C ${L + 0.12 * dx} ${a.y - 1.25 * u}, ${L - 0.14 * dx} ${a.y - 1.40 * u}, ${L - 0.11 * dx} ${a.y - 0.75 * u}` +
-        ` C ${L - 0.09 * dx} ${a.y - 0.15 * u}, ${L + 0.05 * dx} ${a.y + 0.25 * u}, ${L + 0.24 * dx} ${a.y + 0.25 * u}` +
-        ` C ${L + 0.42 * dx} ${a.y + 0.25 * u}, ${b.x - 0.10 * dx} ${b.y + 0.55 * u}, ${b.x} ${b.y}`;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const W = [[0, 0], [0.20, 0.18], [0.42, 0.22], [0.52, -0.12], [0.44, -0.52], [0.30, -0.62],
+                 [0.18, -0.36], [0.19, 0.08], [0.30, 0.34], [0.46, 0.30], [0.70, 0.16]]
+        .map(([x, y]) => ({ x: a.x + x * dx, y: a.y + y * u + x * dy }));
+      W.push({ x: b.x, y: b.y });
+      // Catmull-Rom through the waypoints, as cubic Béziers
+      let d = `M ${W[0].x} ${W[0].y}`;
+      for (let i = 0; i < W.length - 1; i++) {
+        const p0 = W[Math.max(0, i - 1)], p1 = W[i], p2 = W[i + 1], p3 = W[Math.min(W.length - 1, i + 2)];
+        d += ` C ${p1.x + (p2.x - p0.x) / 6} ${p1.y + (p2.y - p0.y) / 6}, ${p2.x - (p3.x - p1.x) / 6} ${p2.y - (p3.y - p1.y) / 6}, ${p2.x} ${p2.y}`;
+      }
+      return d;
     }
 
     function along(copy, r, b, s) {
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const NS = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(NS, 'svg');
+      const path = document.createElementNS(NS, 'path');
       const a = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-      path.setAttribute('d', flightPath(a, b, Math.min(160, Math.max(90, r.height * 0.35))));
+      path.setAttribute('d', flightPath(a, b, Math.min(320, Math.max(160, r.height * 0.55))));
       svg.appendChild(path);
       svg.style.cssText = 'position:fixed;width:0;height:0;overflow:hidden';
       document.body.appendChild(svg);
+      // dashed trail drawn behind the card as it flies
+      const trailSvg = document.createElementNS(NS, 'svg');
+      trailSvg.setAttribute('class', 'flight-trail');
+      const trail = document.createElementNS(NS, 'path');
+      trailSvg.appendChild(trail);
+      document.body.insertBefore(trailSvg, copy);
       const len = path.getTotalLength(), dur = 3200;
-      const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      let pts = '';
       return new Promise(resolve => {
         const start = performance.now();
         (function frame(now) {
@@ -2392,13 +2426,19 @@ body {
           const p0 = e * len >= len - 1 ? path.getPointAtLength(len - 2) : p;
           // a gentle tilt with the climb and dive (at most 12°), never a full turn
           const ang = 12 * Math.sin(Math.atan2(q.y - p0.y, q.x - p0.x));
-          // shrink quickly at first, then down to slot size at the end
           const k = 1 - Math.pow(1 - e, 1.6);
           const scale = 1 + (s - 1) * k;
           copy.style.transform = `translate(${p.x - a.x}px, ${p.y - a.y}px) rotate(${ang}deg) scale(${scale})`;
-          copy.style.opacity = t > 0.9 ? String((1 - t) / 0.1) : '1';
+          copy.style.opacity = t > 0.92 ? String((1 - t) / 0.08) : '1';
+          pts += (pts ? ' L ' : 'M ') + p.x.toFixed(1) + ' ' + p.y.toFixed(1);
+          trail.setAttribute('d', pts);
           if (t < 1) requestAnimationFrame(frame);
-          else { svg.remove(); resolve(); }
+          else {
+            svg.remove();
+            trailSvg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 900, delay: 500, fill: 'forwards' })
+              .finished.then(() => trailSvg.remove());
+            resolve();
+          }
         })(start);
       });
     }
