@@ -2381,9 +2381,8 @@ body {
       svg.appendChild(path);
       svg.style.cssText = 'position:fixed;width:0;height:0;overflow:hidden';
       document.body.appendChild(svg);
-      const len = path.getTotalLength(), dur = 1900;
+      const len = path.getTotalLength(), dur = 3200;
       const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      let prevAngle = null, turn = 0;
       return new Promise(resolve => {
         const start = performance.now();
         (function frame(now) {
@@ -2391,13 +2390,8 @@ body {
           const p = path.getPointAtLength(e * len);
           const q = path.getPointAtLength(Math.min(len, e * len + 1));
           const p0 = e * len >= len - 1 ? path.getPointAtLength(len - 2) : p;
-          let ang = Math.atan2(q.y - p0.y, q.x - p0.x) * 180 / Math.PI;
-          if (prevAngle !== null) {                 // keep turning the same way through the loop
-            let d = ang + turn - prevAngle;
-            while (d > 180) { turn -= 360; d -= 360; }
-            while (d < -180) { turn += 360; d += 360; }
-          }
-          ang += turn; prevAngle = ang;
+          // a gentle tilt with the climb and dive (at most 12°), never a full turn
+          const ang = 12 * Math.sin(Math.atan2(q.y - p0.y, q.x - p0.x));
           // shrink quickly at first, then down to slot size at the end
           const k = 1 - Math.pow(1 - e, 1.6);
           const scale = 1 + (s - 1) * k;
