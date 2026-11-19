@@ -2438,8 +2438,8 @@ body {
       trailSvg.appendChild(trail);
       document.body.insertBefore(trailSvg, copy);
       const len = path.getTotalLength(), dur = 3200;
-      // brisk start, slowing down as it reaches the slot
-      const ease = t => 1 - Math.pow(1 - t, 1.7);
+      // constant pace along the whole path
+      const ease = t => t;
       let pts = '', prev = null, wind = 0, alignTo = null;
       const portrait = r.height > r.width;
       return new Promise(resolve => {
