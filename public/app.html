@@ -920,6 +920,7 @@ body {
 
 /* A postcard: white border around a picture, soft shadow */
 .pc {
+  position: relative;
   background: #fff;
   padding: 4%;
   border-radius: 3px;
@@ -979,6 +980,35 @@ body {
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
+
+/* Pressed flowers on the gallery cards: a layer on each face, sized like the
+   main card's flowers (15cqmin of the face) */
+.gdecor {
+  position: absolute;
+  inset: 0;
+  container-type: size;
+  pointer-events: none;
+}
+
+.gdecor img {
+  position: absolute;
+  width: 15cqmin;
+  height: auto;
+  max-width: none;
+  transform: translate(-50%, -50%) rotate(var(--r, 0deg));
+  filter: drop-shadow(0 1px 1.5px rgba(60, 40, 20, 0.18));
+}
+
+/* Cards written in the typewriter font, sized like the main card's */
+.gb-type .gb-addr span,
+.gb-type .gb-msg { font-family: var(--font-type); font-size: 4.4cqmin; }
+
+/* Typewriter text is small for its line, so it would float mid-line: drop it
+   to rest just above each rule (same row heights, same rule positions) */
+.gb-type .gb-addr span,
+.font-typewriter .address input { padding-top: 5.6cqmin; line-height: 5.4cqmin; }
+.gb-type .gb-msg,
+.font-typewriter .message { padding-top: 2.6cqmin; }
 
 /* Back of the opened card: the same layout as the main postcard's back
    (heading, stamp box with postmark, address lines, ruled message), in both
@@ -1410,20 +1440,20 @@ body {
   // opened in the centre. Each card's picture is a small scene drawn in SVG.
   (function () {
     const CARDS = [
-      { msg: 'The light here turns everything gold around six. Wish you could see it with me.', title: 'Golden hour on the Tagus', from: 'Maya', place: 'Lisbon', date: '12 Aug 2026', scene: 'sea',    pal: ['#f7c59f', '#ef8354', '#2d6a8a', '#fbe3c5'], land: false },
+      { msg: 'The light here turns everything gold around six. Wish you could see it with me.', title: 'Golden hour on the Tagus', deco: { back: [['lavender', 84, 82, -12]] }, from: 'Maya', place: 'Lisbon', date: '12 Aug 2026', scene: 'sea',    pal: ['#f7c59f', '#ef8354', '#2d6a8a', '#fbe3c5'], land: false },
       { msg: "Tea fields as far as I can see, and the mist hasn't lifted all morning. Thinking of you.", title: 'Morning in the hills',     from: 'Arjun', place: 'Munnar', date: '3 Jul 2026',  scene: 'hills',  pal: ['#e8f1e4', '#9cc5a1', '#49a078', '#216869'], land: true  },
-      { msg: 'It rained all day, then the whole city went silver. Found the best little bakery.', title: 'Rooftops after rain',      from: 'Léa', place: 'Paris', date: '21 Mar 2026',    scene: 'city',   pal: ['#d7dde8', '#9aa9c0', '#4f5d75', '#2d3142'], land: false },
-      { msg: "Sand in everything, and I don't even mind. The stars last night were unreal.", title: 'Dunes at noon',            from: 'Omar', place: 'Merzouga', date: '9 Feb 2026', scene: 'desert', pal: ['#fdf0d5', '#f4a261', '#e76f51', '#c8553d'], land: true  },
+      { msg: 'It rained all day, then the whole city went silver. Found the best little bakery.', title: 'Rooftops after rain',      font: 'type', deco: { front: [['chamomile', 14, 84, 10]] }, from: 'Léa', place: 'Paris', date: '21 Mar 2026',    scene: 'city',   pal: ['#d7dde8', '#9aa9c0', '#4f5d75', '#2d3142'], land: false },
+      { msg: "Sand in everything, and I don't even mind. The stars last night were unreal.", title: 'Dunes at noon',            deco: { back: [['wildflowers', 9, 78, 8]] }, from: 'Omar', place: 'Merzouga', date: '9 Feb 2026', scene: 'desert', pal: ['#fdf0d5', '#f4a261', '#e76f51', '#c8553d'], land: true  },
       { msg: 'The lake was so still we could see every star twice. Bring a warm coat next time.', title: 'Stars over the lake',      from: 'Ines', place: 'Bled', date: '14 Jan 2026',    scene: 'night',  pal: ['#1b263b', '#415a77', '#e0e1dd', '#778da9'], land: false },
-      { msg: "Purple to the horizon and the bees are everywhere. I'll bring you a little sachet.", title: 'Lavender fields',          from: 'Theo', place: 'Valensole', date: '1 Jul 2026', scene: 'hills', pal: ['#f3e8ff', '#c8b6e2', '#8e7dbe', '#5b4b8a'], land: false },
+      { msg: "Purple to the horizon and the bees are everywhere. I'll bring you a little sachet.", title: 'Lavender fields',          deco: { front: [['lavender', 86, 80, -14]], back: [['lavender', 50, 13, -24]] }, from: 'Theo', place: 'Valensole', date: '1 Jul 2026', scene: 'hills', pal: ['#f3e8ff', '#c8b6e2', '#8e7dbe', '#5b4b8a'], land: false },
       { msg: "Fishing boats lit up the whole harbour tonight. The curry was the best I've had.", title: 'Harbour lights',           from: 'Sana', place: 'Kochi', date: '28 Oct 2026',   scene: 'night',  pal: ['#22223b', '#4a4e69', '#f2e9e4', '#c9ada7'], land: true  },
-      { msg: 'Petals everywhere like snow. We walked the whole river path twice.', title: 'Cherry blossom walk',      from: 'Ken', place: 'Kyoto', date: '4 Apr 2026',     scene: 'hills',  pal: ['#fff0f3', '#ffccd5', '#ff8fa3', '#c9184a'], land: false },
-      { msg: 'Caught three waves and fell off a hundred times. My arms are noodles. Happy.', title: 'Surf check',               from: 'Noa', place: 'Ericeira', date: '17 Sep 2026', scene: 'sea',    pal: ['#caf0f8', '#90e0ef', '#0077b6', '#03045e'], land: true  },
-      { msg: 'Every wall is a different blue. Got lost on purpose all afternoon.', title: 'Blue city',                from: 'Priya', place: 'Jodhpur', date: '22 Nov 2026', scene: 'city',  pal: ['#e0f2fe', '#7dd3fc', '#0369a1', '#0c4a6e'], land: false },
+      { msg: 'Petals everywhere like snow. We walked the whole river path twice.', title: 'Cherry blossom walk',      deco: { front: [['cosmos', 84, 16, 16]], back: [['cosmos', 12, 86, -8]] }, from: 'Ken', place: 'Kyoto', date: '4 Apr 2026',     scene: 'hills',  pal: ['#fff0f3', '#ffccd5', '#ff8fa3', '#c9184a'], land: false },
+      { msg: 'Caught three waves and fell off a hundred times. My arms are noodles. Happy.', title: 'Surf check',               font: 'type', from: 'Noa', place: 'Ericeira', date: '17 Sep 2026', scene: 'sea',    pal: ['#caf0f8', '#90e0ef', '#0077b6', '#03045e'], land: true  },
+      { msg: 'Every wall is a different blue. Got lost on purpose all afternoon.', title: 'Blue city',                font: 'type', deco: { back: [['lily', 86, 82, -10]] }, from: 'Priya', place: 'Jodhpur', date: '22 Nov 2026', scene: 'city',  pal: ['#e0f2fe', '#7dd3fc', '#0369a1', '#0c4a6e'], land: false },
       { msg: 'Made it up just before sunset. Windy, cold and completely worth it.', title: 'Last light on the ridge',  from: 'Sam', place: 'Snowdonia', date: '30 Sep 2026', scene: 'hills', pal: ['#ffd6a5', '#ffadad', '#6d597a', '#355070'], land: true  },
-      { msg: 'Sky on the ground, ground in the sky. Hard to tell where anything ends.', title: 'Salt flats',               from: 'Lucía', place: 'Uyuni', date: '6 May 2026',   scene: 'desert', pal: ['#f1faee', '#a8dadc', '#e9c46a', '#457b9d'], land: false },
-      { msg: 'Storm rolled in and the lighthouse kept blinking. Cosy with a book now.', title: 'Lighthouse weather',       from: 'Finn', place: 'Cornwall', date: '11 Aug 2026', scene: 'sea',   pal: ['#e9ecef', '#adb5bd', '#495057', '#212529'], land: false },
-      { msg: 'Green ribbons all over the sky at midnight. I cried a little, not going to lie.', title: 'Northern lights',          from: 'Aino', place: 'Tromsø', date: '2 Dec 2026',   scene: 'night',  pal: ['#0b132b', '#1c2541', '#6fffe9', '#5bc0be'], land: true  }
+      { msg: 'Sky on the ground, ground in the sky. Hard to tell where anything ends.', title: 'Salt flats',               deco: { back: [['chamomile', 10, 84, 6], ['wildflowers', 22, 88, -14]] }, from: 'Lucía', place: 'Uyuni', date: '6 May 2026',   scene: 'desert', pal: ['#f1faee', '#a8dadc', '#e9c46a', '#457b9d'], land: false },
+      { msg: 'Storm rolled in and the lighthouse kept blinking. Cosy with a book now.', title: 'Lighthouse weather',       font: 'type', from: 'Finn', place: 'Cornwall', date: '11 Aug 2026', scene: 'sea',   pal: ['#e9ecef', '#adb5bd', '#495057', '#212529'], land: false },
+      { msg: 'Green ribbons all over the sky at midnight. I cried a little, not going to lie.', title: 'Northern lights',          deco: { back: [['lavender', 10, 80, 12]] }, from: 'Aino', place: 'Tromsø', date: '2 Dec 2026',   scene: 'night',  pal: ['#0b132b', '#1c2541', '#6fffe9', '#5bc0be'], land: true  }
     ];
 
     // Simple illustrated scenes in a 100 x 100 box, stretched to the card's shape
@@ -1459,6 +1489,13 @@ body {
     }
 
     const STAMP_FILES = ["yarrow", "peppermint", "rosemary", "anemone", "lotus", "laurel"];
+    // Pressed flowers for one face of a card: [flower, x%, y%, tilt]
+    function decorHTML(list) {
+      if (!list || !list.length) return '';
+      return `<span class="gdecor">` + list.map(([f, x, y, r]) =>
+        `<img src="flowers/flower-${f}.webp" alt="" style="left:${x}%;top:${y}%;--r:${r}deg">`).join('') + `</span>`;
+    }
+
     // The main card's stamp box and postmark, with this card's stamp in it and
     // its place and date around the postmark
     function stampSVG(c, i) {
@@ -1478,20 +1515,20 @@ body {
       const shape = c.land ? 'pc-land' : 'pc-port';
       return `<button type="button" class="pc-flip ${shape}" aria-pressed="false" aria-label="Turn the postcard over" data-tip="Turn over">` +
         `<span class="pc-flip-inner">` +
-          `<span class="pc pc-big pc-front"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, 'big' + i)}</svg></span>` +
-          `<span class="pc pc-big pc-back"><span class="gb">` +
+          `<span class="pc pc-big pc-front"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, 'big' + i)}</svg>${decorHTML(c.deco && c.deco.front)}</span>` +
+          `<span class="pc pc-big pc-back"><span class="gb${c.font === 'type' ? ' gb-type' : ''}">` +
             `<span class="gb-head"><span class="back-title">POSTCARD</span><span class="back-sub">with love</span></span>` +
             `<span class="gb-stamp">${stampSVG(c, i)}</span>` +
             `<span class="gb-addr"><span>Alex Rivera</span><span>22 Elm Street</span><span>Toronto, Canada</span><span>M5V 2T6</span></span>` +
             `<span class="gb-div"></span>` +
             `<span class="gb-msg">${c.msg}<span class="gb-sign">${c.from}</span></span>` +
-          `</span></span>` +
+          `</span>${decorHTML(c.deco && c.deco.back)}</span>` +
         `</span></button>`;
     }
 
     function cardHTML(c, i, cls) {
       return `<div class="pc ${cls} ${c.land ? 'pc-land' : 'pc-port'}">` +
-        `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, cls + i)}</svg></div>`;
+        `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, cls + i)}</svg>${decorHTML(c.deco && c.deco.front)}</div>`;
     }
 
     const left = document.getElementById('galleryLeft'), right = document.getElementById('galleryRight');
