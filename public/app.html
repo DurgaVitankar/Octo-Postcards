@@ -812,6 +812,91 @@ body {
 /* The card shows a soft outline while a flower is over it */
 .postcard.drop-ok { outline: 2px dashed #c8b09a; outline-offset: 6px; }
 
+/* Send dialog: asks who the postcard is for */
+.send-dialog {
+  margin: auto;   /* the page's reset removes the dialog's own centring */
+  width: min(400px, calc(100vw - 32px));
+  padding: 26px 26px 22px;
+  border: none;
+  border-radius: 14px;
+  background: #fff;
+  color: #1d1d1d;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.send-dialog::backdrop { background: rgba(40, 30, 20, 0.18); }
+
+.send-title {
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.send-lede { margin-top: 6px; font-size: 14px; color: #555; line-height: 1.45; }
+.send-label { display: block; margin-top: 18px; font-size: 12px; letter-spacing: 0.04em; color: #8a8a8a; }
+
+.send-input {
+  width: 100%;
+  margin-top: 2px;
+  padding: 4px 2px 6px;
+  border: none;
+  border-bottom: 1px solid #e6e3df;
+  background: transparent;
+  color: #1d1d1d;
+  font-family: 'Tangerine', 'Apple Chancery', cursive;
+  font-size: 32px;
+  line-height: 1.2;
+}
+
+.send-input::placeholder { color: #cfc9c4; }
+.send-input:focus { outline: none; border-bottom-color: #c8b09a; }
+.send-input[aria-invalid="true"] { border-bottom-color: #a3402f; }
+.send-error { margin-top: 8px; font-size: 13px; color: #a3402f; }
+
+.send-actions { margin-top: 22px; display: flex; justify-content: flex-end; gap: 8px; }
+
+.send-cancel, .send-go {
+  height: 40px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.send-cancel { background: transparent; color: #5c422f; }
+.send-cancel:hover { background: #f4efe9; }
+.send-go { display: inline-flex; align-items: center; gap: 8px; background: #111; color: #fff; }
+.send-go:hover { background: #333; }
+.send-go svg { width: 16px; height: 16px; }
+.send-cancel:focus-visible, .send-go:focus-visible { outline: 2px solid #8c6d55; outline-offset: 2px; }
+
+/* While a postcard is flying, nothing else can be clicked */
+.sending .scroller { pointer-events: none; }
+.flying-card { box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18); }
+
+/* "On its way to …" note above the mailbox */
+.sent-note {
+  position: fixed;
+  z-index: 40;
+  padding: 7px 13px;
+  border: 2.4px solid #786c6a;
+  border-radius: 999px;
+  background: #fff;
+  color: #5c4f4d;
+  font: 600 13px/1.3 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  white-space: nowrap;
+  transform: translate(-30%, 6px);
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  filter: drop-shadow(0 3px 6px rgba(60, 40, 20, 0.16));
+  pointer-events: none;
+}
+
+.sent-note span { color: #1d1d1d; }
+.sent-note.show { opacity: 1; transform: translate(-30%, 0); }
+
 /* The stamp being dragged */
 .stamp-ghost {
   position: fixed;
@@ -1185,7 +1270,6 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) { .mail-bubble { animation: none; } }
-}
 
 [hidden] { display: none !important; }
 </style>
@@ -1210,6 +1294,26 @@ body {
     </div>
   </div>
 </dialog>
+
+<dialog class="send-dialog" id="sendDialog" aria-labelledby="sendTitle">
+  <form id="sendForm" novalidate>
+    <h2 class="send-title" id="sendTitle">Who's it for?</h2>
+    <p class="send-lede">We'll send your postcard to their inbox.</p>
+    <label class="send-label" for="sendEmail">Their email</label>
+    <input class="send-input" id="sendEmail" type="email" autocomplete="email" inputmode="email" placeholder="friend@example.com" aria-describedby="sendError">
+    <p class="send-error" id="sendError" role="alert" hidden></p>
+    <div class="send-actions">
+      <button type="button" class="send-cancel" id="sendCancel">Cancel</button>
+      <button type="submit" class="send-go">
+        <!-- Remix Icon: send-plane-line (Apache 2.0) -->
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.7267 2.95694L16.2734 22.0432C16.1225 22.5716 15.7979 22.5956 15.5563 22.1126L11 13L1.9229 9.36919C1.41322 9.16532 1.41953 8.86022 1.95695 8.68108L21.0432 2.31901C21.5716 2.14285 21.8747 2.43866 21.7267 2.95694ZM19.0353 5.09647L6.81221 9.17085L12.4488 11.4255L15.4895 17.5068L19.0353 5.09647Z"/></svg>
+        Send postcard
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<div class="sent-note" id="sentNote" role="status" hidden>On its way to <span></span></div>
 
 <div class="scroller" id="scroller">
 <div class="track">
@@ -2164,10 +2268,143 @@ body {
     });
   })();
 
-  // Send tile: clickable, action still to be wired (the repo's /api/send emails a card)
-  document.getElementById('toolSend').addEventListener('click', () => {
-    // TODO: collect the recipient's email and send the postcard
-  });
+  // Send flow: the Send tile asks who the postcard is for, then the card flies
+  // across the page into the mailbox's slot, the mailbox wobbles, and a note
+  // confirms where it's going. (Delivery itself isn't connected yet: see
+  // deliver() below.)
+  (function () {
+    const dlg = document.getElementById('sendDialog');
+    const form = document.getElementById('sendForm');
+    const email = document.getElementById('sendEmail');
+    const err = document.getElementById('sendError');
+    const card = document.getElementById('postcard');
+    const scroller = document.getElementById('scroller');
+    const mailboxImg = document.querySelector('.mailbox');
+    const note = document.getElementById('sentNote');
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let busy = false;
+
+    // Slot position inside the mailbox painting (1262 x 2000)
+    const SLOT = { x: 170 / 1262, y: 1058 / 2000, w: 190 / 1262 };
+
+    function openDialog() {
+      if (busy) return;
+      err.hidden = true;
+      email.removeAttribute('aria-invalid');
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+      setTimeout(() => email.focus(), 50);
+    }
+
+    document.getElementById('toolSend').addEventListener('click', openDialog);
+    document.getElementById('sendCancel').addEventListener('click', () => dlg.close());
+    dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });   // click outside
+    email.addEventListener('input', () => { err.hidden = true; email.removeAttribute('aria-invalid'); });
+
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const to = email.value.trim();
+      if (!to || !email.checkValidity()) {
+        err.textContent = to ? "That doesn't look like an email address." : 'Enter the email address to send it to.';
+        err.hidden = false;
+        email.setAttribute('aria-invalid', 'true');
+        email.focus();
+        return;
+      }
+      dlg.close();
+      fly(to);
+    });
+
+    // TODO: hand the postcard to the server (e.g. POST /api/send) once
+    // delivery is wired up. For now the flow is visual only.
+    function deliver(to) { return Promise.resolve(to); }
+
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    function scrollAndSettle(left) {
+      scroller.scrollTo({ left, behavior: reduce ? 'auto' : 'smooth' });
+      return new Promise(resolve => {
+        let last = -1, still = 0;
+        (function check() {
+          const x = scroller.scrollLeft;
+          still = Math.abs(x - last) < 0.5 ? still + 1 : 0;
+          last = x;
+          if (still > 4) resolve(); else requestAnimationFrame(check);
+        })();
+      });
+    }
+
+    // A frozen copy of the card (with what's typed in it) to fly
+    function snapshot() {
+      const r = card.getBoundingClientRect();
+      const copy = card.cloneNode(true);
+      copy.removeAttribute('id');
+      copy.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+      const src = card.querySelectorAll('input, textarea'), dst = copy.querySelectorAll('input, textarea');
+      dst.forEach((el, i) => { el.value = src[i].value; el.setAttribute('value', src[i].value); el.textContent = src[i].value; el.tabIndex = -1; });
+      Object.assign(copy.style, { position: 'fixed', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px', margin: 0, zIndex: 60, pointerEvents: 'none', transformOrigin: '50% 50%' });
+      copy.classList.add('flying-card');
+      document.body.appendChild(copy);
+      return { copy, r };
+    }
+
+    function showNote(to) {
+      const m = mailboxImg.getBoundingClientRect();
+      note.querySelector('span').textContent = to;
+      note.style.left = (m.left + SLOT.x * m.width) + 'px';
+      note.style.top = (m.top + SLOT.y * m.height - 120) + 'px';
+      note.hidden = false;
+      requestAnimationFrame(() => note.classList.add('show'));
+    }
+    function hideNote() {
+      note.classList.remove('show');
+      setTimeout(() => { note.hidden = true; }, 300);
+    }
+
+    async function fly(to) {
+      busy = true;
+      document.body.classList.add('sending');
+      const back = scroller.scrollLeft;
+      try {
+        if (reduce) {
+          await scrollAndSettle(scroller.scrollWidth - scroller.clientWidth);
+          showNote(to);
+        } else {
+          const { copy, r } = snapshot();
+          card.style.visibility = 'hidden';
+          // 1. lift
+          await copy.animate([{ transform: 'none' }, { transform: 'translateY(-10px) scale(1.03) rotate(-2deg)' }],
+            { duration: 260, easing: 'ease-out', fill: 'forwards' }).finished;
+          // 2. glide to the mailbox
+          await scrollAndSettle(scroller.scrollWidth - scroller.clientWidth);
+          // 3. arc into the slot
+          const m = mailboxImg.getBoundingClientRect();
+          const tx = m.left + SLOT.x * m.width - (r.left + r.width / 2);
+          const ty = m.top + SLOT.y * m.height - (r.top + r.height / 2);
+          const s = Math.max(0.06, (SLOT.w * m.width * 0.8) / r.width);
+          const peak = Math.min(ty, 0) - 120;
+          await copy.animate([
+            { transform: 'translateY(-10px) scale(1.03) rotate(-2deg)', opacity: 1 },
+            { transform: `translate(${tx * 0.55}px, ${peak}px) scale(${(1 + s) / 2.2}) rotate(-14deg)`, opacity: 1, offset: 0.5 },
+            { transform: `translate(${tx}px, ${ty - 6}px) scale(${s}) rotate(-90deg)`, opacity: 1, offset: 0.88 },
+            { transform: `translate(${tx}px, ${ty + 4}px) scale(${s * 0.9}) rotate(-90deg)`, opacity: 0 }
+          ], { duration: 1100, easing: 'cubic-bezier(0.45, 0, 0.55, 1)', fill: 'forwards' }).finished;
+          copy.remove();
+          // 4. the mailbox takes it
+          mailboxImg.animate([
+            { transform: 'rotate(0)' }, { transform: 'rotate(-2deg)' }, { transform: 'rotate(1.5deg)' }, { transform: 'rotate(0)' }
+          ], { duration: 450, easing: 'ease-out' });
+          showNote(to);
+        }
+        await deliver(to);
+        await wait(2200);
+        hideNote();
+        await scrollAndSettle(back);
+      } finally {
+        card.style.visibility = '';
+        document.body.classList.remove('sending');
+        busy = false;
+      }
+    }
+  })();
 
   // Front / back toggle
   const photoArea = document.getElementById('photoArea');
