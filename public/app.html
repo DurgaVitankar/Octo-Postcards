@@ -873,27 +873,31 @@ body {
 @starting-style { .gallery[open] { opacity: 0; } }
 .gallery::backdrop { background: transparent; }
 
-/* Gallery layout: thumbnail column | opened card | thumbnail column */
+/* Gallery layout: opened card in the middle, all postcards in one row at the bottom */
 .gallery-body {
   display: grid;
-  grid-template-columns: 120px 1fr 120px;
-  gap: 24px;
+  grid-template-rows: 1fr auto;
+  gap: 20px;
   height: 100%;
-  padding: 24px max(28px, env(safe-area-inset-right, 0px)) 24px max(28px, env(safe-area-inset-left, 0px));
+  padding: 64px max(28px, env(safe-area-inset-right, 0px)) 24px max(28px, env(safe-area-inset-left, 0px));
 }
 
 .gallery-body:focus { outline: none; }
 
-.gallery-col {
+.gallery-strip {
   display: flex;
-  flex-direction: column;
-  justify-content: space-around;
   align-items: center;
-  gap: 12px;
-  min-height: 0;
-  overflow-y: auto;
+  gap: 14px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 10px 6px 12px;
   scrollbar-width: none;
+  /* centre when it fits, scroll from the start when it doesn't */
+  justify-content: safe center;
 }
+
+.gallery-strip::-webkit-scrollbar { display: none; }
+.gallery-col { display: contents; }
 
 .thumb {
   flex: none;
@@ -934,6 +938,7 @@ body {
   justify-content: center;
   gap: 22px;
   min-width: 0;
+  min-height: 0;
   opacity: 0;
   transform: translateY(6px);
 }
@@ -951,8 +956,8 @@ body {
   perspective: 1600px;
 }
 
-.pc-flip.pc-port { height: min(58vh, 520px); aspect-ratio: 10 / 14; max-width: 100%; }
-.pc-flip.pc-land { width: min(46vw, 640px); aspect-ratio: 14 / 10; max-height: 58vh; }
+.pc-flip.pc-port { height: min(100vh - 330px, 560px); aspect-ratio: 10 / 14; max-width: 100%; }
+.pc-flip.pc-land { width: min(46vw, 640px, (100vh - 330px) * 1.4); aspect-ratio: 14 / 10; }
 
 .pc-flip-inner {
   position: absolute;
@@ -1018,15 +1023,10 @@ body {
   text-wrap: balance;
 }
 
-/* Phones: opened card on top, thumbnails as one scrolling strip below */
+/* Phones: smaller opened card */
 @media (max-width: 640px) {
-  .gallery-body { grid-template-columns: 1fr; grid-template-rows: 1fr auto auto; padding-top: 72px; }
-  .gallery-stage { grid-row: 1; }
-  .gallery-col { flex-direction: row; justify-content: flex-start; overflow-x: auto; overflow-y: hidden; }
-  #galleryLeft { grid-row: 2; }
-  #galleryRight { grid-row: 3; }
-  .pc-big.pc-port { height: min(46vh, 420px); }
-  .pc-big.pc-land { width: 100%; }
+  .pc-flip.pc-port { height: min(48vh, 420px); }
+  .pc-flip.pc-land { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1067,7 +1067,6 @@ body {
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.9997 10.5865L16.9495 5.63672L18.3637 7.05093L13.4139 12.0007L18.3637 16.9504L16.9495 18.3646L11.9997 13.4149L7.04996 18.3646L5.63574 16.9504L10.5855 12.0007L5.63574 7.05093L7.04996 5.63672L11.9997 10.5865Z"/></svg>
   </button>
   <div class="gallery-body" tabindex="-1" autofocus>
-    <div class="gallery-col" id="galleryLeft"></div>
     <div class="gallery-stage" id="galleryStage" aria-live="polite">
       <div class="gallery-card" id="galleryCard"></div>
       <div class="gallery-caption">
@@ -1075,7 +1074,10 @@ body {
         <h2 class="gallery-title" id="galleryTitle"></h2>
       </div>
     </div>
-    <div class="gallery-col" id="galleryRight"></div>
+    <div class="gallery-strip" role="list" aria-label="All postcards">
+      <div class="gallery-col" id="galleryLeft"></div>
+      <div class="gallery-col" id="galleryRight"></div>
+    </div>
   </div>
 </dialog>
 
@@ -1466,7 +1468,7 @@ body {
       stage.classList.add('show');
       thumbs.forEach((t, k) => t.setAttribute('aria-current', String(k === current)));
       if (focus) thumbs[current].focus();
-      thumbs[current].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      thumbs[current].scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
     }
 
     thumbs.forEach(t => t.addEventListener('click', () => select(+t.dataset.i)));
