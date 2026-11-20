@@ -9,11 +9,24 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const STAMPS = new Set(["yarrow", "peppermint", "rosemary", "anemone", "lotus", "laurel"]);
 const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
 
+type Img = { content: Buffer; type: string };
+
+// A data: URL image, or null. Throws "too large" past the size limit.
+function dataImage(url?: string): Img | null {
+  const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(url ?? "");
+  if (!m) return null;
+  const content = Buffer.from(m[2], "base64");
+  if (content.length > MAX_PHOTO_BYTES) throw new Error("too large");
+  return { content, type: m[1] };
+}
+
 type Body = {
   recipientEmail?: string;
   message?: string;
   to?: { name?: string; address?: string; city?: string; postal?: string };
-  photo?: string; // data:image/jpeg;base64,...
+  photo?: string; // data:image/jpeg;base64,... (fallback when no snapshots)
+  front?: string; // snapshot of the card's front, as designed
+  back?: string; // snapshot of the card's back, as designed
   orientation?: "portrait" | "landscape";
   stamp?: string | null;
   font?: "hand" | "type";
@@ -57,15 +70,15 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // The photo, as an inline attachment
-  let photo: { content: Buffer; type: string } | null = null;
-  const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(body.photo ?? "");
-  if (m) {
-    const content = Buffer.from(m[2], "base64");
-    if (content.length > MAX_PHOTO_BYTES) {
-      return NextResponse.json({ error: "That photo is too large to send." }, { status: 413 });
-    }
-    photo = { content, type: m[1] };
+  // Images, as inline attachments: snapshots of both faces when the browser
+  // could make them, otherwise just the photo
+  let photo: Img | null = null, front: Img | null = null, back: Img | null = null;
+  try {
+    front = dataImage(body.front);
+    back = dataImage(body.back);
+    if (!front || !back) { front = back = null; photo = dataImage(body.photo); }
+  } catch {
+    return NextResponse.json({ error: "That postcard is too large to send." }, { status: 413 });
   }
 
   const portrait = body.orientation !== "landscape";
@@ -73,7 +86,8 @@ export async function POST(req: NextRequest) {
   const origin = req.nextUrl.origin;
   const postcardId = crypto.randomUUID();
 
-  const html = buildPostcardEmail({
+  const intro = sender ? `${esc(sender)} sent you a postcard` : "Someone sent you a postcard";
+  const html = front && back ? buildSnapshotEmail(intro, body.orientation !== "landscape", body.message ?? "") : buildPostcardEmail({
     message: body.message ?? "",
     to: body.to ?? {},
     sender,
@@ -89,9 +103,15 @@ export async function POST(req: NextRequest) {
     to: recipient,
     subject: sender ? `You received a postcard from ${sender}` : "You received a postcard",
     html,
-    attachments: photo
-      ? [{ filename: `postcard.${photo.type.split("/")[1]}`, content: photo.content, contentType: photo.type, contentId: "postcard-photo" }]
-      : undefined,
+    text: `${sender ? `${sender} sent you a postcard` : "Someone sent you a postcard"}.\n\n${String(body.message ?? "").slice(0, 2000)}\n\nSent with Postcards`,
+    attachments: front && back
+      ? [
+          { filename: "postcard-front.jpg", content: front.content, contentType: front.type, contentId: "postcard-front" },
+          { filename: "postcard-back.jpg", content: back.content, contentType: back.type, contentId: "postcard-back" },
+        ]
+      : photo
+        ? [{ filename: `postcard.${photo.type.split("/")[1]}`, content: photo.content, contentType: photo.type, contentId: "postcard-photo" }]
+        : undefined,
   });
 
   if (error) {
@@ -118,6 +138,30 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ success: true, id: postcardId });
+}
+
+// The card's two faces as pictures, so every email app shows them exactly as designed
+function buildSnapshotEmail(intro: string, portrait: boolean, message: string) {
+  const w = portrait ? 420 : 600;
+  const img = (cid: string, alt: string) =>
+    `<img src="cid:${cid}" width="${w}" alt="${alt}" style="display:block;width:100%;max-width:${w}px;height:auto;border-radius:8px;box-shadow:0 2px 18px rgba(0,0,0,0.08);">`;
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A postcard for you</title>
+</head>
+<body style="margin:0;padding:32px 16px;background:#f5f5f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1d1d1d;">
+  <div style="max-width:${w}px;margin:0 auto;">
+    <p style="margin:0 0 14px;text-align:center;font-size:13px;color:#6b6b6b;">${intro}</p>
+    ${img("postcard-front", "The front of the postcard")}
+    <div style="height:16px;line-height:16px;">&nbsp;</div>
+    ${img("postcard-back", `The back of the postcard. Message: ${esc(message)}`)}
+    <p style="margin:22px 0 0;text-align:center;font-size:11px;color:#9a9a9a;">Sent with Postcards</p>
+  </div>
+</body>
+</html>`;
 }
 
 function buildPostcardEmail(o: {
