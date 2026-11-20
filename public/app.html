@@ -2374,10 +2374,82 @@ input:autofill {
       return '';
     }
 
+    // Snapshot both faces of the card exactly as designed (fonts, stamp box,
+    // postmark, ruled lines, flowers, the photo's framing) for the email.
+    // Email apps ignore web fonts and most layout, so pictures look the same everywhere.
+    const H2I = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js';
+    function loadH2I() {
+      if (window.htmlToImage) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = H2I; s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+
+    // The card's web fonts as self-contained CSS (fonts inlined), so the
+    // snapshot uses Tangerine, Libre Baskerville and Geist Pixel. Fetched once.
+    let fontCSSCache = null;
+    async function fontCSS() {
+      if (fontCSSCache) return fontCSSCache;
+      const link = document.querySelector('link[href*="fonts.googleapis.com/css2"]');
+      if (!link) return '';
+      const css = await (await fetch(link.href)).text();
+      // keep only the latin subsets: what the card uses, and far fewer files
+      const blocks = css.split(/(?=\/\* )/).filter(b => /^\/\* latin \*\//.test(b));
+      const asData = async url => {
+        const blob = await (await fetch(url)).blob();
+        return new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
+      };
+      const out = await Promise.all(blocks.map(async b => {
+        const m = /url\((https:[^)]+)\)/.exec(b);
+        return m ? b.replace(m[1], await asData(m[1])) : b;
+      }));
+      return (fontCSSCache = out.join('\n'));
+    }
+
+    async function cardFaces() {
+      try { await loadH2I(); } catch (_) { return null; }
+      const holder = document.createElement('div');
+      holder.style.cssText = 'position:fixed;left:-20000px;top:0;width:2000px;pointer-events:none;';
+      document.body.appendChild(holder);
+      const make = side => {
+        const c = card.cloneNode(true);
+        c.removeAttribute('id');
+        c.style.cssText = '';
+        c.style.boxShadow = 'none';
+        c.style.width = card.getBoundingClientRect().width + 'px';   // same size as on screen
+        const src = card.querySelectorAll('input, textarea'), dst = c.querySelectorAll('input, textarea');
+        dst.forEach((el, i) => { el.setAttribute('value', src[i].value); el.textContent = src[i].value; el.value = src[i].value; });
+        const front = c.querySelector('.photo-area'), back = c.querySelector('.back-area');
+        front.hidden = side !== 'front';
+        back.hidden = side !== 'back';
+        c.querySelectorAll('.empty, .replace, .photo-hint, .file-input').forEach(el => { el.hidden = true; });
+        c.querySelectorAll('.flower-remove').forEach(el => el.remove());
+        c.querySelectorAll('.flower').forEach(el => el.classList.remove('selected'));
+        holder.appendChild(c);
+        return c;
+      };
+      let fontEmbedCSS = '';
+      try { fontEmbedCSS = await fontCSS(); } catch (_) {}
+      const opts = { pixelRatio: 2, quality: 0.9, backgroundColor: '#ffffff', fontEmbedCSS };
+      try {
+        const f = make('front'), b = make('back');
+        if (document.fonts) await document.fonts.ready;
+        const [front, back] = await Promise.all([htmlToImage.toJpeg(f, opts), htmlToImage.toJpeg(b, opts)]);
+        return { front, back };
+      } catch (_) {
+        return null;
+      } finally {
+        holder.remove();
+      }
+    }
+
     async function deliver(to) {
       const val = id => (document.getElementById(id).value || '').trim();
       const stampHref = document.getElementById('stampImg').getAttribute('href') || '';
       const stamp = (/stamp-([a-z]+)\.webp/.exec(stampHref) || [])[1] || null;
+      const faces = await cardFaces();
       try {
         const res = await fetch('/api/send', {
           method: 'POST',
@@ -2386,7 +2458,9 @@ input:autofill {
             recipientEmail: to,
             message: val('message'),
             to: { name: val('toName'), address: val('toAddress'), city: val('toCity'), postal: val('toPostal') },
-            photo: await photoForEmail(),
+            photo: faces ? null : await photoForEmail(),
+            front: faces ? faces.front : null,
+            back: faces ? faces.back : null,
             orientation: card.classList.contains('landscape') ? 'landscape' : 'portrait',
             stamp,
             font: document.body.classList.contains('font-typewriter') ? 'type' : 'hand',
