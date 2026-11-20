@@ -1289,6 +1289,21 @@ body {
 
 @media (prefers-reduced-motion: reduce) { .mail-bubble { animation: none; } }
 
+/* Browser autofill paints filled fields blue: keep them looking like the card.
+   (The long transition stops the browser's background ever showing.) */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:autofill {
+  -webkit-text-fill-color: currentColor;
+  caret-color: currentColor;
+  -webkit-box-shadow: 0 0 0 1000px transparent inset;
+  box-shadow: 0 0 0 1000px transparent inset;
+  background-color: transparent !important;
+  background-clip: text;
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+
 [hidden] { display: none !important; }
 </style>
 </head>
