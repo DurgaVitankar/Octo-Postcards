@@ -4,72 +4,2706 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Postcards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500&family=Libre+Baskerville:wght@700&family=Tangerine:wght@400;700&family=Geist+Pixel&display=swap">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body { height: 100%; }
+
 body {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: #fff;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow: hidden;
 }
 
+/* The page is three screens wide: an empty panel either side of the
+   postcard. It opens centred on the postcard and scrolls left and right. */
+.scroller {
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden; /* the page always fits the window height */
+  overscroll-behavior-x: contain;
+}
+
+.track {
+  /* Illustration widths, from their heights (85% of the window) and aspect ratios */
+  --shelf-w: calc(85vh * 2000 / 1889);
+  --mail-w: calc(85vh * 1262 / 2000);
+  display: flex;
+  width: max-content;
+  min-height: 100%;
+}
+
+/* Sketchy groundline across the whole page, behind everything. The paintings
+   have transparent backgrounds, so the pot, the shelf and the mailbox post
+   cover it. Height: 84.5% down the paintings (85vh tall from the top). */
+.track { position: relative; }
+
+.groundline {
+  position: absolute;
+  top: calc(85vh * 0.845 - 0.55vh);
+  left: 0;
+  width: 100%;
+  height: 1.1vh;
+  min-height: 8px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.groundline path {
+  fill: none;
+  stroke: #e2d4c6;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.zone {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+/* Side panels are only as wide as the part of each illustration outside the
+   postcard's screen, plus 60px at the outer end */
+/* Measured from the artwork, not the image edges: the shelf art starts 39px
+   into its 2000px image; the mailbox art ends 149px before its 1262px edge */
+.zone-left  { width: calc(var(--shelf-w) * (0.75 - 39 / 2000) + 180px); }
+.zone-right { width: calc(var(--mail-w) * (0.75 - 149 / 1262) + 340px); }
+.zone-center { width: 100vw; }
+
+/* Left panel: bookshelf and plant at its right edge, running off the top of
+   the page. A quarter of it peeks into the postcard's screen. */
+.zone-left { position: relative; }
+
+.shelf {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 85vh;
+  width: var(--shelf-w);   /* exactly the painting's width, so overlays line up */
+  transform: translateX(25%);
+}
+
+.bookshelf {
+  display: block;
+  height: 100%;
+  width: auto;
+  max-width: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Postcard stand: a transparent cut-out of just the stand, laid exactly over
+   it in the illustration. Only the stand grows on hover, not the shelf. */
+.stand {
+  position: absolute;
+  left: 67.800%;
+  top: 37.110%;
+  width: 24.700%;
+  height: 22.234%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.stand img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  transform-origin: 50% 100%;
+  transition: transform 0.25s ease, filter 0.25s ease;
+  user-select: none;
+}
+
+.stand:hover img,
+.stand:focus-visible img {
+  transform: scale(1.06);
+  filter: drop-shadow(0 4px 6px rgba(60, 40, 20, 0.18));
+}
+
+.stand:focus-visible {
+  outline: 2px solid #8a8a8a;
+  outline-offset: 6px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stand { transition: none; }
+}
+
+/* Right panel: mailbox with flying letters at its left edge. A quarter of it
+   peeks into the postcard's screen, mirroring the bookshelf. */
+.zone-right { position: relative; }
+
+/* The frame crops the image's empty right margin so it adds no scroll space */
+.mail-frame {
+  position: absolute;
+  top: 0;
+  left: calc(var(--mail-w) * -0.25);
+  width: calc(var(--mail-w) * (1 - 149 / 1262));
+  height: 85vh;
+  overflow: hidden;
+}
+
+.mailbox {
+  display: block;
+  height: 100%;
+  width: auto;
+  max-width: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Globe on the shelf: a canvas over the painted sphere. On hover it re-projects
+   the painting onto a sphere and gives it one decelerating turn on its tilted axis. */
+.globe {
+  position: absolute;
+  left: 64.900%;
+  top: 15.670%;
+  width: 9.200%;
+  height: 9.741%;
+  pointer-events: auto;
+}
+
+.zone-center {
+  position: relative;
+  z-index: 1;
+  /* Let the pointer reach the bookshelf where it peeks in; only the
+     controls and the postcard take clicks */
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  padding: 20px 16px;
+}
+
+/* Postcard: white frame with a soft shadow, photo inset inside it */
 .postcard {
-  width: 432px;
-  height: 600px;
+  /* Portrait width; capped so the card turned on its side still fits the screen */
+  --pw: min(370px, calc(28px + (100% - 28px) * 416 / 667), calc(28px + (100vh - 304px) * 416 / 667), calc(28px + (100dvh - 304px) * 416 / 667));
+  width: var(--pw);
+  padding: 14px;
   background: #fff;
-  border-radius: 6px;
-  box-shadow: 0 2px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
+  border-radius: 10px;
+  box-shadow: 0 2px 24px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.photo-area {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 416 / 667;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.photo-area img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Empty state: a quiet surface with a plus in the centre */
+.empty {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
+  width: 100%;
+  border: 1.5px dashed #e2e2e2;
+  border-radius: 2px;
+  background: #fafafa;
+  color: #b5b5b5;
+  font: inherit;
   cursor: pointer;
-  position: relative;
-  overflow: hidden;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 
-.plus-icon {
-  width: 44px;
-  height: 44px;
-  border: 1.5px solid #c8c8c8;
+.empty:hover,
+.empty.dragging {
+  background: #f4f4f4;
+  border-color: #cfcfcf;
+  color: #8a8a8a;
+}
+
+.empty:focus-visible {
+  outline: 2px solid #8a8a8a;
+  outline-offset: 2px;
+}
+
+.plus {
+  width: 26px;
+  height: 26px;
+  border: 1px solid currentColor;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #c0c0c0;
-  font-size: 22px;
-  line-height: 1;
-  transition: border-color 0.2s, color 0.2s;
+  transition: transform 0.2s;
 }
 
+.empty:hover .plus { transform: scale(1.05); }
+
+/* Label sits below the plus without pushing it off centre */
 .add-label {
+  position: absolute;
+  top: calc(50% + 25px);
   font-size: 13px;
-  color: #c0c0c0;
+  letter-spacing: 0.01em;
   opacity: 0;
   transition: opacity 0.2s;
-  letter-spacing: 0.01em;
 }
 
-.postcard:hover .plus-icon {
-  border-color: #999;
-  color: #888;
+.empty:hover .add-label,
+.empty:focus-visible .add-label { opacity: 1; }
+
+/* Replace control shown over a filled postcard */
+.replace {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 
-.postcard:hover .add-label {
+/* The photo is placed by script so it can be moved and zoomed in the frame */
+#photo {
+  position: absolute;
+  max-width: none;
+  max-height: none;
+  object-fit: fill;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+#photo.panning { cursor: grabbing; }
+#photo:focus-visible { outline: 2px solid #8a8a8a; outline-offset: -4px; }
+
+/* A short hint while hovering a photo */
+.photo-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  z-index: 3;
+  transform: translateX(-50%);
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.photo-area:hover .photo-hint { opacity: 1; }
+.photo-area:has(#photo.panning) .photo-hint { opacity: 0; }
+
+.photo-area:hover .replace,
+.replace:focus-visible { opacity: 1; }
+
+/* Controls row above the postcard */
+.controls {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Front / back toggle and rotate button share the pill style */
+
+.side-toggle,
+.rotate-pill {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: #fafafa;
+  border-radius: 14px;
+}
+
+.side-toggle button,
+.rotate-pill button {
+  width: 44px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #111;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.side-toggle button:hover,
+.rotate-pill button:hover { background: #f4f4f4; }
+
+/* Tooltips: shown below each control on hover or keyboard focus */
+[data-tip] { position: relative; }
+
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translate(-50%, -2px);
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: #1d1d1d;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s, transform 0.12s;
+}
+
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after {
   opacity: 1;
+  transform: translate(-50%, 0);
+  transition-delay: 0.25s;
 }
+
+@media (hover: none) {
+  [data-tip]:hover::after { opacity: 0; }
+}
+.side-toggle button[aria-pressed="true"] { background: #efefef; }
+
+.side-toggle button:focus-visible,
+.rotate-pill button:focus-visible {
+  outline: 2px solid #8a8a8a;
+  outline-offset: 1px;
+}
+
+/* Back of the postcard: postcard header, stamp, address and lined message.
+   Sizes use cqmin (the card's short side) so both orientations match. */
+.back-area {
+  --ink: #1d1d1d;
+  --rule: #e6e3df;
+  --hint: #c9c5c7;
+  --mauve: #a8979e;
+  --script: 'Dancing Script', 'Apple Chancery', 'Segoe Script', cursive;
+  width: 100%;
+  aspect-ratio: 416 / 667;
+  container-type: size;
+  display: grid;
+  padding: 12px;
+  column-gap: 16px;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    "head stamp"
+    "addr stamp"
+    "msg  msg";
+}
+
+.back-head { grid-area: head; padding-top: 1cqmin; }
+
+.back-title {
+  font-family: 'Libre Baskerville', Georgia, 'Times New Roman', serif;
+  font-weight: 700;
+  font-size: 4.2cqmin;
+  letter-spacing: 0.22em;
+  color: var(--ink);
+}
+
+.back-sub {
+  font-family: var(--script);
+  font-size: 4.8cqmin;
+  line-height: 1;
+  color: var(--mauve);
+}
+
+.stamp { grid-area: stamp; width: 28cqmin; padding-top: 1cqmin; /* top aligns with the heading */ }
+.stamp svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+.address {
+  grid-area: addr;
+  display: flex;
+  flex-direction: column;
+  max-width: 60cqw;
+  margin-top: 3cqmin;
+}
+
+.address input,
+.message {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #3a3a3a;
+  font-family: var(--write-font, var(--font-hand));
+  font-size: var(--write-size, 8.5cqmin);
+}
+
+/* Writing font, switched by the "Aa" tool: handwritten (default) or typewriter */
+:root {
+  --font-hand: 'Tangerine', 'Apple Chancery', 'Segoe Script', cursive;
+  --font-type: 'Geist Pixel', 'Geist Mono', 'Courier New', monospace;
+}
+
+.font-typewriter .back-area {
+  --write-font: var(--font-type);
+  --write-size: 4.4cqmin;
+}
+
+.address input {
+  border-bottom: 1px solid var(--rule);
+  padding: 2cqmin 1cqmin 0.4cqmin;
+  line-height: 9cqmin; /* same row height in both fonts */
+}
+
+.message {
+  grid-area: msg;
+  margin-top: 7cqmin;
+  padding: 0 1cqmin;
+  line-height: 9.5cqmin;
+  resize: none;
+  /* Ruled lines that scroll with the text */
+  background-image: repeating-linear-gradient(to bottom,
+    transparent 0 calc(9.5cqmin - 1px),
+    var(--rule) calc(9.5cqmin - 1px) 9.5cqmin);
+  background-attachment: local;
+}
+
+.address input::placeholder,
+.message::placeholder { color: var(--hint); }
+.address input:focus,
+.message:focus { outline: none; }
+.address input:focus { border-bottom-color: #cfcac4; }
+
+.back-divider { grid-area: div; display: none; background: var(--rule); }
+
+/* Landscape back: message on the left, address side on the right */
+.postcard.landscape .back-area {
+  aspect-ratio: 667 / 416;
+  grid-template-columns: 1.35fr 1px 1fr auto;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "msg div head stamp"
+    "msg div addr addr";
+}
+
+.postcard.landscape .back-divider {
+  display: block;
+  margin-block: -26px;
+}
+
+.postcard.landscape .address {
+  align-self: end;
+  max-width: none;
+  margin-top: 0;
+}
+
+.postcard.landscape .message { margin-top: 6cqmin; }
+
+/* Stage keeps the portrait card's height in both orientations,
+   so rotating never moves the controls above it */
+.stage {
+  display: grid;
+  overflow-x: clip;
+  justify-items: center;
+  align-items: center;
+  width: 100%;
+}
+
+.stage > * { grid-area: 1 / 1; }
+
+.ghost {
+  --pw: min(370px, calc(28px + (100% - 28px) * 416 / 667), calc(28px + (100vh - 304px) * 416 / 667), calc(28px + (100dvh - 304px) * 416 / 667));
+  width: var(--pw);
+  padding: 14px;
+  visibility: hidden;
+}
+
+.ghost div { aspect-ratio: 416 / 667; }
+
+/* Landscape orientation */
+/* Landscape is the portrait card turned on its side: same dimensions, swapped */
+.postcard.landscape { width: calc(28px + (var(--pw) - 28px) * 667 / 416); }
+.postcard.landscape .photo-area,
+.postcard.landscape .back-area { aspect-ratio: 667 / 416; }
+
+/* The rotate button shows the orientation it will switch to */
+.rotate-pill .icon-portrait { display: none; }
+.postcard-landscape .rotate-pill .icon-portrait { display: block; }
+.postcard-landscape .rotate-pill .icon-landscape { display: none; }
+
+.controls,
+.postcard,
+.tools { pointer-events: auto; }
+
+/* Tools under the postcard: hand-drawn tiles that zoom and fill with colour */
+.tools {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+/* Spacing, tilt and height measured from the mock-up (cards ~400px there, 112px here) */
+.tool:nth-child(2) { margin-left: -4px; }
+.tool:nth-child(3) { margin-left: -4px; }
+.tool:nth-child(4) { margin-left: -4px; }
+
+/* The left card sits over the middle one so "Aa" isn't covered */
+.tool:nth-child(1) { z-index: 1; }
+
+.tool:hover,
+.tool:focus-visible { z-index: 2; }
+
+.tool {
+  --r: 0deg;
+  --y: 0px;
+  --fill: #f3efe9;
+  position: relative;
+  /* four tiles fit any width: 112px, smaller on narrow screens */
+  width: clamp(64px, calc((100vw - 32px) / 4 + 3px), 112px);
+  aspect-ratio: 1;
+  height: auto;
+  container-type: size;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transform: translateY(var(--y)) rotate(var(--r));
+  transform-origin: 50% 50%;
+  transition: transform 0.25s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.tool:nth-child(1) { --r: 8deg;  --y: 0px;  --fill: #f1ece4; }
+.tool:nth-child(2) { --r: -5deg; --y: -3px; --fill: #e3ebfa; }
+.tool:nth-child(3) { --r: 8deg;  --y: -5px; --fill: #fbe5ea; }
+.tool:nth-child(4) { --r: -6deg; --y: -2px; --fill: #e6efe3; }
+
+.tool svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.tool path {
+  fill: #fff;
+  stroke: #c8b09a; /* light brown */
+  stroke-width: 1.25;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  transition: fill 0.2s ease, stroke 0.2s ease;
+}
+
+/* Live "Aa" preview in the current writing font */
+.font-preview {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-hand);
+  font-size: 52cqw;
+  font-weight: 700;
+  line-height: 1;
+  color: #111;
+  pointer-events: none;
+  user-select: none;
+}
+
+.font-typewriter .font-preview {
+  font-family: var(--font-type);
+  font-size: 41cqw;
+  font-weight: 400;
+}
+
+/* the paper plane sits a little smaller than the other pictures */
+#toolSend img { max-width: 50%; max-height: 50%; }
+
+.tool img {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  max-width: 64%;
+  max-height: 64%;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Hover: the whole card grows up from its base and sits above its neighbours */
+.tool:hover,
+.tool:focus-visible { transform: translateY(var(--y)) rotate(var(--r)) scale(1.15); }
+
+.tool:hover path,
+.tool:focus-visible path { fill: var(--fill); stroke: #8c6d55; /* lighter shelf brown */ }
+
+.tool:focus-visible { outline: none; }
+.tool:focus-visible path { stroke: #8c6d55; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tool, .tool path { transition: none; }
+}
+
+/* Stamp tray: opens below the postcard, above the tools, as one row */
+/* Takes the tools' place while open */
+.stamp-tray {
+  max-width: 100%;
+  margin-top: 24px;
+  padding: 12px 10px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 24px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.05);
+  pointer-events: auto;
+}
+
+.stamp-grid {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+}
+
+.tray-stamp {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 84px;
+  padding: 4px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.tray-stamp img {
+  max-width: 100%;
+  max-height: 100%;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 1px 2px rgba(60, 40, 20, 0.18));
+}
+
+.tray-stamp:hover { background: #f6f1eb; transform: scale(1.04); }
+.tray-stamp:active { cursor: grabbing; }
+.tray-stamp[aria-pressed="true"] { background: #efe6dc; }
+.tray-stamp:focus-visible { outline: 2px solid #8c6d55; outline-offset: 1px; }
+
+/* Pressed flowers: a decoration layer on each side of the card */
+.back-area { position: relative; }
+
+.decor {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  container-type: size;
+}
+
+/* .decor .flower beats ".photo-area img", which would stretch it to fill the photo */
+.decor .flower {
+  position: absolute;
+  display: block;
+  width: 15cqmin;
+  transform: translate(-50%, -50%) rotate(var(--r, 0deg));
+  filter: drop-shadow(0 1px 1.5px rgba(60, 40, 20, 0.18));
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition: opacity 0.18s ease;
+}
+
+.flower.dragging { cursor: grabbing; filter: drop-shadow(0 6px 10px rgba(60, 40, 20, 0.25)); }
+.flower.leaving { opacity: 0.4; }
+.flower.removing { opacity: 0; }
+
+/* .decor .flower img beats ".photo-area img", which would stretch it */
+.decor .flower img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* Remove button: appears on hover, keyboard focus, or when the flower is tapped */
+.flower-remove {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: #5c422f;
+  box-shadow: 0 1px 4px rgba(60, 40, 20, 0.25);
+  cursor: pointer;
+  opacity: 0;
+  transform: rotate(calc(-1 * var(--r, 0deg))) scale(0.85);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.flower-remove svg { width: 12px; height: 12px; }
+.flower-remove:hover { background: #f4efe9; }
+
+.flower:hover .flower-remove,
+.flower.selected .flower-remove,
+.flower:focus-within .flower-remove {
+  opacity: 1;
+  transform: rotate(calc(-1 * var(--r, 0deg))) scale(1);
+}
+
+.flower.selected { filter: drop-shadow(0 0 0.5px #8c6d55) drop-shadow(0 1px 1.5px rgba(60, 40, 20, 0.18)); }
+.flower.dragging .flower-remove { opacity: 0; }
+.flower-remove:focus-visible { outline: 2px solid #8c6d55; outline-offset: 1px; }
+
+.flower-ghost {
+  position: fixed;
+  z-index: 50;
+  transform: translate(-50%, -50%) rotate(-6deg);
+  filter: drop-shadow(0 6px 10px rgba(60, 40, 20, 0.25));
+  pointer-events: none;
+}
+
+.flower-ghost.landing { transition: left 0.18s ease-out, top 0.18s ease-out, opacity 0.18s ease-out; }
+
+/* The card shows a soft outline while a flower is over it */
+.postcard.drop-ok { outline: 2px dashed #c8b09a; outline-offset: 6px; }
+
+/* Send dialog: asks who the postcard is for */
+.send-dialog {
+  margin: auto;   /* the page's reset removes the dialog's own centring */
+  width: min(400px, calc(100vw - 32px));
+  padding: 26px 26px 22px;
+  border: none;
+  border-radius: 14px;
+  background: #fff;
+  color: #1d1d1d;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.send-dialog::backdrop { background: rgba(40, 30, 20, 0.18); }
+
+.send-title {
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.send-lede { margin-top: 6px; font-size: 14px; color: #555; line-height: 1.45; }
+.send-label { display: block; margin-top: 18px; font-size: 12px; letter-spacing: 0.04em; color: #8a8a8a; }
+
+.send-input {
+  width: 100%;
+  margin-top: 2px;
+  padding: 4px 2px 6px;
+  border: none;
+  border-bottom: 1px solid #e6e3df;
+  background: transparent;
+  color: #1d1d1d;
+  font-family: 'Tangerine', 'Apple Chancery', cursive;
+  font-size: 32px;
+  line-height: 1.2;
+}
+
+.send-input::placeholder { color: #cfc9c4; }
+.send-input:focus { outline: none; border-bottom-color: #c8b09a; }
+.send-input[aria-invalid="true"] { border-bottom-color: #a3402f; }
+.send-error { margin-top: 8px; font-size: 13px; color: #a3402f; }
+
+.send-actions { margin-top: 22px; display: flex; justify-content: flex-end; gap: 8px; }
+
+.send-cancel, .send-go {
+  height: 40px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.send-cancel { background: transparent; color: #5c422f; }
+.send-cancel:hover { background: #f4efe9; }
+.send-go { display: inline-flex; align-items: center; gap: 8px; background: #111; color: #fff; }
+.send-go:hover { background: #333; }
+.send-go svg { width: 16px; height: 16px; }
+.send-cancel:focus-visible, .send-go:focus-visible { outline: 2px solid #8c6d55; outline-offset: 2px; }
+
+/* While a postcard is flying, nothing else can be clicked */
+.sending .scroller { pointer-events: none; }
+.flying-card { box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18); }
+
+/* Hides the part of a postcard that has gone through the mailbox slot */
+.slot-clip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  z-index: 60;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Dashed trail left behind by a flying postcard */
+.flight-trail {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 59;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.flight-trail path {
+  fill: none;
+  stroke: #c8b09a;
+  stroke-width: 1.6;
+  stroke-dasharray: 6 6;
+  stroke-linecap: round;
+}
+
+/* "On its way to …" note above the mailbox */
+.sent-note {
+  position: fixed;
+  z-index: 40;
+  padding: 7px 13px;
+  border: 2.4px solid #786c6a;
+  border-radius: 999px;
+  background: #fff;
+  color: #5c4f4d;
+  font: 600 13px/1.3 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  white-space: nowrap;
+  transform: translateY(6px);
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  filter: drop-shadow(0 3px 6px rgba(60, 40, 20, 0.16));
+  pointer-events: none;
+}
+
+.sent-note span { color: #1d1d1d; }
+.sent-note.error { border-color: #a3402f; color: #a3402f; white-space: normal; max-width: min(360px, calc(100vw - 32px)); }
+.sent-note.show { opacity: 1; transform: none; }
+
+/* The stamp being dragged */
+.stamp-ghost {
+  position: fixed;
+  z-index: 50;
+  width: 64px;
+  transform: translate(-50%, -50%) rotate(-4deg);
+  filter: drop-shadow(0 6px 10px rgba(60, 40, 20, 0.25));
+  pointer-events: none;
+  transition: width 0.15s ease, transform 0.15s ease, filter 0.15s ease;
+}
+
+/* Over the stamp box: preview at the exact size it will be placed */
+.stamp-ghost.snap {
+  transform: translate(-50%, -50%) rotate(0deg);
+  filter: drop-shadow(0 2px 3px rgba(60, 40, 20, 0.2));
+}
+
+/* Settling into the box, or floating back to the tray */
+.stamp-ghost.landing {
+  transition: left 0.18s ease-out, top 0.18s ease-out, width 0.18s ease-out,
+              transform 0.18s ease-out, opacity 0.18s ease-out, filter 0.18s ease-out;
+}
+
+/* Stamp box on the back lights up when a stamp is over it */
+#stampSlot { transition: fill 0.15s; }
+#stampSlot.hot { fill: #e6dccf; stroke: #8c6d55; stroke-width: 1.2; stroke-dasharray: 3 2; }
+
+/* File input stays in the page (not display:none) so its label can open the
+   picker natively, which works in sandboxed frames and on phones */
+.file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.photo-area.dragging .empty,
+.photo-area.dragging #photo { outline: 2px dashed #8a8a8a; outline-offset: -6px; }
+
+/* Postcard gallery modal (opened from the stand on the bookshelf): blank for now */
+.gallery {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: #f5f5f4;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.gallery[open] { opacity: 1; }
+@starting-style { .gallery[open] { opacity: 0; } }
+.gallery::backdrop { background: transparent; }
+
+/* Gallery layout: opened card in the middle, all postcards in one row at the bottom */
+.gallery-body {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 20px;
+  height: 100%;
+  padding: 64px max(28px, env(safe-area-inset-right, 0px)) 24px max(28px, env(safe-area-inset-left, 0px));
+}
+
+.gallery-body:focus { outline: none; }
+
+.gallery-strip {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 10px 6px 12px;
+  scrollbar-width: none;
+  /* centre when it fits, scroll from the start when it doesn't */
+  justify-content: safe center;
+}
+
+.gallery-strip::-webkit-scrollbar { display: none; }
+.gallery-col { display: contents; }
+
+.thumb {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;   /* slot fits its card, so the gaps between cards are equal */
+  height: 84px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.thumb:hover { transform: scale(1.06); }
+.thumb[aria-current="true"] .pc { outline: 2px solid #c8b09a; outline-offset: 3px; }
+.thumb:focus-visible { outline: none; }
+.thumb:focus-visible .pc { outline: 2px solid #8c6d55; outline-offset: 3px; }
+
+/* A postcard: white border around a picture, soft shadow */
+.pc {
+  position: relative;
+  background: #fff;
+  padding: 4%;
+  border-radius: 3px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
+}
+
+.pc svg { display: block; width: 100%; height: 100%; }
+.pc-thumb.pc-port { height: 78px; aspect-ratio: 10 / 14; }
+.pc-thumb.pc-land { width: 96px; aspect-ratio: 14 / 10; }
+.pc-thumb { padding: 4px; }
+
+.gallery-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  min-width: 0;
+  min-height: 0;
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.gallery-stage.show { opacity: 1; transform: none; transition: opacity 0.3s ease, transform 0.3s ease; }
+
+.gallery-card { display: flex; justify-content: center; }
+/* The opened card is a button that turns over to show its back */
+.pc-flip {
+  position: relative;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  perspective: 1600px;
+}
+
+.pc-flip.pc-port { height: min(100vh - 330px, 560px); aspect-ratio: 10 / 14; max-width: 100%; }
+.pc-flip.pc-land { width: min(46vw, 640px, (100vh - 330px) * 1.4); aspect-ratio: 14 / 10; }
+
+.pc-flip-inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pc-flip[aria-pressed="true"] .pc-flip-inner { transform: rotateY(180deg); }
+.pc-flip:focus-visible { outline: none; }
+.pc-flip:focus-visible .pc-big { outline: 2px solid #8c6d55; outline-offset: 4px; }
+
+.pc-big {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  padding: 14px;
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Pressed flowers on the gallery cards: a layer on each face, sized like the
+   main card's flowers (15cqmin of the face) */
+.gdecor {
+  position: absolute;
+  inset: 0;
+  container-type: size;
+  pointer-events: none;
+}
+
+.gdecor img {
+  position: absolute;
+  width: 15cqmin;
+  height: auto;
+  max-width: none;
+  transform: translate(-50%, -50%) rotate(var(--r, 0deg));
+  filter: drop-shadow(0 1px 1.5px rgba(60, 40, 20, 0.18));
+}
+
+/* Cards written in the typewriter font, sized like the main card's */
+.gb-type .gb-addr span,
+.gb-type .gb-msg { font-family: var(--font-type); font-size: 4.4cqmin; }
+
+/* Typewriter text is small for its line, so it would float mid-line: drop it
+   to rest just above each rule (same row heights, same rule positions) */
+.gb-type .gb-addr span,
+.font-typewriter .address input { padding-top: 5.6cqmin; line-height: 5.4cqmin; }
+.gb-type .gb-msg,
+.font-typewriter .message { padding-top: 2.6cqmin; }
+
+/* Back of the opened card: the same layout as the main postcard's back
+   (heading, stamp box with postmark, address lines, ruled message), in both
+   orientations. Sizes use cqmin like the main card so they match. */
+.pc-back { transform: rotateY(180deg); }
+
+.gb {
+  --ink: #1d1d1d;
+  --rule: #e6e3df;
+  --mauve: #a8979e;
+  --script: 'Dancing Script', 'Apple Chancery', 'Segoe Script', cursive;
+  position: absolute;
+  inset: 14px;
+  container-type: size;
+  display: grid;
+  padding: 12px;
+  column-gap: 16px;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    "head stamp"
+    "addr stamp"
+    "msg  msg";
+  text-align: left;
+  overflow: hidden;
+}
+
+.gb-head { grid-area: head; padding-top: 1cqmin; }
+.gb-head .back-title, .gb-head .back-sub { display: block; }
+.gb-stamp { grid-area: stamp; width: 28cqmin; padding-top: 1cqmin; }
+.gb-stamp svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+.gb-addr {
+  grid-area: addr;
+  display: flex;
+  flex-direction: column;
+  max-width: 60cqw;
+  margin-top: 3cqmin;
+}
+
+.gb-addr span {
+  display: block;
+  border-bottom: 1px solid var(--rule);
+  padding: 2cqmin 1cqmin 0.4cqmin;
+  line-height: 9cqmin;
+  font-family: var(--font-hand);
+  font-size: 8.5cqmin;
+  color: #3a3a3a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gb-msg {
+  grid-area: msg;
+  margin-top: 7cqmin;
+  padding: 0 1cqmin;
+  font-family: var(--font-hand);
+  font-size: 8.5cqmin;
+  line-height: 9.5cqmin;
+  color: #3a3a3a;
+  overflow: hidden;
+  background-image: repeating-linear-gradient(to bottom,
+    transparent 0 calc(9.5cqmin - 1px),
+    var(--rule) calc(9.5cqmin - 1px) 9.5cqmin);
+}
+
+.gb-sign { display: block; text-align: right; }
+.gb-div { grid-area: div; display: none; background: var(--rule); }
+
+/* Landscape back: message on the left, address side on the right */
+.pc-land .gb {
+  grid-template-columns: 1.35fr 1px 1fr auto;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "msg div head stamp"
+    "msg div addr addr";
+}
+
+.pc-land .gb-div { display: block; margin-block: -26px; }
+.pc-land .gb-addr { align-self: end; max-width: none; margin-top: 0; }
+.pc-land .gb-msg { margin-top: 6cqmin; }
+
+@media (prefers-reduced-motion: reduce) { .pc-flip-inner { transition: none; } }
+
+.gallery-caption { text-align: center; }
+.gallery-meta { font-size: 15px; color: #4a4a4a; letter-spacing: 0.01em; }
+
+/* Phones: smaller opened card */
+@media (max-width: 640px) {
+  .pc-flip.pc-port { height: min(48vh, 420px); }
+  .pc-flip.pc-land { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-stage.show, .thumb { transition: none; }
+}
+
+.gallery-close {
+  position: absolute;
+  top: calc(20px + env(safe-area-inset-top, 0px));
+  right: max(20px, env(safe-area-inset-right, 0px));
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: #111;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+}
+
+.gallery-close svg { width: 18px; height: 18px; }
+.gallery-close:hover { background: #f0efed; }
+.gallery-close:focus-visible { outline: 2px solid #8c6d55; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) { .gallery { transition: none; } }
+
+/* First-visit cue on the postcard stand: a speech bubble with a heart and
+   "New postcard", floating gently above the rack, tail pointing at it */
+.mail-bubble {
+  display: none;
+  position: absolute;
+  left: 70%;
+  bottom: calc(100% + 2px);
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px 5px 8px;
+  border: 2.4px solid #786c6a;
+  border-radius: 999px;
+  background: #fff;
+  color: #5c4f4d;
+  font: 600 12.5px/1.2 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  white-space: nowrap;
+  filter: drop-shadow(0 3px 6px rgba(60, 40, 20, 0.16));
+  pointer-events: none;
+  animation: bubble-float 2.4s ease-in-out infinite;
+}
+
+.mail-bubble svg { width: 16px; height: auto; flex: none; }
+
+/* tail at the bottom left: an outlined corner, then white to hide the joint */
+.mail-bubble::before,
+.mail-bubble::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+.mail-bubble::before {
+  top: 100%;
+  border-width: 10px 4px 0 8px;
+  border-color: #786c6a transparent transparent transparent;
+}
+
+.mail-bubble::after {
+  top: calc(100% - 3px);
+  left: 14.6px;
+  border-width: 8px 2.6px 0 5.6px;
+  border-color: #fff transparent transparent transparent;
+}
+
+.has-mail .mail-bubble { display: inline-flex; }
+
+@keyframes bubble-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) { .mail-bubble { animation: none; } }
+
+[hidden] { display: none !important; }
 </style>
 </head>
 <body>
 
-<div class="postcard">
-  <div class="plus-icon">+</div>
-  <span class="add-label">Add photo</span>
+<dialog class="gallery" id="gallery" aria-label="Postcards">
+  <button type="button" class="gallery-close" id="galleryClose" aria-label="Close">
+    <!-- Remix Icon: close-line (Apache 2.0) -->
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.9997 10.5865L16.9495 5.63672L18.3637 7.05093L13.4139 12.0007L18.3637 16.9504L16.9495 18.3646L11.9997 13.4149L7.04996 18.3646L5.63574 16.9504L10.5855 12.0007L5.63574 7.05093L7.04996 5.63672L11.9997 10.5865Z"/></svg>
+  </button>
+  <div class="gallery-body" tabindex="-1" autofocus>
+    <div class="gallery-stage" id="galleryStage" aria-live="polite">
+      <div class="gallery-card" id="galleryCard"></div>
+      <div class="gallery-caption">
+        <div class="gallery-meta" id="galleryMeta"></div>
+      </div>
+    </div>
+    <div class="gallery-strip" role="list" aria-label="All postcards">
+      <div class="gallery-col" id="galleryLeft"></div>
+      <div class="gallery-col" id="galleryRight"></div>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="send-dialog" id="sendDialog" aria-labelledby="sendTitle">
+  <form id="sendForm" novalidate>
+    <h2 class="send-title" id="sendTitle">Who's it for?</h2>
+    <p class="send-lede">We'll send your postcard to their inbox.</p>
+    <label class="send-label" for="sendEmail">Their email</label>
+    <input class="send-input" id="sendEmail" type="email" autocomplete="email" inputmode="email" placeholder="friend@example.com" aria-describedby="sendError">
+    <p class="send-error" id="sendError" role="alert" hidden></p>
+    <div class="send-actions">
+      <button type="button" class="send-cancel" id="sendCancel">Cancel</button>
+      <button type="submit" class="send-go">
+        <!-- Remix Icon: send-plane-line (Apache 2.0) -->
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.7267 2.95694L16.2734 22.0432C16.1225 22.5716 15.7979 22.5956 15.5563 22.1126L11 13L1.9229 9.36919C1.41322 9.16532 1.41953 8.86022 1.95695 8.68108L21.0432 2.31901C21.5716 2.14285 21.8747 2.43866 21.7267 2.95694ZM19.0353 5.09647L6.81221 9.17085L12.4488 11.4255L15.4895 17.5068L19.0353 5.09647Z"/></svg>
+        Send postcard
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<div class="sent-note" id="sentNote" role="status" hidden>On its way to <span></span></div>
+
+<div class="scroller" id="scroller">
+<div class="track">
+<svg class="groundline" viewBox="0 0 4000 20" preserveAspectRatio="none" aria-hidden="true">
+  <path d="M 0 9.9 Q 17 11.2 33 10.2 Q 50 9.4 67 11.2 Q 83 11.8 100 9.9 Q 117 9.2 133 10.0 Q 150 10.9 167 10.2 Q 183 10.5 200 9.1 Q 217 8.5 233 10.0 Q 250 9.1 267 10.4 Q 283 11.0 300 10.8 Q 317 9.6 333 8.9 Q 350 8.1 367 9.4 Q 383 9.6 400 8.9 Q 417 9.8 433 10.9 Q 450 11.2 467 10.5 Q 483 9.9 500 8.7 Q 517 9.9 533 11.4 Q 550 10.5 567 11.3 Q 583 9.9 600 10.4 Q 617 9.8 633 10.3 Q 650 10.2 667 9.0 Q 683 7.8 700 8.6 Q 717 7.7 733 10.1 Q 750 9.7 767 8.8 Q 783 9.0 800 9.1 Q 817 8.1 833 9.3 Q 850 8.9 867 8.7 Q 883 9.8 900 9.9 Q 917 11.2 933 9.8 Q 950 10.3 967 11.0 Q 983 11.5 1000 10.1 Q 1017 10.3 1033 10.4 Q 1050 9.4 1067 10.0 Q 1083 8.7 1100 10.5 Q 1117 9.1 1133 9.9 Q 1150 11.0 1167 9.4 Q 1183 9.9 1200 11.4 Q 1217 12.7 1233 11.4 Q 1250 10.0 1267 11.0 Q 1283 11.3 1300 10.6 Q 1317 10.5 1333 9.5 Q 1350 10.1 1367 9.2 Q 1383 8.7 1400 9.4 Q 1417 10.8 1433 8.8 Q 1450 7.6 1467 10.7 Q 1483 10.9 1500 9.7 Q 1517 10.4 1533 11.0 Q 1550 12.1 1567 9.7 Q 1583 10.3 1600 11.3 Q 1617 11.9 1633 11.0 Q 1650 11.8 1667 8.6 Q 1683 9.8 1700 9.2 Q 1717 8.8 1733 11.1 Q 1750 11.7 1767 9.9 Q 1783 11.0 1800 11.3 Q 1817 12.4 1833 9.7 Q 1850 9.5 1867 8.8 Q 1883 9.6 1900 10.4 Q 1917 11.4 1933 10.8 Q 1950 11.0 1967 9.4 Q 1983 9.7 2000 8.8 Q 2017 8.5 2033 9.5 Q 2050 9.8 2067 11.3 Q 2083 11.6 2100 10.7 Q 2117 9.5 2133 8.9 Q 2150 9.3 2167 9.3 Q 2183 10.7 2200 8.9 Q 2217 9.9 2233 8.8 Q 2250 9.4 2267 10.8 Q 2283 10.5 2300 9.1 Q 2317 9.8 2333 10.2 Q 2350 10.4 2367 9.9 Q 2383 9.7 2400 9.1 Q 2417 10.1 2433 10.6 Q 2450 9.5 2467 9.0 Q 2483 9.7 2500 10.4 Q 2517 9.1 2533 8.9 Q 2550 9.2 2567 9.8 Q 2583 9.7 2600 9.2 Q 2617 8.4 2633 9.4 Q 2650 9.9 2667 11.3 Q 2683 11.3 2700 10.8 Q 2717 11.2 2733 9.5 Q 2750 10.6 2767 11.1 Q 2783 10.4 2800 9.2 Q 2817 7.8 2833 9.7 Q 2850 9.1 2867 11.0 Q 2883 11.5 2900 10.4 Q 2917 9.6 2933 8.9 Q 2950 8.0 2967 11.4 Q 2983 12.5 3000 9.2 Q 3017 9.6 3033 9.3 Q 3050 9.2 3067 10.8 Q 3083 11.9 3100 9.5 Q 3117 9.0 3133 9.4 Q 3150 9.9 3167 8.8 Q 3183 8.0 3200 8.9 Q 3217 8.7 3233 10.2 Q 3250 11.1 3267 9.3 Q 3283 10.4 3300 10.3 Q 3317 11.3 3333 9.6 Q 3350 9.3 3367 9.9 Q 3383 10.1 3400 11.3 Q 3417 10.8 3433 10.0 Q 3450 8.9 3467 10.2 Q 3483 10.2 3500 11.0 Q 3517 12.0 3533 9.1 Q 3550 10.1 3567 9.0 Q 3583 9.6 3600 11.1 Q 3617 12.4 3633 10.9 Q 3650 10.3 3667 9.3 Q 3683 8.4 3700 9.1 Q 3717 9.0 3733 10.7 Q 3750 10.0 3767 11.2 Q 3783 10.4 3800 9.2 Q 3817 8.9 3833 11.3 Q 3850 11.6 3867 11.1 Q 3883 11.1 3900 10.3 Q 3917 9.8 3933 9.8 Q 3950 10.7 3967 8.9 Q 3983 10.2 4000 8.7" stroke-width="1.6"/>
+  <path d="M 0 12.4 Q 18 12.6 36 11.5 Q 55 10.3 73 11.4 Q 91 12.5 109 13.4 Q 127 13.4 145 11.4 Q 164 11.2 182 13.0 Q 200 13.7 218 12.7 Q 236 12.8 255 12.0 Q 273 12.0 291 13.2 Q 309 13.7 327 11.3 Q 345 10.3 364 11.6 Q 382 11.7 400 12.4 Q 418 12.2 436 11.4 Q 455 12.5 473 13.3 Q 491 14.3 509 11.9 Q 527 11.3 545 11.6 Q 564 11.6 582 11.4 Q 600 10.5 618 12.8 Q 636 12.7 655 12.4 Q 673 13.1 691 12.8 Q 709 13.8 727 12.9 Q 745 12.8 764 13.2 Q 782 12.8 800 13.6 Q 818 12.9 836 12.9 Q 855 13.2 873 11.8 Q 891 12.8 909 12.4 Q 927 11.6 945 11.7 Q 964 12.4 982 11.3 Q 1000 10.2 1018 12.4 Q 1036 11.7 1055 13.0 Q 1073 12.4 1091 11.7 Q 1109 12.2 1127 12.0 Q 1145 11.5 1164 12.1 Q 1182 11.8 1200 13.0 Q 1218 13.3 1236 12.5 Q 1255 11.6 1273 12.8 Q 1291 13.3 1309 13.1 Q 1327 12.2 1345 12.2 Q 1364 12.3 1382 13.2 Q 1400 12.6 1418 13.5 Q 1436 12.7 1455 11.5 Q 1473 11.6 1491 13.5 Q 1509 13.4 1527 13.0 Q 1545 12.7 1564 11.6 Q 1582 11.4 1600 12.4 Q 1618 12.5 1636 12.8 Q 1655 12.0 1673 13.5 Q 1691 12.8 1709 12.2 Q 1727 12.5 1745 12.7 Q 1764 13.0 1782 13.4 Q 1800 13.5 1818 13.2 Q 1836 14.1 1855 13.6 Q 1873 13.8 1891 12.4 Q 1909 13.3 1927 12.9 Q 1945 12.2 1964 11.8 Q 1982 12.4 2000 13.0 Q 2018 13.8 2036 13.3 Q 2055 14.2 2073 12.8 Q 2091 12.4 2109 13.0 Q 2127 12.6 2145 11.8 Q 2164 12.8 2182 13.5 Q 2200 12.8 2218 13.7 Q 2236 14.8 2255 13.6 Q 2273 14.6 2291 12.6 Q 2309 11.7 2327 13.2 Q 2345 12.6 2364 12.1 Q 2382 12.6 2400 13.5 Q 2418 12.9 2436 13.4 Q 2455 12.4 2473 12.1 Q 2491 12.9 2509 11.5 Q 2527 11.3 2545 12.4 Q 2564 13.1 2582 12.6 Q 2600 11.7 2618 13.1 Q 2636 12.9 2655 12.5 Q 2673 12.9 2691 11.4 Q 2709 10.2 2727 13.2 Q 2745 12.5 2764 11.5 Q 2782 11.9 2800 13.2 Q 2818 14.2 2836 11.7 Q 2855 12.8 2873 12.1 Q 2891 11.2 2909 13.2 Q 2927 13.2 2945 11.6 Q 2964 12.3 2982 11.7 Q 3000 11.7 3018 12.5 Q 3036 13.0 3055 13.0 Q 3073 12.3 3091 13.3 Q 3109 12.3 3127 13.0 Q 3145 12.0 3164 13.6 Q 3182 12.5 3200 12.5 Q 3218 12.6 3236 13.6 Q 3255 13.6 3273 11.5 Q 3291 11.7 3309 11.8 Q 3327 11.0 3345 12.6 Q 3364 11.8 3382 12.0 Q 3400 11.3 3418 13.0 Q 3436 13.9 3455 12.8 Q 3473 14.0 3491 12.6 Q 3509 13.6 3527 13.3 Q 3545 12.4 3564 12.6 Q 3582 11.6 3600 12.0 Q 3618 13.1 3636 12.2 Q 3655 12.1 3673 13.3 Q 3691 14.0 3709 13.5 Q 3727 13.0 3745 11.8 Q 3764 11.7 3782 13.3 Q 3800 13.4 3818 13.6 Q 3836 13.5 3855 12.6 Q 3873 12.8 3891 12.7 Q 3909 11.5 3927 11.8 Q 3945 12.3 3964 12.6 Q 3982 13.4 4000 12.5" stroke-width="1" opacity="0.5"/>
+  <path d="M 0 7.9 Q 22 6.9 44 8.4 Q 67 7.9 89 9.0 Q 111 8.1 133 8.3 Q 156 7.6 178 7.9 Q 200 8.4 222 7.8 Q 244 7.6 267 8.5 Q 289 9.3 311 7.5 Q 333 8.0 356 9.3 Q 378 8.4 400 9.1 Q 422 10.1 444 8.9 Q 467 9.8 489 9.2 Q 511 8.4 533 8.8 Q 556 9.6 578 8.3 Q 600 8.2 622 8.7 Q 644 8.7 667 8.5 Q 689 9.5 711 9.5 Q 733 9.0 756 9.1 Q 778 9.2 800 8.0 Q 822 8.9 844 9.3 Q 867 9.8 889 9.0 Q 911 8.9 933 9.1 Q 956 10.0 978 9.1 Q 1000 9.8 1022 8.3 Q 1044 8.5 1067 9.3 Q 1089 8.5 1111 9.3 Q 1133 9.5 1156 8.9 Q 1178 8.8 1200 9.0 Q 1222 8.4 1244 9.0 Q 1267 8.1 1289 8.3 Q 1311 8.4 1333 8.9 Q 1356 8.2 1378 7.6 Q 1400 7.5 1422 8.2 Q 1444 8.5 1467 8.4 Q 1489 8.3 1511 7.5 Q 1533 7.0 1556 8.2 Q 1578 8.4 1600 8.8 Q 1622 8.6 1644 8.7 Q 1667 9.3 1689 8.0 Q 1711 8.0 1733 9.4 Q 1756 10.4 1778 8.8 Q 1800 9.7 1822 8.2 Q 1844 8.6 1867 8.8 Q 1889 8.3 1911 8.6 Q 1933 7.9 1956 8.6 Q 1978 9.4 2000 8.3 Q 2022 8.8 2044 9.5 Q 2067 9.7 2089 8.8 Q 2111 8.5 2133 8.9 Q 2156 8.4 2178 9.0 Q 2200 9.4 2222 9.5 Q 2244 9.6 2267 7.5 Q 2289 7.7 2311 8.7 Q 2333 9.0 2356 9.0 Q 2378 9.5 2400 8.0 Q 2422 7.4 2444 8.3 Q 2467 7.8 2489 7.6 Q 2511 8.6 2533 7.9 Q 2556 8.7 2578 8.3 Q 2600 9.0 2622 7.7 Q 2644 6.8 2667 8.0 Q 2689 7.1 2711 9.3 Q 2733 8.9 2756 8.6 Q 2778 8.5 2800 8.5 Q 2822 8.8 2844 9.4 Q 2867 8.6 2889 8.6 Q 2911 8.7 2933 9.5 Q 2956 8.6 2978 8.8 Q 3000 7.9 3022 9.1 Q 3044 9.5 3067 7.7 Q 3089 7.8 3111 8.7 Q 3133 9.0 3156 9.0 Q 3178 8.8 3200 7.6 Q 3222 7.5 3244 9.4 Q 3267 8.8 3289 7.8 Q 3311 7.5 3333 8.4 Q 3356 8.9 3378 7.8 Q 3400 8.5 3422 8.5 Q 3444 7.6 3467 8.7 Q 3489 8.0 3511 7.6 Q 3533 8.2 3556 9.4 Q 3578 9.6 3600 8.3 Q 3622 8.9 3644 8.6 Q 3667 8.0 3689 8.7 Q 3711 8.5 3733 8.2 Q 3756 7.7 3778 8.1 Q 3800 8.7 3822 8.8 Q 3844 8.5 3867 8.6 Q 3889 8.9 3911 8.1 Q 3933 9.0 3956 8.9 Q 3978 8.6 4000 8.1" stroke-width="1" opacity="0.35"/>
+</svg>
+
+<section class="zone zone-left" aria-label="Left panel">
+  <div class="shelf">
+    <img class="bookshelf" src="bookshelf.webp" alt="Watercolour bookshelf of plants, books and postcards beside a potted monstera" draggable="false">
+    <canvas class="globe" id="globe" aria-hidden="true"></canvas>
+    <button class="stand" id="stand" type="button" aria-label="Your postcards">
+      <img src="stand.webp" alt="" draggable="false">
+      <span class="mail-bubble" aria-hidden="true">
+        <svg viewBox="0 0 28 26"><path d="M14 24C5.6 17.9 1.6 13.3 1.8 7.8 2 3.3 5.4.4 9.2.6 11.3.7 12.9 1.8 14 3.5 15.1 1.7 16.8.6 19 .6 22.9.6 26.2 3.7 26 8.2 25.8 13.6 21.9 18 14 24Z" fill="#ec9d99" stroke="#a6817f" stroke-width="1.5" stroke-linejoin="round"/><path d="M20.6 4.4C22.3 5 23.3 6.6 23.1 8.4" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" opacity="0.9"/></svg>
+        New postcard
+      </span>
+    </button>
+  </div>
+</section>
+<section class="zone zone-center">
+<div class="controls">
+<div class="rotate-pill">
+  <button type="button" id="rotate" aria-label="Rotate to landscape" data-tip="Rotate to landscape">
+    <!-- Custom icons: landscape (Frame) and portrait (Frame 74) -->
+    <svg class="icon-landscape" width="24" height="24" viewBox="-0.67 -1 16 16" stroke="currentColor" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1.66602 3.66699L2.99935 5.00033L4.33268 3.66699"/><path d="M3 5.00033L3 3.00033C3 2.26395 3.65124 1.66699 4.45455 1.66699L7 1.66699"/><path d="M12.7092 12.3337L4.62027 12.3337C4.46071 12.3337 4.33138 12.2342 4.33138 12.1114L4.33138 5.88921C4.33138 5.76648 4.46071 5.66699 4.62027 5.66699L12.7092 5.66699C12.8687 5.66699 12.998 5.76648 12.998 5.88921L12.998 12.1114C12.998 12.2342 12.8687 12.3337 12.7092 12.3337Z"/></svg>
+    <svg class="icon-portrait" width="24" height="24" viewBox="3.33 3 16 16" stroke="currentColor" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8.66602 4.66699L9.99935 6.00033L8.66602 7.33366"/><path d="M9.99935 6H7.99935C7.26297 6 6.66602 6.65124 6.66602 7.45455V10"/><path d="M15.9987 8.95588V17.0448C15.9987 17.2043 15.8992 17.3337 15.7765 17.3337H9.55425C9.43152 17.3337 9.33203 17.2043 9.33203 17.0448V8.95588C9.33203 8.79633 9.43152 8.66699 9.55425 8.66699H15.7765C15.8992 8.66699 15.9987 8.79633 15.9987 8.95588Z"/></svg>
+  </button>
 </div>
+
+<div class="side-toggle" role="group" aria-label="Postcard side">
+  <button type="button" id="showFront" aria-pressed="true" aria-label="Front" data-tip="Front">
+    <!-- Custom icon: front (Frame) -->
+    <svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M11.3327 4.28889V12.3778C11.3327 12.5373 11.2332 12.6667 11.1105 12.6667H4.88824C4.76551 12.6667 4.66602 12.5373 4.66602 12.3778V4.28889C4.66602 4.12934 4.76551 4 4.88824 4H11.1105C11.2332 4 11.3327 4.12934 11.3327 4.28889Z"/></svg>
+  </button>
+  <button type="button" id="showBack" aria-pressed="false" aria-label="Back" data-tip="Back">
+    <!-- Custom icon: back (Frame 1) -->
+    <svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M11.3327 4.28889V12.3778C11.3327 12.5373 11.2332 12.6667 11.1105 12.6667H4.88824C4.76551 12.6667 4.66602 12.5373 4.66602 12.3778V4.28889C4.66602 4.12934 4.76551 4 4.88824 4H11.1105C11.2332 4 11.3327 4.12934 11.3327 4.28889Z"/><path d="M6.66602 6.66699H9.33268"/><path d="M6.66602 8.33301H9.33268"/><path d="M6.66602 10H9.33268"/></svg>
+  </button>
+</div>
+</div>
+
+<div class="stage">
+<div class="ghost" aria-hidden="true"><div></div></div>
+<div class="postcard" id="postcard">
+  <div class="photo-area" id="photoArea">
+    <label class="empty" id="empty" for="fileInput" tabindex="0" role="button" aria-label="Add photo">
+      <span class="plus" aria-hidden="true">
+        <!-- Remix Icon: add-line (Apache 2.0) -->
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" shape-rendering="crispEdges"><path d="M11 11V5H13V11H19V13H13V19H11V13H5V11H11Z"/></svg>
+      </span>
+      <span class="add-label">Add photo</span>
+    </label>
+    <img id="photo" alt="Postcard photo" tabindex="0" draggable="false" hidden>
+    <div class="decor" id="decorFront"></div>
+    <span class="photo-hint" id="photoHint" hidden>Drag to move the photo</span>
+    <label class="replace" id="replace" for="fileInput" tabindex="0" role="button" hidden>Replace</label>
+  </div>
+  <div class="back-area" id="backArea" hidden>
+    <div class="back-head">
+      <div class="back-title">POSTCARD</div>
+      <div class="back-sub">with love</div>
+    </div>
+    <div class="stamp" aria-hidden="true">
+      <svg viewBox="0 0 100 92" fill="none">
+        <rect x="48.5" y="0.5" width="51" height="71" rx="1.5" stroke="#c9a6ad" stroke-width="1" stroke-dasharray="3 2"/>
+        <rect id="stampSlot" x="52" y="4" width="44" height="64" rx="1.5" fill="#eeece9"/>
+        <image id="stampImg" x="52" y="4" width="44" height="64" preserveAspectRatio="xMidYMid meet" style="visibility:hidden"/>
+        <defs><path id="pmArc" d="M 31.89 64 A 20.5 20.5 0 0 1 72.11 64"/><path id="pmArcLow" d="M 34.96 72 A 17.5 17.5 0 0 0 69.04 72"/></defs>
+        <circle cx="52" cy="68" r="23" stroke="#cdc3c7" stroke-width="1"/>
+        <circle cx="52" cy="68" r="19.5" stroke="#cdc3c7" stroke-width="0.6"/>
+        <text font-family="'Libre Baskerville', Georgia, serif" font-size="4.2" letter-spacing="1.3" fill="#b9adb2"><textPath href="#pmArc" startOffset="50%" text-anchor="middle">YOUR LOCATION</textPath></text>
+        <text font-family="'Libre Baskerville', Georgia, serif" font-size="4.2" letter-spacing="1.2" fill="#b9adb2"><textPath href="#pmArcLow" startOffset="50%" text-anchor="middle" id="pmDate">SEP 2026</textPath></text>
+        <path d="M 18 68 q 6 -5 12 0 t 12 0 t 12 0 t 12 0 t 12 0 t 12 0" stroke="#cdc3c7" stroke-width="1"/>
+      </svg>
+    </div>
+    <div class="address">
+      <input type="text" id="toName" placeholder="Name" aria-label="Name" autocomplete="off">
+      <input type="text" id="toAddress" placeholder="Address" aria-label="Address" autocomplete="off">
+      <input type="text" id="toCity" placeholder="City, Country" aria-label="City and country" autocomplete="off">
+      <input type="text" id="toPostal" placeholder="Postal code" aria-label="Postal code" autocomplete="off">
+    </div>
+    <div class="back-divider"></div>
+    <textarea class="message" id="message" placeholder="Write your message…" aria-label="Message"></textarea>
+    <div class="decor" id="decorBack"></div>
+  </div>
+  <input type="file" id="fileInput" class="file-input" accept="image/*" tabindex="-1" aria-hidden="true">
+</div>
+</div>
+
+<div class="stamp-tray" id="stampTray" role="dialog" aria-label="Stamps" hidden>
+  <div class="stamp-grid" id="stampGrid"></div>
+</div>
+
+<div class="stamp-tray" id="flowerTray" role="dialog" aria-label="Pressed flowers" hidden>
+  <div class="stamp-grid" id="flowerGrid"></div>
+</div>
+
+<div class="tools" role="group" aria-label="Postcard tools">
+  <button type="button" class="tool" id="toolFont" aria-label="Font: handwritten. Switch to typewriter" data-tip="Switch to typewriter">
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M5 4 C30 2 62 6 95 3 C97 32 93 66 97 96 C66 98 34 94 3 97 C6 66 2 34 5 4 Z"/></svg>
+    <span class="font-preview" aria-hidden="true">Aa</span>
+  </button>
+  <button type="button" class="tool" id="toolStamp" aria-label="Stamp" data-tip="Stamp">
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M3 6 C34 3 64 5 96 3 C94 34 98 64 95 95 C64 97 36 96 4 97 C2 64 5 36 3 6 Z"/></svg>
+    <img src="tool-stamp.webp" alt="" draggable="false">
+  </button>
+  <button type="button" class="tool" id="toolStickers" aria-label="Pressed flowers" data-tip="Pressed flowers">
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M4 3 C36 5 66 2 97 5 C95 36 98 66 96 97 C64 95 34 98 3 95 C5 64 2 34 4 3 Z"/></svg>
+    <img src="tool-stickers.webp" alt="" draggable="false">
+  </button>
+  <button type="button" class="tool" id="toolSend" aria-label="Send" data-tip="Send">
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M5 5 C34 2 66 6 96 4 C98 34 94 66 97 96 C66 98 34 95 4 97 C2 66 6 34 5 5 Z"/></svg>
+    <img src="tool-send.webp" alt="" draggable="false">
+  </button>
+</div>
+
+
+</section>
+<section class="zone zone-right" aria-label="Right panel">
+  <div class="mail-frame"><img class="mailbox" src="mailbox.webp" alt="Watercolour green mailbox with letters flying out and two small birds below" draggable="false"></div>
+</section>
+</div>
+</div>
+
+<script>
+  const empty = document.getElementById('empty');
+  const photo = document.getElementById('photo');
+  const replace = document.getElementById('replace');
+  const fileInput = document.getElementById('fileInput');
+  let currentUrl = null;
+
+  // Read the photo in as image data (works inside sandboxed viewers that refuse blob: links)
+  // Reposition the photo: drag to move it within the frame, double-click to
+  // recentre. It always fills the frame. The framing is kept as "which point of
+  // the photo sits in the middle", so it survives rotating and resizing.
+  const framer = (function () {
+    const frame = document.getElementById('photoArea');
+    let cx = 0.5, cy = 0.5;
+
+    function layout() {
+      const fw = frame.clientWidth, fh = frame.clientHeight;
+      const iw = photo.naturalWidth, ih = photo.naturalHeight;
+      if (!fw || !fh || !iw || !ih || photo.hidden) return;
+      const s = Math.max(fw / iw, fh / ih);            // "cover" size
+      const w = iw * s, h = ih * s;
+      const hx = fw / 2 / w, hy = fh / 2 / h;          // keep the frame covered
+      cx = Math.min(1 - hx, Math.max(hx, cx));
+      cy = Math.min(1 - hy, Math.max(hy, cy));
+      photo.style.width = w + 'px';
+      photo.style.height = h + 'px';
+      photo.style.left = (fw / 2 - cx * w) + 'px';
+      photo.style.top = (fh / 2 - cy * h) + 'px';
+    }
+    function reset() { cx = cy = 0.5; layout(); }
+
+    photo.addEventListener('load', layout);
+    if (window.ResizeObserver) new ResizeObserver(layout).observe(frame);
+
+    // Drag to move
+    let last = null, id = null;
+    photo.addEventListener('pointerdown', e => {
+      if (e.button > 0 || id !== null) return;
+      e.preventDefault();
+      id = e.pointerId;
+      last = { x: e.clientX, y: e.clientY };
+      try { photo.setPointerCapture(id); } catch (_) {}
+      photo.classList.add('panning');
+    });
+    photo.addEventListener('pointermove', e => {
+      if (e.pointerId !== id) return;
+      if (e.pointerType === 'mouse' && (e.buttons & 1) === 0) { end(e); return; }
+      cx -= (e.clientX - last.x) / photo.offsetWidth;
+      cy -= (e.clientY - last.y) / photo.offsetHeight;
+      last = { x: e.clientX, y: e.clientY };
+      layout();
+    });
+    function end(e) {
+      if (e && e.pointerId !== undefined && e.pointerId !== id) return;
+      id = null;
+      photo.classList.remove('panning');
+    }
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => photo.addEventListener(t, end));
+    window.addEventListener('blur', () => end());
+
+    photo.addEventListener('dblclick', reset);
+
+    // Keyboard: arrows move, 0 recentres
+    photo.addEventListener('keydown', e => {
+      const step = 0.02;
+      const k = { ArrowLeft: () => cx -= step, ArrowRight: () => cx += step,
+                  ArrowUp: () => cy -= step, ArrowDown: () => cy += step, '0': reset }[e.key];
+      if (!k) return;
+      e.preventDefault();
+      k();
+      layout();
+    });
+
+    return { reset, layout };
+  })();
+
+  function showPhoto(file) {
+    if (!file || !file.type || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      photo.hidden = false;
+      framer.reset();                            // new photo starts centred, unzoomed
+      photo.src = reader.result;
+      replace.hidden = false;
+      document.getElementById('photoHint').hidden = false;
+      empty.hidden = true;
+      if (!document.getElementById('photoArea').hidden) return;
+      setSide('front');                          // show the photo if the back was up
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // The empty card and Replace are labels for the file input, so a click opens
+  // the picker natively; Enter / Space do the same from the keyboard
+  [empty, replace].forEach(el => el.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+  }));
+  fileInput.addEventListener('change', () => {
+    showPhoto(fileInput.files[0]);
+    fileInput.value = '';
+  });
+
+  // Load the back's fonts up front so the first flip doesn't re-render text
+  if (document.fonts) {
+    document.fonts.load('16px "Dancing Script"');
+    document.fonts.load('700 16px "Libre Baskerville"');
+    document.fonts.load('16px "Tangerine"');
+    document.fonts.load('700 16px "Tangerine"');
+    document.fonts.load('16px "Geist Pixel"');
+  }
+
+  // Postmark shows the current month and year
+  document.getElementById('pmDate').textContent =
+    new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase();
+
+  // Open centred on the postcard
+  const scroller = document.getElementById('scroller');
+  scroller.scrollLeft = document.querySelector('.zone-left').offsetWidth;
+
+  // Gentle anchors: scrolling stays free, but if it comes to rest close to the
+  // bookshelf (left end), the postcard (centre) or the mailbox (right end),
+  // it eases the last few pixels onto that frame.
+  (function () {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let timer = null, pressed = false;
+    const settle = () => {
+      if (pressed) return;
+      const max = scroller.scrollWidth - scroller.clientWidth;
+      const anchors = [0, document.querySelector('.zone-left').offsetWidth, max];
+      const x = scroller.scrollLeft;
+      const near = anchors.reduce((a, b) => Math.abs(b - x) < Math.abs(a - x) ? b : a);
+      const pull = Math.min(120, scroller.clientWidth * 0.12);
+      const d = Math.abs(near - x);
+      if (d > 1 && d <= pull) scroller.scrollTo({ left: near, behavior: reduce ? 'auto' : 'smooth' });
+    };
+    scroller.addEventListener('scroll', () => { clearTimeout(timer); timer = setTimeout(settle, 180); }, { passive: true });
+    // don't pull while a finger or the scrollbar is still holding the page
+    scroller.addEventListener('pointerdown', () => { pressed = true; });
+    window.addEventListener('pointerup', () => { pressed = false; clearTimeout(timer); timer = setTimeout(settle, 180); });
+    scroller.addEventListener('touchstart', () => { pressed = true; }, { passive: true });
+    window.addEventListener('touchend', () => { pressed = false; clearTimeout(timer); timer = setTimeout(settle, 180); });
+  })();
+
+  // A plain mouse wheel scrolls sideways (except inside the message box)
+  scroller.addEventListener('wheel', (e) => {
+    if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    if (e.target.closest('textarea')) return;
+    scroller.scrollLeft += e.deltaY;
+    e.preventDefault();
+  }, { passive: false });
+
+  // Postcard stand on the bookshelf: clickable, action still to be decided
+  // The postcard stand on the bookshelf opens the postcard gallery (see the
+  // welcome-postcard code below for its click handler)
+  const gallery = document.getElementById('gallery');
+  document.getElementById('galleryClose').addEventListener('click', () => gallery.close());
+
+  // Today's date as "19 Nov 2026"
+  function todayLabel() {
+    const d = new Date();
+    return `${d.getDate()} ${d.toLocaleString('en-GB', { month: 'short' })} ${d.getFullYear()}`;
+  }
+
+  // The signed-in user, read from the session Supabase stores in this browser
+  // (no network call). Returns {} for guests.
+  function welcomeUser() {
+    try {
+      for (let k = 0; k < localStorage.length; k++) {
+        const key = localStorage.key(k);
+        if (!/^sb-.+-auth-token$/.test(key)) continue;
+        const u = (JSON.parse(localStorage.getItem(key)) || {}).user;
+        if (u && u.id) {
+          const local = (u.email || '').split('@')[0].split(/[._-]/)[0];
+          return { id: u.id, name: local ? local[0].toUpperCase() + local.slice(1) : '' };
+        }
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  // Gallery content: dummy postcards in two thumbnail columns, the selected one
+  // opened in the centre. Each card's picture is a small scene drawn in SVG.
+  (function () {
+    const CARDS = [
+      { welcome: true, msg: 'Welcome to Postcards! Write a note, add a photo and a stamp, then send it to someone you miss. This first one is from us.', deco: { front: [['cosmos', 82, 18, 12]], back: [['chamomile', 80, 86, -10], ['lavender', 88, 82, 10]] }, from: 'The Postcards team', place: 'Postcards', date: todayLabel(), scene: 'hills', pal: ['#fdf6ec', '#f3d9b1', '#c8b09a', '#8c6d55'], land: false },
+      { msg: 'The light here turns everything gold around six. Wish you could see it with me.', title: 'Golden hour on the Tagus', deco: { back: [['lavender', 84, 82, -12]] }, from: 'Maya', place: 'Lisbon', date: '12 Aug 2026', scene: 'sea',    pal: ['#f7c59f', '#ef8354', '#2d6a8a', '#fbe3c5'], land: false },
+      { msg: "Tea fields as far as I can see, and the mist hasn't lifted all morning. Thinking of you.", title: 'Morning in the hills',     from: 'Arjun', place: 'Munnar', date: '3 Jul 2026',  scene: 'hills',  pal: ['#e8f1e4', '#9cc5a1', '#49a078', '#216869'], land: true  },
+      { msg: 'It rained all day, then the whole city went silver. Found the best little bakery.', title: 'Rooftops after rain',      font: 'type', deco: { front: [['chamomile', 14, 84, 10]] }, from: 'Léa', place: 'Paris', date: '21 Mar 2026',    scene: 'city',   pal: ['#d7dde8', '#9aa9c0', '#4f5d75', '#2d3142'], land: false },
+      { msg: "Sand in everything, and I don't even mind. The stars last night were unreal.", title: 'Dunes at noon',            deco: { back: [['wildflowers', 9, 78, 8]] }, from: 'Omar', place: 'Merzouga', date: '9 Feb 2026', scene: 'desert', pal: ['#fdf0d5', '#f4a261', '#e76f51', '#c8553d'], land: true  },
+      { msg: 'The lake was so still we could see every star twice. Bring a warm coat next time.', title: 'Stars over the lake',      from: 'Ines', place: 'Bled', date: '14 Jan 2026',    scene: 'night',  pal: ['#1b263b', '#415a77', '#e0e1dd', '#778da9'], land: false },
+      { msg: "Purple to the horizon and the bees are everywhere. I'll bring you a little sachet.", title: 'Lavender fields',          deco: { front: [['lavender', 86, 80, -14]], back: [['lavender', 50, 13, -24]] }, from: 'Theo', place: 'Valensole', date: '1 Jul 2026', scene: 'hills', pal: ['#f3e8ff', '#c8b6e2', '#8e7dbe', '#5b4b8a'], land: false },
+      { msg: "Fishing boats lit up the whole harbour tonight. The curry was the best I've had.", title: 'Harbour lights',           from: 'Sana', place: 'Kochi', date: '28 Oct 2026',   scene: 'night',  pal: ['#22223b', '#4a4e69', '#f2e9e4', '#c9ada7'], land: true  },
+      { msg: 'Petals everywhere like snow. We walked the whole river path twice.', title: 'Cherry blossom walk',      deco: { front: [['cosmos', 84, 16, 16]], back: [['cosmos', 12, 86, -8]] }, from: 'Ken', place: 'Kyoto', date: '4 Apr 2026',     scene: 'hills',  pal: ['#fff0f3', '#ffccd5', '#ff8fa3', '#c9184a'], land: false },
+      { msg: 'Caught three waves and fell off a hundred times. My arms are noodles. Happy.', title: 'Surf check',               font: 'type', from: 'Noa', place: 'Ericeira', date: '17 Sep 2026', scene: 'sea',    pal: ['#caf0f8', '#90e0ef', '#0077b6', '#03045e'], land: true  },
+      { msg: 'Every wall is a different blue. Got lost on purpose all afternoon.', title: 'Blue city',                font: 'type', deco: { back: [['lily', 86, 82, -10]] }, from: 'Priya', place: 'Jodhpur', date: '22 Nov 2026', scene: 'city',  pal: ['#e0f2fe', '#7dd3fc', '#0369a1', '#0c4a6e'], land: false },
+      { msg: 'Made it up just before sunset. Windy, cold and completely worth it.', title: 'Last light on the ridge',  from: 'Sam', place: 'Snowdonia', date: '30 Sep 2026', scene: 'hills', pal: ['#ffd6a5', '#ffadad', '#6d597a', '#355070'], land: true  },
+      { msg: 'Sky on the ground, ground in the sky. Hard to tell where anything ends.', title: 'Salt flats',               deco: { back: [['chamomile', 10, 84, 6], ['wildflowers', 22, 88, -14]] }, from: 'Lucía', place: 'Uyuni', date: '6 May 2026',   scene: 'desert', pal: ['#f1faee', '#a8dadc', '#e9c46a', '#457b9d'], land: false },
+      { msg: 'Storm rolled in and the lighthouse kept blinking. Cosy with a book now.', title: 'Lighthouse weather',       font: 'type', from: 'Finn', place: 'Cornwall', date: '11 Aug 2026', scene: 'sea',   pal: ['#e9ecef', '#adb5bd', '#495057', '#212529'], land: false },
+      { msg: 'Green ribbons all over the sky at midnight. I cried a little, not going to lie.', title: 'Northern lights',          deco: { back: [['lavender', 10, 80, 12]] }, from: 'Aino', place: 'Tromsø', date: '2 Dec 2026',   scene: 'night',  pal: ['#0b132b', '#1c2541', '#6fffe9', '#5bc0be'], land: true  }
+    ];
+
+    // Simple illustrated scenes in a 100 x 100 box, stretched to the card's shape
+    function scene(c, uid) {
+      const [a, b, c2, d] = c.pal, g = 'g' + uid;
+      const sky = `<defs><linearGradient id="${g}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><rect width="100" height="100" fill="url(#${g})"/>`;
+      switch (c.scene) {
+        case 'sea': return sky +
+          `<circle cx="64" cy="46" r="13" fill="${d}" opacity="0.9"/>` +
+          `<rect y="58" width="100" height="42" fill="${c2}"/>` +
+          `<path d="M0 66 q8 -3 16 0 t16 0 t16 0 t16 0 t16 0 t16 0 t16 0" stroke="${a}" stroke-width="1" fill="none" opacity="0.6"/>` +
+          `<path d="M0 76 q8 -3 16 0 t16 0 t16 0 t16 0 t16 0 t16 0 t16 0" stroke="${a}" stroke-width="1" fill="none" opacity="0.4"/>`;
+        case 'hills': return sky +
+          `<circle cx="30" cy="30" r="9" fill="#fff" opacity="0.7"/>` +
+          `<path d="M0 62 Q25 40 50 58 T100 52 V100 H0Z" fill="${b}"/>` +
+          `<path d="M0 74 Q30 56 60 72 T100 68 V100 H0Z" fill="${c2}"/>` +
+          `<path d="M0 86 Q35 74 70 86 T100 84 V100 H0Z" fill="${d}"/>`;
+        case 'city': return sky +
+          [[4,52,14],[20,40,12],[34,58,10],[46,30,14],[62,48,11],[75,36,13],[90,56,10]]
+            .map(([x, y, w], i) => `<rect x="${x}" y="${y}" width="${w}" height="${100 - y}" fill="${i % 2 ? c2 : d}"/>`).join('') +
+          `<g fill="${a}" opacity="0.7">${Array.from({ length: 14 }, (_, i) => `<rect x="${8 + (i * 13) % 86}" y="${62 + (i * 7) % 30}" width="2" height="3"/>`).join('')}</g>`;
+        case 'desert': return sky +
+          `<circle cx="70" cy="30" r="11" fill="#fff" opacity="0.85"/>` +
+          `<path d="M0 70 Q30 52 60 68 T100 62 V100 H0Z" fill="${c2}"/>` +
+          `<path d="M0 84 Q40 70 80 82 T100 80 V100 H0Z" fill="${d}"/>`;
+        case 'night': return `<rect width="100" height="100" fill="${a}"/>` +
+          `<g fill="${c2}">${Array.from({ length: 22 }, (_, i) => `<circle cx="${(i * 37) % 100}" cy="${(i * 23) % 55}" r="${i % 3 ? 0.6 : 1}"/>`).join('')}</g>` +
+          `<circle cx="72" cy="22" r="8" fill="${c2}"/><circle cx="76" cy="20" r="7" fill="${a}"/>` +
+          `<path d="M0 70 Q30 58 55 68 T100 64 V100 H0Z" fill="${b}"/>` +
+          `<rect y="82" width="100" height="18" fill="${d}" opacity="0.6"/>`;
+      }
+      return sky;
+    }
+
+    const STAMP_FILES = ["yarrow", "peppermint", "rosemary", "anemone", "lotus", "laurel"];
+    // Pressed flowers for one face of a card: [flower, x%, y%, tilt]
+    function decorHTML(list) {
+      if (!list || !list.length) return '';
+      return `<span class="gdecor">` + list.map(([f, x, y, r]) =>
+        `<img src="flowers/flower-${f}.webp" alt="" style="left:${x}%;top:${y}%;--r:${r}deg">`).join('') + `</span>`;
+    }
+
+    // The main card's stamp box and postmark, with this card's stamp in it and
+    // its place and date around the postmark
+    function stampSVG(c, i) {
+      const id = 'gpm' + i, when = c.date.split(' ').slice(1).join(' ').toUpperCase();
+      return `<svg viewBox="0 0 100 92" fill="none" aria-hidden="true">` +
+        `<rect x="48.5" y="0.5" width="51" height="71" rx="1.5" stroke="#c9a6ad" stroke-width="1" stroke-dasharray="3 2"/>` +
+        `<image href="stamps/stamp-${STAMP_FILES[i % STAMP_FILES.length]}.webp" x="52" y="4" width="44" height="64" preserveAspectRatio="xMidYMid meet"/>` +
+        `<defs><path id="${id}a" d="M 31.89 64 A 20.5 20.5 0 0 1 72.11 64"/><path id="${id}b" d="M 34.96 72 A 17.5 17.5 0 0 0 69.04 72"/></defs>` +
+        `<circle cx="52" cy="68" r="23" stroke="#cdc3c7" stroke-width="1"/>` +
+        `<circle cx="52" cy="68" r="19.5" stroke="#cdc3c7" stroke-width="0.6"/>` +
+        `<text font-family="'Libre Baskerville', Georgia, serif" font-size="4.2" letter-spacing="1.3" fill="#b9adb2"><textPath href="#${id}a" startOffset="50%" text-anchor="middle">${c.place.toUpperCase()}</textPath></text>` +
+        `<text font-family="'Libre Baskerville', Georgia, serif" font-size="4.2" letter-spacing="1.2" fill="#b9adb2"><textPath href="#${id}b" startOffset="50%" text-anchor="middle">${when}</textPath></text>` +
+        `<path d="M 18 68 q 6 -5 12 0 t 12 0 t 12 0 t 12 0 t 12 0 t 12 0" stroke="#cdc3c7" stroke-width="1"/></svg>`;
+    }
+
+    function bigCardHTML(c, i) {
+      const shape = c.land ? 'pc-land' : 'pc-port';
+      return `<button type="button" class="pc-flip ${shape}" aria-pressed="false" aria-label="Turn the postcard over" data-tip="Turn over">` +
+        `<span class="pc-flip-inner">` +
+          `<span class="pc pc-big pc-front"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, 'big' + i)}</svg>${decorHTML(c.deco && c.deco.front)}</span>` +
+          `<span class="pc pc-big pc-back"><span class="gb${c.font === 'type' ? ' gb-type' : ''}">` +
+            `<span class="gb-head"><span class="back-title">POSTCARD</span><span class="back-sub">with love</span></span>` +
+            `<span class="gb-stamp">${stampSVG(c, i)}</span>` +
+            `<span class="gb-addr">${(c.welcome ? [welcomeUser().name || 'You', 'Your mailbox', 'Postcards', '\u00a0'] : ['Alex Rivera', '22 Elm Street', 'Toronto, Canada', 'M5V 2T6']).map(t => `<span>${t}</span>`).join('')}</span>` +
+            `<span class="gb-div"></span>` +
+            `<span class="gb-msg">${c.msg}<span class="gb-sign">${c.from}</span></span>` +
+          `</span>${decorHTML(c.deco && c.deco.back)}</span>` +
+        `</span></button>`;
+    }
+
+    function cardHTML(c, i, cls) {
+      return `<div class="pc ${cls} ${c.land ? 'pc-land' : 'pc-port'}">` +
+        `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, cls + i)}</svg>${decorHTML(c.deco && c.deco.front)}</div>`;
+    }
+
+    const left = document.getElementById('galleryLeft'), right = document.getElementById('galleryRight');
+    const stage = document.getElementById('galleryStage');
+    const half = Math.ceil(CARDS.length / 2);
+    let current = 0;
+
+    CARDS.forEach((c, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'thumb';
+      b.dataset.i = i;
+      b.setAttribute('aria-label', `Postcard from ${c.from}, ${c.place}`);
+      b.innerHTML = cardHTML(c, i, 'pc-thumb');
+      (i < half ? left : right).appendChild(b);
+    });
+    const thumbs = [...document.querySelectorAll('.thumb')];
+
+    function select(i, focus) {
+      current = (i + CARDS.length) % CARDS.length;
+      const c = CARDS[current];
+      stage.classList.remove('show');
+      const holder = document.getElementById('galleryCard');
+      holder.innerHTML = bigCardHTML(c, current);
+      const flip = holder.querySelector('.pc-flip');
+      flip.addEventListener('click', () => {
+        const back = flip.getAttribute('aria-pressed') !== 'true';
+        flip.setAttribute('aria-pressed', String(back));
+        flip.dataset.tip = back ? 'Turn back' : 'Turn over';
+      });
+      document.getElementById('galleryMeta').textContent = `From ${c.from} · ${c.place}, ${c.date}`;
+      void stage.offsetWidth;                      // restart the fade
+      stage.classList.add('show');
+      thumbs.forEach((t, k) => t.setAttribute('aria-current', String(k === current)));
+      if (focus) thumbs[current].focus();
+      thumbs[current].scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    }
+
+    thumbs.forEach(t => t.addEventListener('click', () => select(+t.dataset.i)));
+    document.getElementById('gallery').addEventListener('keydown', e => {
+      const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
+      if (!step) return;
+      e.preventDefault();
+      select(current + step, document.activeElement && document.activeElement.classList.contains('thumb'));
+    });
+    select(0);
+
+    // Open the gallery on a card, optionally turning it over after it appears
+    window.postcardGallery = {
+      open(i, flipAfter) {
+        if (i !== undefined) select(i);
+        const g = document.getElementById('gallery');
+        if (!g.open) { if (g.showModal) g.showModal(); else g.setAttribute('open', ''); }
+        if (flipAfter) setTimeout(() => {
+          const f = document.querySelector('#galleryCard .pc-flip');
+          if (f && f.getAttribute('aria-pressed') !== 'true') f.click();
+        }, 900);
+      }
+    };
+  })();
+
+  // Welcome postcard: the first time someone opens the app (per account on this
+  // browser), a postcard from us is waiting on the postcard stand. A game-style cue on the postcard stand lead them to it; opening it shows the card
+  // in the gallery and turns it over. Afterwards the stand just opens the gallery.
+  (function () {
+    const hotspot = document.getElementById('stand');
+    const userId = welcomeUser().id || 'guest';
+    const KEY = 'postcards.welcomeSeen.' + userId;
+    let seen = false;
+    try { seen = localStorage.getItem(KEY) === '1'; } catch (_) {}
+
+    function markSeen() {
+      seen = true;
+      try { localStorage.setItem(KEY, '1'); } catch (_) {}
+      document.body.classList.remove('has-mail');
+      hotspot.setAttribute('aria-label', 'Your postcards');
+    }
+
+    if (!seen) {
+      document.body.classList.add('has-mail');
+      hotspot.setAttribute('aria-label', 'Your postcards: 1 new postcard');
+    }
+
+    hotspot.addEventListener('click', () => {
+      const first = !seen;
+      window.postcardGallery.open(first ? 0 : undefined, first);   // the welcome card is first
+      if (first) markSeen();
+    });
+  })();
+
+
+
+  // Tools under the postcard: clickable, actions still to be decided
+  // Font tool: each click switches between handwritten and typewriter.
+  // Applies to everything written on the postcard and to the "Aa" preview.
+  const toolFont = document.getElementById('toolFont');
+  toolFont.addEventListener('click', () => {
+    const typewriter = document.body.classList.toggle('font-typewriter');
+    const next = typewriter ? 'handwritten' : 'typewriter';
+    toolFont.dataset.tip = `Switch to ${next}`;
+    toolFont.setAttribute('aria-label', `Font: ${typewriter ? 'typewriter' : 'handwritten'}. Switch to ${next}`);
+  });
+
+
+  // Globe spin: turn the painted globe on its tilted axis. The painting only
+  // shows one side, so a wrap-around map is built from its crisp centre (120°
+  // of longitude), repeated three times with blended seams. Nothing is taken
+  // from the squeezed edges, so nothing stretches as it turns.
+  (function () {
+    const canvas = document.getElementById('globe');
+    if (!canvas || !canvas.getContext) return;
+    const CX = 1390, CY = 388, R = 92;      // sphere in the 2000px illustration
+    const EDGE = 0.965;                      // redraw out to the painted ink outline
+    const TILT = 22 * Math.PI / 180;         // axis leans right, like the pin
+    const BAND = 2 * Math.PI / 3;            // 120° band, repeated 3x around
+    const BLEND = 10 * Math.PI / 180;        // seam crossfade
+    const TW = 240, TH = 240;                // map resolution (lon x lat)
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const ctx = canvas.getContext('2d');
+    const cosT = Math.cos(TILT), sinT = Math.sin(TILT);
+    let tex = null, spinning = false;
+
+    // Point on the painted sphere -> source colour (bilinear)
+    function sample(src, S, lon, lat, out, k) {
+      const x = Math.cos(lat) * Math.sin(lon), y = Math.sin(lat);
+      const u = x * cosT - y * sinT, v = x * sinT + y * cosT;
+      const fx = Math.min(S - 1.001, Math.max(0, (u + 1) / 2 * S - 0.5));
+      const fy = Math.min(S - 1.001, Math.max(0, (v + 1) / 2 * S - 0.5));
+      const x0 = fx | 0, y0 = fy | 0, ax = fx - x0, ay = fy - y0, d = src.data;
+      for (let c = 0; c < 3; c++) {
+        const i00 = (y0 * S + x0) * 4 + c, i10 = i00 + 4, i01 = i00 + S * 4, i11 = i01 + 4;
+        const top = d[i00] + (d[i10] - d[i00]) * ax, bot = d[i01] + (d[i11] - d[i01]) * ax;
+        out[k + c] = top + (bot - top) * ay;
+      }
+    }
+
+    const img = new Image();
+    img.src = 'bookshelf.webp';
+    img.onload = () => {
+      const S = 2 * R, c = document.createElement('canvas');
+      c.width = c.height = S;
+      const g = c.getContext('2d');
+      g.drawImage(img, CX - R, CY - R, S, S, 0, 0, S, S);
+      let src;
+      try { src = g.getImageData(0, 0, S, S); } catch (e) { return; }
+      tex = new Float32Array(TW * TH * 3);
+      const a = [0, 0, 0], b = [0, 0, 0];
+      for (let j = 0; j < TH; j++) {
+        // caps above 60° reuse the 60° row: the painting is squeezed there too
+        const lat = Math.max(-1.05, Math.min(1.05, ((j + 0.5) / TH - 0.5) * Math.PI));
+        for (let i = 0; i < TW; i++) {
+          const lon = ((i + 0.5) / TW - 0.5) * BAND;        // -60°..60°
+          sample(src, S, lon, lat, a, 0);
+          let w = 0, other = 0;
+          if (lon > BAND / 2 - BLEND) { w = 0.5 * (lon - (BAND / 2 - BLEND)) / BLEND; other = lon - BAND; }
+          else if (lon < -BAND / 2 + BLEND) { w = 0.5 * ((-BAND / 2 + BLEND) - lon) / BLEND; other = lon + BAND; }
+          if (w > 0) sample(src, S, other, lat, b, 0);
+          const k = (j * TW + i) * 3;
+          for (let ch = 0; ch < 3; ch++) tex[k + ch] = a[ch] * (1 - w) + b[ch] * w;
+        }
+      }
+    };
+
+    function draw(rot, alpha) {
+      const rect = canvas.getBoundingClientRect();
+      const N = Math.max(8, Math.round(rect.width * (window.devicePixelRatio || 1)));
+      if (canvas.width !== N) { canvas.width = canvas.height = N; }
+      const out = ctx.createImageData(N, N), o = out.data;
+      for (let py = 0; py < N; py++) {
+        for (let px = 0; px < N; px++) {
+          const u = (px + 0.5) / N * 2 - 1, v = (py + 0.5) / N * 2 - 1;
+          const r = Math.sqrt(u * u + v * v);
+          if (r > EDGE) continue;
+          const x = u * cosT + v * sinT, y = -u * sinT + v * cosT;   // axis frame
+          const z = Math.sqrt(Math.max(0, 1 - x * x - y * y));
+          const lat = Math.asin(Math.max(-1, Math.min(1, y)));
+          let lon = Math.atan2(x, z) - rot + BAND / 2;
+          lon = ((lon % BAND) + BAND) % BAND;                         // into the band
+          const fi = Math.min(TW - 1, lon / BAND * TW);
+          const fj = Math.min(TH - 1, (lat / Math.PI + 0.5) * TH);
+          const k = ((fj | 0) * TW + (fi | 0)) * 3, oi = (py * N + px) * 4;
+          const shade = 0.84 + 0.16 * Math.sqrt(z);                   // round-ball edge shading
+          o[oi] = tex[k] * shade; o[oi + 1] = tex[k + 1] * shade; o[oi + 2] = tex[k + 2] * shade;
+          o[oi + 3] = Math.round(255 * alpha * Math.min(1, (EDGE - r) * N / 3));
+        }
+      }
+      ctx.putImageData(out, 0, 0);
+    }
+    window.__drawGlobe = (r, a = 1) => tex && draw(r, a);   // used by tests
+
+    canvas.addEventListener('mouseenter', () => {
+      if (spinning || !tex || reduce) return;
+      spinning = true;
+      const start = performance.now(), dur = 1500, turn = BAND;   // one pass of the pattern
+      const ease = t => 1 - Math.pow(1 - t, 3);
+      (function frame(now) {
+        const t = Math.min(1, (now - start) / dur);
+        // fade in fast, fade out as it settles, so it hands back to the painting
+        const alpha = Math.min(1, t / 0.06, (1 - t) / 0.2);
+        draw(turn * ease(t), alpha);
+        if (t < 1) requestAnimationFrame(frame);
+        else { spinning = false; ctx.clearRect(0, 0, canvas.width, canvas.height); }
+      })(start);
+    });
+  })();
+
+  // Pressed flowers: the flower tool opens a tray (in place of the tools).
+  // Drag a flower anywhere onto the side of the postcard that's showing; drag a
+  // placed flower to move it, or off the card to remove it.
+  (function () {
+    const FLOWERS = [
+      ['chamomile', 'Chamomile'], ['wildflowers', 'Wildflowers'], ['lily', 'Lily'],
+      ['lavender', 'Lavender'], ['cosmos', 'Cosmos']
+    ];
+    const tool = document.getElementById('toolStickers');
+    const tray = document.getElementById('flowerTray');
+    const grid = document.getElementById('flowerGrid');
+    const tools = document.querySelector('.tools');
+    const card = document.getElementById('postcard');
+
+    FLOWERS.forEach(([id, name]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tray-stamp';
+      b.dataset.flower = id;
+      b.setAttribute('aria-label', `Add ${name}`);
+      b.innerHTML = `<img src="flowers/flower-${id}.webp" alt="" draggable="false">`;
+      grid.appendChild(b);
+    });
+
+    const open = () => { tray.hidden = false; tools.hidden = true; tool.setAttribute('aria-expanded', 'true'); };
+    const close = () => { tray.hidden = true; tools.hidden = false; tool.setAttribute('aria-expanded', 'false'); };
+    tool.setAttribute('aria-expanded', 'false');
+    tool.addEventListener('click', () => (tray.hidden ? open() : close()));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !tray.hidden) close(); });
+    document.addEventListener('pointerdown', e => {
+      if (tray.hidden || e.target.closest('#flowerTray, #postcard, .controls')) return;
+      close();
+    });
+
+    // The decoration layer on whichever side is showing
+    const decor = () => document.getElementById(document.getElementById('backArea').hidden ? 'decorFront' : 'decorBack');
+    const inside = (el, x, y) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    };
+    const flowerWidth = el => {                 // matches .flower width: 15cqmin of the layer
+      const r = el.getBoundingClientRect();
+      return 0.15 * Math.min(r.width, r.height);
+    };
+
+    function place(layer, id, x, y, rot) {
+      const r = layer.getBoundingClientRect();
+      const name = (FLOWERS.find(f => f[0] === id) || [id, id])[1];
+      const img = document.createElement('span');
+      img.className = 'flower';
+      img.dataset.flower = id;
+      img.innerHTML = `<img src="flowers/flower-${id}.webp" alt="" draggable="false">` +
+        `<button type="button" class="flower-remove" aria-label="Remove ${name}">` +
+        `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.99 10.58 16.94 5.63 18.36 7.05 13.41 12l4.95 4.95-1.42 1.41-4.95-4.95-4.95 4.95-1.41-1.41L10.58 12 5.63 7.05l1.41-1.42z"/></svg></button>`;
+      img.style.left = ((x - r.left) / r.width * 100) + '%';
+      img.style.top = ((y - r.top) / r.height * 100) + '%';
+      img.style.setProperty('--r', rot + 'deg');
+      layer.appendChild(img);
+    }
+    const randomTilt = () => Math.round((Math.random() * 2 - 1) * 14);
+
+    // One pointer-drag helper that always finishes, however the drag ends
+    function track(e, el, { onMove, onEnd }) {
+      let done = false, lastX = e.clientX, lastY = e.clientY;
+      try { el.setPointerCapture(e.pointerId); } catch (_) {}
+      const move = ev => {
+        if (ev.pointerId !== e.pointerId) return;
+        if (ev.pointerType === 'mouse' && (ev.buttons & 1) === 0) { finish(true); return; }
+        lastX = ev.clientX; lastY = ev.clientY;
+        onMove(lastX, lastY);
+      };
+      const up = ev => { if (ev.pointerId === e.pointerId) { lastX = ev.clientX; lastY = ev.clientY; finish(true); } };
+      const cancel = () => finish(false);
+      const lost = () => setTimeout(() => finish(true), 0);
+      function finish(ok) {
+        if (done) return;
+        done = true;
+        window.removeEventListener('pointermove', move, true);
+        window.removeEventListener('pointerup', up, true);
+        window.removeEventListener('pointercancel', cancel, true);
+        window.removeEventListener('blur', cancel);
+        el.removeEventListener('lostpointercapture', lost);
+        onEnd(lastX, lastY, ok);
+      }
+      window.addEventListener('pointermove', move, true);
+      window.addEventListener('pointerup', up, true);
+      window.addEventListener('pointercancel', cancel, true);
+      window.addEventListener('blur', cancel);
+      el.addEventListener('lostpointercapture', lost);
+    }
+
+    // From the tray onto the card
+    grid.addEventListener('pointerdown', e => {
+      const btn = e.target.closest('.tray-stamp');
+      if (!btn || e.button > 0) return;
+      e.preventDefault();
+      document.querySelectorAll('.flower-ghost').forEach(g => g.remove());
+      const id = btn.dataset.flower, sx = e.clientX, sy = e.clientY;
+      let ghost = null;
+      track(e, btn, {
+        onMove(x, y) {
+          if (!ghost && Math.hypot(x - sx, y - sy) < 5) return;
+          if (!ghost) {
+            ghost = document.createElement('img');
+            ghost.className = 'flower-ghost';
+            ghost.src = `flowers/flower-${id}.webp`;
+            ghost.alt = '';
+            ghost.style.width = flowerWidth(decor()) + 'px';   // same size it will land at
+            document.body.appendChild(ghost);
+          }
+          ghost.style.left = x + 'px';
+          ghost.style.top = y + 'px';
+          card.classList.toggle('drop-ok', inside(decor(), x, y));
+        },
+        onEnd(x, y, ok) {
+          card.classList.remove('drop-ok');
+          const layer = decor();
+          if (!ghost) {                                     // a plain click drops it on the card
+            if (!ok) return;
+            const r = layer.getBoundingClientRect();
+            place(layer, id, r.left + r.width * (0.2 + Math.random() * 0.6),
+                  r.top + r.height * (0.2 + Math.random() * 0.6), randomTilt());
+            return;
+          }
+          if (ok && inside(layer, x, y)) {
+            place(layer, id, x, y, -6 + randomTilt() / 2);
+            ghost.remove();
+          } else {                                          // float back to the tray
+            const b = btn.getBoundingClientRect(), g = ghost;
+            g.classList.add('landing');
+            requestAnimationFrame(() => {
+              g.style.left = (b.left + b.width / 2) + 'px';
+              g.style.top = (b.top + b.height / 2) + 'px';
+              g.style.opacity = '0';
+            });
+            setTimeout(() => g.remove(), 200);
+          }
+        }
+      });
+    });
+
+    // Remove a flower: its × button, Delete/Backspace when selected, or drag it off
+    function removeFlower(el) {
+      el.classList.add('removing');
+      setTimeout(() => el.remove(), 180);
+    }
+    const select = el => {
+      document.querySelectorAll('.flower.selected').forEach(f => { if (f !== el) f.classList.remove('selected'); });
+      if (el) el.classList.add('selected');
+    };
+    card.addEventListener('click', e => {
+      const btn = e.target.closest('.flower-remove');
+      if (btn) { e.stopPropagation(); removeFlower(btn.closest('.flower')); }
+    });
+    document.addEventListener('pointerdown', e => { if (!e.target.closest('.flower')) select(null); });
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      if (e.target.closest && e.target.closest('input, textarea')) return;
+      const sel = document.querySelector('.flower.selected');
+      if (sel) { e.preventDefault(); removeFlower(sel); }
+    });
+
+    // Move a placed flower, or drag it off the card to remove it
+    card.addEventListener('pointerdown', e => {
+      if (e.target.closest('.flower-remove')) return;
+      const img = e.target.closest('.flower');
+      if (!img || e.button > 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      select(img);
+      const layer = img.parentElement;
+      layer.appendChild(img);                              // bring to the front
+      img.classList.add('dragging');
+      track(e, img, {
+        onMove(x, y) {
+          const r = layer.getBoundingClientRect();
+          img.style.left = ((x - r.left) / r.width * 100) + '%';
+          img.style.top = ((y - r.top) / r.height * 100) + '%';
+          img.classList.toggle('leaving', !inside(layer, x, y));
+        },
+        onEnd(x, y) {
+          img.classList.remove('dragging');
+          if (!inside(layer, x, y)) removeFlower(img);
+        }
+      });
+    });
+  })();
+
+  // Stamp tray: the Stamp tool opens a tray of stamps beside the postcard.
+  // Drag one onto the stamp box on the back, or click it, to place it.
+  (function () {
+    const STAMPS = [
+      ['yarrow', 'Yarrow'], ['peppermint', 'Peppermint'], ['rosemary', 'Rosemary'],
+      ['anemone', 'Anemone'], ['lotus', 'Lotus'], ['laurel', 'Laurel']
+    ];
+    const tool = document.getElementById('toolStamp');
+    const tray = document.getElementById('stampTray');
+    const grid = document.getElementById('stampGrid');
+    const slot = document.getElementById('stampSlot');
+    const placed = document.getElementById('stampImg');
+    const backArea = document.getElementById('backArea');
+    let current = null;   // id of the stamp on the postcard, or null
+
+    STAMPS.forEach(([id, name]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tray-stamp';
+      b.dataset.stamp = id;
+      b.setAttribute('aria-label', `${name} stamp`);
+      b.setAttribute('aria-pressed', 'false');
+      b.innerHTML = `<img src="stamps/stamp-${id}.webp" alt="" draggable="false">`;
+      grid.appendChild(b);
+    });
+
+    // Show the current state on the postcard and in the tray
+    function render() {
+      if (current) {
+        placed.setAttribute('href', `stamps/stamp-${current}.webp`);
+        placed.style.visibility = 'visible';
+        slot.style.visibility = 'hidden';
+      } else {
+        placed.removeAttribute('href');
+        placed.style.visibility = 'hidden';
+        slot.style.visibility = 'visible';
+      }
+      grid.querySelectorAll('.tray-stamp').forEach(b =>
+        b.setAttribute('aria-pressed', String(b.dataset.stamp === current)));
+    }
+
+    function showBack() { if (backArea.hidden) setSide('back'); }
+
+    const tools = document.querySelector('.tools');
+    function open() {
+      tray.hidden = false;
+      tools.hidden = true;
+      tool.setAttribute('aria-expanded', 'true');
+      showBack();
+    }
+    function close() {
+      tray.hidden = true;
+      tools.hidden = false;
+      tool.setAttribute('aria-expanded', 'false');
+    }
+    tool.setAttribute('aria-expanded', 'false');
+    tool.addEventListener('click', () => (tray.hidden ? open() : close()));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !tray.hidden) close(); });
+    // Clicking anywhere outside the tray and the postcard brings the tools back
+    document.addEventListener('pointerdown', e => {
+      if (tray.hidden || e.target.closest('#stampTray, #postcard, .controls')) return;
+      close();
+    });
+
+    function overSlot(x, y) {
+      const r = slot.getBoundingClientRect(), pad = 16;
+      return r.width > 0 && x > r.left - pad && x < r.right + pad && y > r.top - pad && y < r.bottom + pad;
+    }
+
+    // Drag with a floating copy that follows the pointer (mouse, pen or touch)
+    grid.addEventListener('pointerdown', e => {
+      const btn = e.target.closest('.tray-stamp');
+      if (!btn || e.button > 0) return;
+      e.preventDefault();
+      document.querySelectorAll('.stamp-ghost').forEach(g => g.remove());   // never leave a stray copy
+      const id = btn.dataset.stamp, sx = e.clientX, sy = e.clientY;
+      let ghost = null, done = false, lastX = sx, lastY = sy;
+      try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+
+      const move = ev => {
+        if (ev.pointerId !== e.pointerId) return;
+        // button already released (e.g. let go outside the frame): finish here
+        if (ev.pointerType === 'mouse' && (ev.buttons & 1) === 0) {
+          end({ type: 'pointerup', clientX: ev.clientX, clientY: ev.clientY });
+          return;
+        }
+        lastX = ev.clientX; lastY = ev.clientY;
+        if (!ghost && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 5) return;
+        if (!ghost) {
+          showBack();
+          ghost = document.createElement('img');
+          ghost.className = 'stamp-ghost';
+          ghost.src = `stamps/stamp-${id}.webp`;
+          ghost.alt = '';
+          document.body.appendChild(ghost);
+          // while dragging, show the empty box as the target
+          placed.style.visibility = 'hidden';
+          slot.style.visibility = 'visible';
+        }
+        ghost.style.left = ev.clientX + 'px';
+        ghost.style.top = ev.clientY + 'px';
+        const hot = overSlot(ev.clientX, ev.clientY);
+        slot.classList.toggle('hot', hot);
+        ghost.classList.toggle('snap', hot);
+        ghost.style.width = hot ? slot.getBoundingClientRect().width + 'px' : '';
+      };
+      const end = ev => {
+        if (done) return;
+        done = true;
+        window.removeEventListener('pointermove', move, true);
+        window.removeEventListener('pointerup', end, true);
+        window.removeEventListener('pointercancel', cancel, true);
+        window.removeEventListener('blur', cancel);
+        btn.removeEventListener('lostpointercapture', lost);
+        slot.classList.remove('hot');
+        if (!ghost) {                                  // a plain click toggles that stamp
+          if (ev.type === 'pointerup') current = (current === id) ? null : id;
+          render();
+          return;
+        }
+        const g = ghost, dropped = ev.type === 'pointerup' && overSlot(ev.clientX, ev.clientY);
+        // glide into the box, or float back to the tray, then hand over
+        const target = (dropped ? slot : btn).getBoundingClientRect();
+        g.classList.add('landing');
+        g.classList.toggle('snap', dropped);
+        requestAnimationFrame(() => {
+          g.style.left = (target.left + target.width / 2) + 'px';
+          g.style.top = (target.top + target.height / 2) + 'px';
+          g.style.width = (dropped ? target.width : 40) + 'px';
+          if (!dropped) g.style.opacity = '0';
+        });
+        setTimeout(() => {
+          if (dropped) current = id;
+          render();
+          g.remove();
+        }, 190);
+      };
+      // Any way a drag can finish ends it: release, cancel, lost capture, window blur
+      const cancel = () => end({ type: 'pointercancel', clientX: lastX, clientY: lastY });
+      const lost = () => setTimeout(() => end({ type: 'pointerup', clientX: lastX, clientY: lastY }), 0);
+      window.addEventListener('pointermove', move, true);
+      window.addEventListener('pointerup', end, true);
+      window.addEventListener('pointercancel', cancel, true);
+      window.addEventListener('blur', cancel);
+      btn.addEventListener('lostpointercapture', lost);
+    });
+
+    // Keyboard: Enter / Space on a stamp toggles it
+    grid.addEventListener('keydown', e => {
+      const btn = e.target.closest('.tray-stamp');
+      if (!btn || (e.key !== 'Enter' && e.key !== ' ')) return;
+      e.preventDefault();
+      showBack();
+      current = (current === btn.dataset.stamp) ? null : btn.dataset.stamp;
+      render();
+    });
+  })();
+
+  // Send flow: the Send tile asks who the postcard is for, then the card flies
+  // across the page into the mailbox's slot, and a note
+  // confirms where it's going. The email goes out through /api/send while the
+  // card is in the air; if it fails, the note says so instead.
+  (function () {
+    const dlg = document.getElementById('sendDialog');
+    const form = document.getElementById('sendForm');
+    const email = document.getElementById('sendEmail');
+    const err = document.getElementById('sendError');
+    const card = document.getElementById('postcard');
+    const scroller = document.getElementById('scroller');
+    const mailboxImg = document.querySelector('.mailbox');
+    const note = document.getElementById('sentNote');
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let busy = false;
+
+    // Slot position inside the mailbox painting (1262 x 2000)
+    const SLOT = { x: 170 / 1262, y: 1058 / 2000, w: 190 / 1262 };
+
+    function openDialog() {
+      if (busy) return;
+      err.hidden = true;
+      email.removeAttribute('aria-invalid');
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+      setTimeout(() => email.focus(), 50);
+    }
+
+    document.getElementById('toolSend').addEventListener('click', openDialog);
+    document.getElementById('sendCancel').addEventListener('click', () => dlg.close());
+    dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });   // click outside
+    email.addEventListener('input', () => { err.hidden = true; email.removeAttribute('aria-invalid'); });
+
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const to = email.value.trim();
+      if (!to || !email.checkValidity()) {
+        err.textContent = to ? "That doesn't look like an email address." : 'Enter the email address to send it to.';
+        err.hidden = false;
+        email.setAttribute('aria-invalid', 'true');
+        email.focus();
+        return;
+      }
+      dlg.close();
+      fly(to);
+    });
+
+    // Gather the card and email it through /api/send. Resolves to
+    // { ok: true } or { ok: false, error }.
+    function photoForEmail() {
+      const img = document.getElementById('photo');
+      if (img.hidden || !img.naturalWidth) return Promise.resolve(null);
+      // shrink to at most 1600px on the long side, as JPEG, to keep the email light
+      const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * k);
+      c.height = Math.round(img.naturalHeight * k);
+      const g = c.getContext('2d');
+      g.fillStyle = '#fff';
+      g.fillRect(0, 0, c.width, c.height);
+      g.drawImage(img, 0, 0, c.width, c.height);
+      try { return Promise.resolve(c.toDataURL('image/jpeg', 0.85)); } catch (_) { return Promise.resolve(null); }
+    }
+
+    function accessToken() {
+      try {
+        for (let k = 0; k < localStorage.length; k++) {
+          const key = localStorage.key(k);
+          if (/^sb-.+-auth-token$/.test(key)) return (JSON.parse(localStorage.getItem(key)) || {}).access_token || '';
+        }
+      } catch (_) {}
+      return '';
+    }
+
+    async function deliver(to) {
+      const val = id => (document.getElementById(id).value || '').trim();
+      const stampHref = document.getElementById('stampImg').getAttribute('href') || '';
+      const stamp = (/stamp-([a-z]+)\.webp/.exec(stampHref) || [])[1] || null;
+      try {
+        const res = await fetch('/api/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recipientEmail: to,
+            message: val('message'),
+            to: { name: val('toName'), address: val('toAddress'), city: val('toCity'), postal: val('toPostal') },
+            photo: await photoForEmail(),
+            orientation: card.classList.contains('landscape') ? 'landscape' : 'portrait',
+            stamp,
+            font: document.body.classList.contains('font-typewriter') ? 'type' : 'hand',
+            accessToken: accessToken()
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return { ok: false, error: data.error || "The postcard couldn't be sent. Please try again." };
+        return { ok: true };
+      } catch (_) {
+        return { ok: false, error: "Couldn't reach the post office. Check your connection and try again." };
+      }
+    }
+
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    function scrollAndSettle(left) {
+      scroller.scrollTo({ left, behavior: reduce ? 'auto' : 'smooth' });
+      return new Promise(resolve => {
+        let last = -1, still = 0;
+        (function check() {
+          const x = scroller.scrollLeft;
+          still = Math.abs(x - last) < 0.5 ? still + 1 : 0;
+          last = x;
+          if (still > 4) resolve(); else requestAnimationFrame(check);
+        })();
+      });
+    }
+
+    // A frozen copy of the card (with what's typed in it) to fly
+    function snapshot() {
+      const r = card.getBoundingClientRect();
+      const copy = card.cloneNode(true);
+      copy.removeAttribute('id');
+      copy.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+      const src = card.querySelectorAll('input, textarea'), dst = copy.querySelectorAll('input, textarea');
+      dst.forEach((el, i) => { el.value = src[i].value; el.setAttribute('value', src[i].value); el.textContent = src[i].value; el.tabIndex = -1; });
+      Object.assign(copy.style, { position: 'fixed', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px', margin: 0, zIndex: 60, pointerEvents: 'none', transformOrigin: '50% 50%' });
+      copy.classList.add('flying-card');
+      document.body.appendChild(copy);
+      return { copy, r };
+    }
+
+    function showNote(to, error) {
+      const m = mailboxImg.getBoundingClientRect();
+      note.classList.toggle('error', !!error);
+      note.innerHTML = error ? '' : 'On its way to <span></span>';
+      if (error) note.textContent = error; else note.querySelector('span').textContent = to;
+      note.hidden = false;
+      note.style.left = '0px';
+      const w = note.offsetWidth;
+      const x = Math.min(window.innerWidth - w - 16, Math.max(16, m.left + SLOT.x * m.width - w * 0.7));
+      note.style.left = x + 'px';
+      note.style.top = Math.max(16, m.top + SLOT.y * m.height - 110) + 'px';
+      requestAnimationFrame(() => note.classList.add('show'));
+    }
+    function hideNote() {
+      note.classList.remove('show');
+      setTimeout(() => { note.hidden = true; }, 300);
+    }
+
+    // Flight path (viewport px), after the reference video: a short run to the
+    // right, one round loop-the-loop (a prolate cycloid, so the curvature is
+    // smooth everywhere), then a gentle glide into the mailbox slot.
+    function flightPath(a, b, u) {
+      const span = b.x - a.x;
+      const d = Math.min(u * 0.42, span * 0.2);       // loop half-height
+      const R = 0.2 * d;                              // small drift = a round loop
+      const lead = 0.22 * span;
+      const pts = [[a.x, a.y]];
+      // lead-in, level and to the right
+      for (let i = 1; i <= 20; i++) pts.push([a.x + lead * i / 20, a.y]);
+      // the loop: x = R s - d sin s, y = d (1 - cos s), s from π to 3π
+      const x0 = a.x + lead - (R * Math.PI), y0 = a.y - 2 * d;
+      for (let i = 1; i <= 160; i++) {
+        const s = Math.PI + 2 * Math.PI * i / 160;
+        pts.push([x0 + R * s - d * Math.sin(s), y0 + d * (1 - Math.cos(s))]);
+      }
+      // glide from the bottom of the loop into the slot (cubic, tangent-matched)
+      const e = pts[pts.length - 1], gx = b.x - e[0];
+      const c1 = [e[0] + 0.45 * gx, e[1]], c2 = [b.x - 0.35 * gx, b.y + 0.08 * (e[1] - b.y)];
+      for (let i = 1; i <= 60; i++) {
+        const t = i / 60, mt = 1 - t;
+        pts.push([
+          mt * mt * mt * e[0] + 3 * mt * mt * t * c1[0] + 3 * mt * t * t * c2[0] + t * t * t * b.x,
+          mt * mt * mt * e[1] + 3 * mt * mt * t * c1[1] + 3 * mt * t * t * c2[1] + t * t * t * b.y
+        ]);
+      }
+      return 'M ' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L ');
+    }
+
+    function along(copy, r, b, s) {
+      const NS = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(NS, 'svg');
+      const path = document.createElementNS(NS, 'path');
+      const a = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      path.setAttribute('d', flightPath(a, b, Math.min(320, Math.max(160, r.height * 0.55))));
+      svg.appendChild(path);
+      svg.style.cssText = 'position:fixed;width:0;height:0;overflow:hidden';
+      document.body.appendChild(svg);
+      // dashed trail drawn behind the card as it flies
+      const trailSvg = document.createElementNS(NS, 'svg');
+      trailSvg.setAttribute('class', 'flight-trail');
+      const trail = document.createElementNS(NS, 'path');
+      trailSvg.appendChild(trail);
+      document.body.insertBefore(trailSvg, copy);
+      const len = path.getTotalLength(), dur = 3200;
+      // constant pace along the whole path
+      const ease = t => t;
+      let pts = '', prev = null, wind = 0, alignTo = null;
+      const portrait = r.height > r.width;
+      return new Promise(resolve => {
+        const start = performance.now();
+        (function frame(now) {
+          const t = Math.min(1, (now - start) / dur), e = ease(t);
+          const p = path.getPointAtLength(e * len);
+          const q = path.getPointAtLength(Math.min(len, e * len + 1));
+          const p0 = e * len >= len - 1 ? path.getPointAtLength(len - 2) : p;
+          // turn with the path like the reference video, at half the path's turn,
+          // so it banks through the loop and comes out upside down
+          let raw = Math.atan2(q.y - p0.y, q.x - p0.x) * 180 / Math.PI;
+          if (prev !== null) {
+            while (raw + wind - prev > 180) wind -= 360;
+            while (raw + wind - prev < -180) wind += 360;
+          }
+          prev = raw + wind;
+          let ang = 0.5 * prev;
+          // At the mailbox, line the card up with the horizontal slot (long side
+          // level) before it slips in: blend to the nearest such angle
+          if (alignTo === null && t > 0.6) {
+            const step = 180, offset = portrait ? 90 : 0;
+            alignTo = Math.round((ang - offset) / step) * step + offset;
+          }
+          if (alignTo !== null) {
+            const k2 = Math.min(1, Math.max(0, (t - 0.68) / 0.2));
+            const sm = k2 * k2 * (3 - 2 * k2);
+            ang = ang + (alignTo - ang) * sm;
+          }
+          const k = 1 - Math.pow(1 - e, 1.6);
+          const scale = 1 + (s - 1) * k;
+          copy.style.transform = `translate(${p.x - a.x}px, ${p.y - a.y}px) rotate(${ang}deg) scale(${scale})`;
+          pts += (pts ? ' L ' : 'M ') + p.x.toFixed(1) + ' ' + p.y.toFixed(1);
+          trail.setAttribute('d', pts);
+          if (t < 1) requestAnimationFrame(frame);
+          else {
+            svg.remove();
+            trailSvg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 900, delay: 500, fill: 'forwards' })
+              .finished.then(() => trailSvg.remove());
+            resolve();
+          }
+        })(start);
+      });
+    }
+
+    // Slip the card down through the slot: everything below the slot line is
+    // hidden, so the card looks like it goes inside the mailbox
+    function dropIn(copy, slotY, visH) {
+      const clip = document.createElement('div');
+      clip.className = 'slot-clip';
+      clip.style.height = slotY + 'px';
+      document.body.appendChild(clip);
+      clip.appendChild(copy);
+      copy.style.position = 'absolute';
+      const base = copy.style.transform;
+      return copy.animate([
+        { transform: base },
+        { transform: `translate(0, ${visH + 3}px) ${base}` }
+      ], { duration: 520, easing: 'cubic-bezier(0.5, 0, 0.75, 0)', fill: 'forwards' })
+        .finished.then(() => clip.remove());
+    }
+
+    async function fly(to) {
+      busy = true;
+      document.body.classList.add('sending');
+      const centre = document.querySelector('.zone-left').offsetWidth;
+      const moved = Math.abs(scroller.scrollLeft - centre) > 2;
+      const sending = deliver(to);          // send while the card is in the air
+      try {
+        // the card and the mailbox slot are both in view from the postcard's spot
+        if (moved) await scrollAndSettle(centre);
+        let m = mailboxImg.getBoundingClientRect();
+        let b = { x: m.left + SLOT.x * m.width, y: m.top + SLOT.y * m.height };
+        if (b.x > window.innerWidth - 10) {          // very narrow screens: bring the slot into view
+          await scrollAndSettle(scroller.scrollLeft + (b.x - window.innerWidth) + 60);
+          m = mailboxImg.getBoundingClientRect();
+          b = { x: m.left + SLOT.x * m.width, y: m.top + SLOT.y * m.height };
+        }
+        if (!reduce) {
+          const { copy, r } = snapshot();
+          card.style.visibility = 'hidden';
+          // once level, the card's long side should just fit the slot
+          const s = Math.max(0.04, (SLOT.w * m.width * 0.85) / Math.max(r.width, r.height));
+          const visH = Math.min(r.width, r.height) * s;      // its height once level
+          // fly to just above the slot, then drop through it
+          await along(copy, r, { x: b.x, y: b.y - visH / 2 - 1 }, s);
+          await dropIn(copy, b.y, visH);
+          copy.remove();
+        }
+        const result = await sending;
+        showNote(to, result.ok ? null : result.error);
+        await wait(result.ok ? 2400 : 4200);
+        hideNote();
+        if (Math.abs(scroller.scrollLeft - centre) > 2) await scrollAndSettle(centre);
+      } finally {
+        card.style.visibility = '';
+        document.body.classList.remove('sending');
+        busy = false;
+      }
+    }
+  })();
+
+  // Front / back toggle
+  const photoArea = document.getElementById('photoArea');
+  const backArea = document.getElementById('backArea');
+  const showFront = document.getElementById('showFront');
+  const showBack = document.getElementById('showBack');
+
+  function applySide(back) {
+    photoArea.hidden = back;
+    backArea.hidden = !back;
+    showFront.setAttribute('aria-pressed', String(!back));
+    showBack.setAttribute('aria-pressed', String(back));
+  }
+
+  // Flip the card over: turn it edge-on, swap sides, turn it back
+  function setSide(side) {
+    const back = side === 'back';
+    if (back === !backArea.hidden || rotating) return;
+    const card = document.getElementById('postcard');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion || !card.animate) { applySide(back); return; }
+
+    rotating = true;
+    const dir = back ? 1 : -1;
+    const half = { duration: 200 };
+    const out = card.animate(
+      [
+        { transform: 'perspective(2400px) rotateY(0deg)' },
+        { transform: `perspective(2400px) rotateY(${90 * dir}deg)` }
+      ],
+      { ...half, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' }
+    );
+    out.onfinish = () => {
+      applySide(back);
+      const inn = card.animate(
+        [
+          { transform: `perspective(2400px) rotateY(${-90 * dir}deg)` },
+          { transform: 'perspective(2400px) rotateY(0deg)' }
+        ],
+        { ...half, easing: 'cubic-bezier(0, 0, 0.2, 1)' }
+      );
+      out.cancel();
+      inn.onfinish = () => { rotating = false; };
+    };
+  }
+  showFront.addEventListener('click', () => setSide('front'));
+  showBack.addEventListener('click', () => setSide('back'));
+
+  // Rotate between portrait and landscape
+  const postcard = document.getElementById('postcard');
+  const rotate = document.getElementById('rotate');
+  let rotating = false;
+
+  function applyOrientation(landscape) {
+    postcard.classList.toggle('landscape', landscape);
+    document.body.classList.toggle('postcard-landscape', landscape);
+    const label = landscape ? 'Rotate to portrait' : 'Rotate to landscape';
+    rotate.setAttribute('aria-label', label);
+    rotate.dataset.tip = label;
+  }
+
+  rotate.addEventListener('click', () => {
+    if (rotating) return;
+    const toLandscape = !postcard.classList.contains('landscape');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion || !postcard.animate) { applyOrientation(toLandscape); return; }
+
+    // Measure the target size so the turned card lands exactly on it
+    const from = postcard.getBoundingClientRect();
+    postcard.classList.toggle('landscape', toLandscape);
+    const to = postcard.getBoundingClientRect();
+    postcard.classList.toggle('landscape', !toLandscape);
+    const scale = to.width / from.height;
+
+    // Fade out what's printed on the card while it turns, so the switch to the
+    // other layout happens while it's invisible (the empty-state plus stays put)
+    const content = [backArea, photo].filter(el => !el.hidden && !el.parentElement.hidden);
+    const fadeOuts = content.map(el => el.animate(
+      [{ opacity: 1 }, { opacity: 0 }],
+      { duration: 160, easing: 'ease-out', fill: 'forwards' }
+    ));
+
+    // Quarter turn around the card's centre: anticlockwise to landscape, clockwise back
+    const angle = toLandscape ? -90 : 90;
+    rotating = true;
+    const anim = postcard.animate(
+      [
+        { transform: 'rotate(0deg) scale(1)' },
+        { transform: `rotate(${angle}deg) scale(${scale})` }
+      ],
+      { duration: 400, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' }
+    );
+    anim.onfinish = () => {
+      applyOrientation(toLandscape);
+      content.forEach(el => el.animate(
+        [{ opacity: 0 }, { opacity: 1 }],
+        { duration: 180, easing: 'ease-in' }
+      ));
+      fadeOuts.forEach(a => a.cancel());
+      rotating = false;
+    };
+  });
+
+  // Drop an image file onto the front (empty or filled) to add or replace the photo
+  const dropZone = document.getElementById('photoArea');
+  const hasFiles = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+  dropZone.addEventListener('dragover', e => { if (!hasFiles(e)) return; e.preventDefault(); dropZone.classList.add('dragging'); });
+  dropZone.addEventListener('dragleave', e => { if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('dragging'); });
+  dropZone.addEventListener('drop', e => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dropZone.classList.remove('dragging');
+    showPhoto([...e.dataTransfer.files].find(f => f.type.startsWith('image/')));
+  });
+
+  // Paste an image (Cmd/Ctrl+V) to add it as the photo, unless typing in a field
+  document.addEventListener('paste', e => {
+    if (e.target.closest && e.target.closest('input, textarea')) return;
+    const item = [...(e.clipboardData ? e.clipboardData.items : [])].find(i => i.type.startsWith('image/'));
+    if (!item) return;
+    e.preventDefault();
+    showPhoto(item.getAsFile());
+  });
+</script>
 
 </body>
 </html>

@@ -2,129 +2,177 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 
+// Sends a postcard by email. The card's photo travels inside the email as an
+// inline image (cid:), so no file hosting is needed.
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const STAMPS = new Set(["yarrow", "peppermint", "rosemary", "anemone", "lotus", "laurel"]);
+const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
+
+type Body = {
+  recipientEmail?: string;
+  message?: string;
+  to?: { name?: string; address?: string; city?: string; postal?: string };
+  photo?: string; // data:image/jpeg;base64,...
+  orientation?: "portrait" | "landscape";
+  stamp?: string | null;
+  font?: "hand" | "type";
+  accessToken?: string;
+};
+
+const esc = (s: unknown) =>
+  String(s ?? "")
+    .slice(0, 2000)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
 export async function POST(req: NextRequest) {
-  const resend = new Resend(process.env.RESEND_API_KEY || "");
+  let body: Body;
   try {
-    const body = await req.json();
-    const { recipientEmail, senderEmail, message, imageUrl, orientation, bgColor, stampEmoji } = body;
-
-    if (!recipientEmail) {
-      return NextResponse.json({ error: "Missing recipient email" }, { status: 400 });
-    }
-    const from = senderEmail || "someone";
-
-    // Save to database (best-effort — skip if URL missing or invalid)
-    const postcardId = crypto.randomUUID();
-    try {
-      const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-      const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-      if (sbUrl.startsWith("http")) {
-        const supabase = createClient(sbUrl, sbKey);
-        await supabase.from("postcards").insert({
-          sender_email: from,
-          recipient_email: recipientEmail,
-          message,
-          image_url: imageUrl,
-          orientation: orientation || "portrait",
-          bg_color: bgColor || "#f5f5f3",
-          stamp_emoji: stampEmoji || "leaf",
-          status: "sent",
-          sent_at: new Date().toISOString(),
-        });
-      }
-    } catch (dbErr) {
-      console.warn("DB exception (continuing anyway):", dbErr);
-    }
-
-    const isPortrait = (orientation || "portrait") === "portrait";
-    const cardW = isPortrait ? 480 : 720;
-    const cardH = isPortrait ? 720 : 480;
-
-    const htmlEmail = buildPostcardEmail({
-      message,
-      imageUrl,
-      bgColor: bgColor || "#f5f5f3",
-      stampEmoji: stampEmoji || "leaf",
-      senderEmail: from,
-      cardW,
-      cardH,
-      isPortrait,
-      postcardId,
-    });
-
-    const { error: emailError } = await resend.emails.send({
-      from: "Postcards <onboarding@resend.dev>",
-      to: recipientEmail,
-      subject: `You received a postcard from ${from}`,
-      html: htmlEmail,
-    });
-
-    if (emailError) {
-      console.error("Resend error:", emailError);
-      return NextResponse.json({ error: String(emailError) }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, id: postcardId });
-  } catch (err) {
-    console.error("Unexpected error:", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "That request couldn't be read." }, { status: 400 });
   }
+
+  const recipient = String(body.recipientEmail ?? "").trim();
+  if (!EMAIL_RE.test(recipient) || recipient.length > 254) {
+    return NextResponse.json({ error: "That doesn't look like an email address." }, { status: 400 });
+  }
+  if (!process.env.RESEND_API_KEY) {
+    return NextResponse.json({ error: "Sending isn't set up on this site yet." }, { status: 503 });
+  }
+
+  // Who it's from: the signed-in user, if the request carries their session
+  let sender = "";
+  const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const sbAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+  if (body.accessToken && sbUrl.startsWith("http") && sbAnon) {
+    try {
+      const { data } = await createClient(sbUrl, sbAnon).auth.getUser(body.accessToken);
+      sender = data.user?.email ?? "";
+    } catch {
+      /* treat as a guest */
+    }
+  }
+
+  // The photo, as an inline attachment
+  let photo: { content: Buffer; type: string } | null = null;
+  const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(body.photo ?? "");
+  if (m) {
+    const content = Buffer.from(m[2], "base64");
+    if (content.length > MAX_PHOTO_BYTES) {
+      return NextResponse.json({ error: "That photo is too large to send." }, { status: 413 });
+    }
+    photo = { content, type: m[1] };
+  }
+
+  const portrait = body.orientation !== "landscape";
+  const stamp = body.stamp && STAMPS.has(body.stamp) ? body.stamp : null;
+  const origin = req.nextUrl.origin;
+  const postcardId = crypto.randomUUID();
+
+  const html = buildPostcardEmail({
+    message: body.message ?? "",
+    to: body.to ?? {},
+    sender,
+    portrait,
+    hasPhoto: !!photo,
+    stampUrl: stamp ? `${origin}/stamps/stamp-${stamp}.webp` : null,
+    typewriter: body.font === "type",
+  });
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const { error } = await resend.emails.send({
+    from: process.env.RESEND_FROM || "Postcards <onboarding@resend.dev>",
+    to: recipient,
+    subject: sender ? `You received a postcard from ${sender}` : "You received a postcard",
+    html,
+    attachments: photo
+      ? [{ filename: `postcard.${photo.type.split("/")[1]}`, content: photo.content, contentType: photo.type, contentId: "postcard-photo" }]
+      : undefined,
+  });
+
+  if (error) {
+    console.error("Resend error:", error);
+    return NextResponse.json({ error: error.message || "The email couldn't be sent." }, { status: 502 });
+  }
+
+  // Keep a record (best effort; needs the service role key)
+  try {
+    const sbService = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+    if (sbUrl.startsWith("http") && sbService) {
+      await createClient(sbUrl, sbService).from("postcards").insert({
+        sender_email: sender || "guest",
+        recipient_email: recipient,
+        message: String(body.message ?? "").slice(0, 2000),
+        orientation: portrait ? "portrait" : "landscape",
+        stamp_emoji: stamp ?? "",
+        status: "sent",
+        sent_at: new Date().toISOString(),
+      });
+    }
+  } catch (dbErr) {
+    console.warn("Postcard saved to email only (database insert failed):", dbErr);
+  }
+
+  return NextResponse.json({ success: true, id: postcardId });
 }
 
-function buildPostcardEmail({
-  message,
-  imageUrl,
-  bgColor,
-  stampEmoji,
-  senderEmail,
-  cardW,
-  cardH,
-  isPortrait,
-  postcardId,
-}: {
-  message?: string;
-  imageUrl?: string;
-  bgColor: string;
-  stampEmoji: string;
-  senderEmail: string;
-  cardW: number;
-  cardH: number;
-  isPortrait: boolean;
-  postcardId: string;
+function buildPostcardEmail(o: {
+  message: string;
+  to: Body["to"] & object;
+  sender: string;
+  portrait: boolean;
+  hasPhoto: boolean;
+  stampUrl: string | null;
+  typewriter: boolean;
 }) {
-  const dividerX = isPortrait ? cardH * 0.55 : cardW * 0.55;
+  const w = o.portrait ? 420 : 600;
+  const h = o.portrait ? 588 : 400;
+  const write = o.typewriter
+    ? "'Courier New', Courier, monospace"
+    : "'Tangerine', 'Snell Roundhand', 'Apple Chancery', 'Segoe Script', cursive";
+  const writeSize = o.typewriter ? "14px" : "26px";
+  const lines = [o.to.name, o.to.address, o.to.city, o.to.postal].filter((l) => l && String(l).trim());
+  const front = o.hasPhoto
+    ? `<img src="cid:postcard-photo" width="${w - 28}" height="${h - 28}" alt="Postcard photo" style="display:block;width:${w - 28}px;height:${h - 28}px;object-fit:cover;border-radius:2px;">`
+    : `<div style="width:${w - 28}px;height:${h - 28}px;background:#f4f1ec;border-radius:2px;"></div>`;
 
   return `<!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>A postcard for you</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Tangerine:wght@400;700&family=Libre+Baskerville:wght@700&display=swap" rel="stylesheet">
+<title>A postcard for you</title>
 </head>
-<body style="margin:0;padding:40px 20px;background:#e8e4dc;font-family:Georgia,serif;">
-  <div style="max-width:${cardW}px;margin:0 auto;">
-    <p style="text-align:center;color:#666;font-size:13px;margin-bottom:16px;letter-spacing:0.05em;text-transform:uppercase;">You received a postcard</p>
+<body style="margin:0;padding:32px 16px;background:#f5f5f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1d1d1d;">
+  <div style="max-width:${w}px;margin:0 auto;">
+    <p style="margin:0 0 14px;text-align:center;font-size:13px;color:#6b6b6b;">${o.sender ? `${esc(o.sender)} sent you a postcard` : "Someone sent you a postcard"}</p>
 
-    <div style="width:${cardW}px;height:${isPortrait ? dividerX : cardH}px;background:${bgColor};border-radius:4px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.15);margin-bottom:4px;">
-      ${imageUrl
-        ? `<img src="${imageUrl}" style="width:100%;height:100%;object-fit:cover;" alt="Postcard image">`
-        : `<div style="width:100%;height:100%;background:${bgColor};"></div>`
-      }
+    <!-- Front -->
+    <div style="background:#fff;padding:14px;border-radius:8px;box-shadow:0 2px 18px rgba(0,0,0,0.08);">${front}</div>
+
+    <!-- Back -->
+    <div style="margin-top:16px;background:#fff;padding:24px 26px;border-radius:8px;box-shadow:0 2px 18px rgba(0,0,0,0.08);">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+        <tr>
+          <td style="vertical-align:top;">
+            <div style="font-family:'Libre Baskerville',Georgia,serif;font-weight:700;font-size:14px;letter-spacing:0.22em;">POSTCARD</div>
+            <div style="font-family:'Tangerine','Snell Roundhand',cursive;font-size:18px;line-height:1;color:#a8979e;">with love</div>
+          </td>
+          <td style="vertical-align:top;text-align:right;width:70px;">
+            ${o.stampUrl ? `<img src="${o.stampUrl}" width="56" alt="Stamp" style="display:inline-block;width:56px;height:auto;">` : `<div style="display:inline-block;width:52px;height:72px;border:1px dashed #c9a6ad;"></div>`}
+          </td>
+        </tr>
+      </table>
+      ${lines.length ? `<div style="margin-top:14px;">${lines.map((l) => `<div style="border-bottom:1px solid #e6e3df;padding:6px 2px 2px;font-family:${write};font-size:${writeSize};color:#3a3a3a;">${esc(l)}</div>`).join("")}</div>` : ""}
+      <div style="margin-top:22px;font-family:${write};font-size:${writeSize};line-height:1.5;color:#3a3a3a;white-space:pre-wrap;">${esc(o.message) || "&nbsp;"}</div>
     </div>
 
-    <div style="width:${cardW}px;background:#fff9f0;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,0.15);padding:24px 28px;box-sizing:border-box;">
-      <div style="display:flex;gap:20px;">
-        <div style="flex:1;border-right:1px solid #ddd;padding-right:20px;">
-          <p style="margin:0;font-size:15px;line-height:1.7;color:#333;white-space:pre-wrap;">${message || ""}</p>
-        </div>
-        <div style="width:140px;text-align:right;">
-          <p style="margin:0 0 8px;font-size:11px;color:#999;letter-spacing:0.08em;text-transform:uppercase;">From</p>
-          <p style="margin:0;font-size:13px;color:#555;">${senderEmail}</p>
-        </div>
-      </div>
-    </div>
-
-    <p style="text-align:center;color:#999;font-size:11px;margin-top:24px;">Sent with Postcards</p>
+    <p style="margin:22px 0 0;text-align:center;font-size:11px;color:#9a9a9a;">Sent with Postcards</p>
   </div>
 </body>
 </html>`;
