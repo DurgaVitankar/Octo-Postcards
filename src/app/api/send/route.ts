@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
 
-// Sends a postcard by email. The card's photo travels inside the email as an
-// inline image (cid:), so no file hosting is needed.
+// Sends a postcard by email. The card's images travel inside the email as
+// inline attachments (cid:), so no file hosting is needed.
+//
+// Mail goes out through Gmail when GMAIL_USER and GMAIL_APP_PASSWORD are set,
+// otherwise through Resend (RESEND_API_KEY). Only signed-in people can send,
+// and each person can send DAILY_LIMIT postcards in any 24 hours.
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const STAMPS = new Set(["yarrow", "peppermint", "rosemary", "anemone", "lotus", "laurel"]);
 const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
+const DAILY_LIMIT = Number(process.env.POSTCARDS_DAILY_LIMIT) || 10;
 
 type Img = { content: Buffer; type: string };
 
@@ -53,11 +59,14 @@ export async function POST(req: NextRequest) {
   if (!EMAIL_RE.test(recipient) || recipient.length > 254) {
     return NextResponse.json({ error: "That doesn't look like an email address." }, { status: 400 });
   }
-  if (!process.env.RESEND_API_KEY) {
+  const gmailUser = process.env.GMAIL_USER || "";
+  const gmailPass = (process.env.GMAIL_APP_PASSWORD || "").replace(/\s+/g, "");
+  const useGmail = !!(gmailUser && gmailPass);
+  if (!useGmail && !process.env.RESEND_API_KEY) {
     return NextResponse.json({ error: "Sending isn't set up on this site yet." }, { status: 503 });
   }
 
-  // Who it's from: the signed-in user, if the request carries their session
+  // Who it's from: only signed-in people can send
   let sender = "";
   const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const sbAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -66,8 +75,36 @@ export async function POST(req: NextRequest) {
       const { data } = await createClient(sbUrl, sbAnon).auth.getUser(body.accessToken);
       sender = data.user?.email ?? "";
     } catch {
-      /* treat as a guest */
+      /* not signed in */
     }
+  }
+  if (!sender) {
+    return NextResponse.json({ error: "Please sign in again to send postcards." }, { status: 401 });
+  }
+
+  // Daily cap, counted from the postcards already sent (needs the service role key)
+  const sbService = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  const db = sbUrl.startsWith("http") && sbService ? createClient(sbUrl, sbService) : null;
+  if (db) {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { count, error: countErr } = await db
+      .from("postcards")
+      .select("*", { count: "exact", head: true })
+      .eq("sender_email", sender)
+      .gte("sent_at", since);
+    if (countErr) {
+      // Without the count there's no cap, so don't send
+      console.error("Daily limit check failed:", countErr);
+      return NextResponse.json({ error: "Sending is paused for a moment. Please try again later." }, { status: 503 });
+    }
+    if ((count ?? 0) >= DAILY_LIMIT) {
+      return NextResponse.json(
+        { error: `You've sent ${DAILY_LIMIT} postcards today. Try again tomorrow.` },
+        { status: 429 },
+      );
+    }
+  } else {
+    console.warn("SUPABASE_SERVICE_ROLE_KEY isn't set here, so the daily limit isn't enforced.");
   }
 
   // Images, as inline attachments: snapshots of both faces when the browser
@@ -86,8 +123,8 @@ export async function POST(req: NextRequest) {
   const origin = req.nextUrl.origin;
   const postcardId = crypto.randomUUID();
 
-  const intro = sender ? `${esc(sender)} sent you a postcard` : "Someone sent you a postcard";
-  const html = front && back ? buildSnapshotEmail(intro, body.orientation !== "landscape", body.message ?? "") : buildPostcardEmail({
+  const intro = `${esc(sender)} sent you a postcard`;
+  const html = front && back ? buildSnapshotEmail(intro, portrait, body.message ?? "") : buildPostcardEmail({
     message: body.message ?? "",
     to: body.to ?? {},
     sender,
@@ -97,44 +134,67 @@ export async function POST(req: NextRequest) {
     typewriter: body.font === "type",
   });
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const { error } = await resend.emails.send({
-    from: process.env.RESEND_FROM || "Postcards <onboarding@resend.dev>",
-    to: recipient,
-    subject: sender ? `You received a postcard from ${sender}` : "You received a postcard",
-    html,
-    text: `${sender ? `${sender} sent you a postcard` : "Someone sent you a postcard"}.\n\n${String(body.message ?? "").slice(0, 2000)}\n\nSent with Postcards`,
-    attachments: front && back
-      ? [
-          { filename: "postcard-front.jpg", content: front.content, contentType: front.type, contentId: "postcard-front" },
-          { filename: "postcard-back.jpg", content: back.content, contentType: back.type, contentId: "postcard-back" },
-        ]
-      : photo
-        ? [{ filename: `postcard.${photo.type.split("/")[1]}`, content: photo.content, contentType: photo.type, contentId: "postcard-photo" }]
-        : undefined,
-  });
+  const subject = `You received a postcard from ${sender}`;
+  const text = `${sender} sent you a postcard.\n\n${String(body.message ?? "").slice(0, 2000)}\n\nSent with Postcards`;
+  const attachments = front && back
+    ? [
+        { filename: "postcard-front.jpg", content: front.content, contentType: front.type, cid: "postcard-front" },
+        { filename: "postcard-back.jpg", content: back.content, contentType: back.type, cid: "postcard-back" },
+      ]
+    : photo
+      ? [{ filename: `postcard.${photo.type.split("/")[1]}`, content: photo.content, contentType: photo.type, cid: "postcard-photo" }]
+      : [];
 
-  if (error) {
-    console.error("Resend error:", error);
-    return NextResponse.json({ error: error.message || "The email couldn't be sent." }, { status: 502 });
+  if (useGmail) {
+    try {
+      const transport = nodemailer.createTransport({
+        service: "gmail",
+        auth: { user: gmailUser, pass: gmailPass },
+      });
+      await transport.sendMail({
+        from: { name: "Postcards", address: gmailUser },
+        replyTo: sender,
+        to: recipient,
+        subject,
+        html,
+        text,
+        attachments,
+      });
+    } catch (err) {
+      console.error("Gmail error:", err);
+      return NextResponse.json({ error: "The postcard couldn't be sent. Please try again." }, { status: 502 });
+    }
+  } else {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const { error } = await resend.emails.send({
+      from: process.env.RESEND_FROM || "Postcards <onboarding@resend.dev>",
+      replyTo: sender,
+      to: recipient,
+      subject,
+      html,
+      text,
+      attachments: attachments.length
+        ? attachments.map(({ cid, ...a }) => ({ ...a, contentId: cid }))
+        : undefined,
+    });
+    if (error) {
+      console.error("Resend error:", error);
+      return NextResponse.json({ error: "The postcard couldn't be sent. Please try again." }, { status: 502 });
+    }
   }
 
-  // Keep a record (best effort; needs the service role key)
-  try {
-    const sbService = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-    if (sbUrl.startsWith("http") && sbService) {
-      await createClient(sbUrl, sbService).from("postcards").insert({
-        sender_email: sender || "guest",
-        recipient_email: recipient,
-        message: String(body.message ?? "").slice(0, 2000),
-        orientation: portrait ? "portrait" : "landscape",
-        stamp_emoji: stamp ?? "",
-        status: "sent",
-        sent_at: new Date().toISOString(),
-      });
-    }
-  } catch (dbErr) {
-    console.warn("Postcard saved to email only (database insert failed):", dbErr);
+  // Keep a record; this is also what the daily limit counts
+  if (db) {
+    const { error: dbErr } = await db.from("postcards").insert({
+      sender_email: sender,
+      recipient_email: recipient,
+      message: String(body.message ?? "").slice(0, 2000),
+      orientation: portrait ? "portrait" : "landscape",
+      stamp_emoji: stamp ?? "",
+      status: "sent",
+      sent_at: new Date().toISOString(),
+    });
+    if (dbErr) console.error("Postcard sent but not recorded:", dbErr);
   }
 
   return NextResponse.json({ success: true, id: postcardId });

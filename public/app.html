@@ -912,7 +912,7 @@ body {
 }
 
 .sent-note span { color: #1d1d1d; }
-.sent-note.error { border-color: #a3402f; color: #a3402f; white-space: normal; max-width: min(360px, calc(100vw - 32px)); }
+.sent-note.error { border-color: #a3402f; color: #a3402f; white-space: normal; max-width: min(320px, calc(100vw - 32px)); border-radius: 18px; padding: 9px 15px; text-align: center; }
 .sent-note.show { opacity: 1; transform: none; }
 
 /* The stamp being dragged */
@@ -2364,6 +2364,29 @@ input:autofill {
       try { return Promise.resolve(c.toDataURL('image/jpeg', 0.85)); } catch (_) { return Promise.resolve(null); }
     }
 
+    // The signed-in user's access token, refreshed if it has expired
+    // (tokens last an hour; the page may have been open longer)
+    let sbClient = null;
+    async function freshToken() {
+      try {
+        if (!sbClient) {
+          if (!window.supabase) await new Promise((ok, fail) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
+            s.onload = ok; s.onerror = fail;
+            document.head.appendChild(s);
+          });
+          const env = await (await fetch('/api/env')).json();
+          if (!env.url || !env.key) return accessToken();
+          sbClient = window.supabase.createClient(env.url, env.key, { auth: { persistSession: true, detectSessionInUrl: false } });
+        }
+        const { data } = await sbClient.auth.getSession();
+        return (data.session && data.session.access_token) || '';
+      } catch (_) {
+        return accessToken();
+      }
+    }
+
     function accessToken() {
       try {
         for (let k = 0; k < localStorage.length; k++) {
@@ -2464,10 +2487,11 @@ input:autofill {
             orientation: card.classList.contains('landscape') ? 'landscape' : 'portrait',
             stamp,
             font: document.body.classList.contains('font-typewriter') ? 'type' : 'hand',
-            accessToken: accessToken()
+            accessToken: await freshToken()
           })
         });
         const data = await res.json().catch(() => ({}));
+        if (res.status === 401) setTimeout(() => location.assign('/login.html'), 3200);
         if (!res.ok) return { ok: false, error: data.error || "The postcard couldn't be sent. Please try again." };
         return { ok: true };
       } catch (_) {
