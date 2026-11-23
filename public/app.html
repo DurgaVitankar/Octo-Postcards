@@ -1289,6 +1289,21 @@ body {
 
 @media (prefers-reduced-motion: reduce) { .mail-bubble { animation: none; } }
 
+/* Browser autofill paints filled fields blue: keep them looking like the card.
+   (The long transition stops the browser's background ever showing.) */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:autofill {
+  -webkit-text-fill-color: currentColor;
+  caret-color: currentColor;
+  -webkit-box-shadow: 0 0 0 1000px transparent inset;
+  box-shadow: 0 0 0 1000px transparent inset;
+  background-color: transparent !important;
+  background-clip: text;
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+
 [hidden] { display: none !important; }
 </style>
 </head>
@@ -2167,6 +2182,7 @@ body {
       grid.querySelectorAll('.tray-stamp').forEach(b =>
         b.setAttribute('aria-pressed', String(b.dataset.stamp === current)));
     }
+    window.postcardStamps = { clear() { current = null; render(); } };
 
     function showBack() { if (backArea.hidden) setSide('back'); }
 
@@ -2358,10 +2374,82 @@ body {
       return '';
     }
 
+    // Snapshot both faces of the card exactly as designed (fonts, stamp box,
+    // postmark, ruled lines, flowers, the photo's framing) for the email.
+    // Email apps ignore web fonts and most layout, so pictures look the same everywhere.
+    const H2I = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js';
+    function loadH2I() {
+      if (window.htmlToImage) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = H2I; s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+
+    // The card's web fonts as self-contained CSS (fonts inlined), so the
+    // snapshot uses Tangerine, Libre Baskerville and Geist Pixel. Fetched once.
+    let fontCSSCache = null;
+    async function fontCSS() {
+      if (fontCSSCache) return fontCSSCache;
+      const link = document.querySelector('link[href*="fonts.googleapis.com/css2"]');
+      if (!link) return '';
+      const css = await (await fetch(link.href)).text();
+      // keep only the latin subsets: what the card uses, and far fewer files
+      const blocks = css.split(/(?=\/\* )/).filter(b => /^\/\* latin \*\//.test(b));
+      const asData = async url => {
+        const blob = await (await fetch(url)).blob();
+        return new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
+      };
+      const out = await Promise.all(blocks.map(async b => {
+        const m = /url\((https:[^)]+)\)/.exec(b);
+        return m ? b.replace(m[1], await asData(m[1])) : b;
+      }));
+      return (fontCSSCache = out.join('\n'));
+    }
+
+    async function cardFaces() {
+      try { await loadH2I(); } catch (_) { return null; }
+      const holder = document.createElement('div');
+      holder.style.cssText = 'position:fixed;left:-20000px;top:0;width:2000px;pointer-events:none;';
+      document.body.appendChild(holder);
+      const make = side => {
+        const c = card.cloneNode(true);
+        c.removeAttribute('id');
+        c.style.cssText = '';
+        c.style.boxShadow = 'none';
+        c.style.width = card.getBoundingClientRect().width + 'px';   // same size as on screen
+        const src = card.querySelectorAll('input, textarea'), dst = c.querySelectorAll('input, textarea');
+        dst.forEach((el, i) => { el.setAttribute('value', src[i].value); el.textContent = src[i].value; el.value = src[i].value; });
+        const front = c.querySelector('.photo-area'), back = c.querySelector('.back-area');
+        front.hidden = side !== 'front';
+        back.hidden = side !== 'back';
+        c.querySelectorAll('.empty, .replace, .photo-hint, .file-input').forEach(el => { el.hidden = true; });
+        c.querySelectorAll('.flower-remove').forEach(el => el.remove());
+        c.querySelectorAll('.flower').forEach(el => el.classList.remove('selected'));
+        holder.appendChild(c);
+        return c;
+      };
+      let fontEmbedCSS = '';
+      try { fontEmbedCSS = await fontCSS(); } catch (_) {}
+      const opts = { pixelRatio: 2, quality: 0.9, backgroundColor: '#ffffff', fontEmbedCSS };
+      try {
+        const f = make('front'), b = make('back');
+        if (document.fonts) await document.fonts.ready;
+        const [front, back] = await Promise.all([htmlToImage.toJpeg(f, opts), htmlToImage.toJpeg(b, opts)]);
+        return { front, back };
+      } catch (_) {
+        return null;
+      } finally {
+        holder.remove();
+      }
+    }
+
     async function deliver(to) {
       const val = id => (document.getElementById(id).value || '').trim();
       const stampHref = document.getElementById('stampImg').getAttribute('href') || '';
       const stamp = (/stamp-([a-z]+)\.webp/.exec(stampHref) || [])[1] || null;
+      const faces = await cardFaces();
       try {
         const res = await fetch('/api/send', {
           method: 'POST',
@@ -2370,7 +2458,9 @@ body {
             recipientEmail: to,
             message: val('message'),
             to: { name: val('toName'), address: val('toAddress'), city: val('toCity'), postal: val('toPostal') },
-            photo: await photoForEmail(),
+            photo: faces ? null : await photoForEmail(),
+            front: faces ? faces.front : null,
+            back: faces ? faces.back : null,
             orientation: card.classList.contains('landscape') ? 'landscape' : 'portrait',
             stamp,
             font: document.body.classList.contains('font-typewriter') ? 'type' : 'hand',
@@ -2541,6 +2631,21 @@ body {
         .finished.then(() => clip.remove());
     }
 
+    // After a successful send: clear the photo, writing, stamp and flowers,
+    // and show the front. Orientation and the chosen font stay as they were.
+    function resetCard() {
+      photo.removeAttribute('src');
+      photo.hidden = true;
+      replace.hidden = true;
+      document.getElementById('photoHint').hidden = true;
+      empty.hidden = false;
+      ['toName', 'toAddress', 'toCity', 'toPostal', 'message'].forEach(id => { document.getElementById(id).value = ''; });
+      if (window.postcardStamps) window.postcardStamps.clear();
+      document.querySelectorAll('.decor .flower').forEach(f => f.remove());
+      applySide(false);
+      email.value = '';
+    }
+
     async function fly(to) {
       busy = true;
       document.body.classList.add('sending');
@@ -2559,7 +2664,9 @@ body {
         }
         if (!reduce) {
           const { copy, r } = snapshot();
-          card.style.visibility = 'hidden';
+          // opacity, not visibility: the placed stamp sets its own visibility,
+          // which would keep it showing on an invisible card
+          card.style.opacity = '0';
           // once level, the card's long side should just fit the slot
           const s = Math.max(0.04, (SLOT.w * m.width * 0.85) / Math.max(r.width, r.height));
           const visH = Math.min(r.width, r.height) * s;      // its height once level
@@ -2570,11 +2677,16 @@ body {
         }
         const result = await sending;
         showNote(to, result.ok ? null : result.error);
+        if (result.ok) resetCard();             // sent: a fresh, empty card waits
         await wait(result.ok ? 2400 : 4200);
         hideNote();
         if (Math.abs(scroller.scrollLeft - centre) > 2) await scrollAndSettle(centre);
       } finally {
-        card.style.visibility = '';
+        if (getComputedStyle(card).opacity === '0' && !reduce) {
+          card.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }],
+            { duration: 450, easing: 'ease-out' });
+        }
+        card.style.opacity = '';
         document.body.classList.remove('sending');
         busy = false;
       }
