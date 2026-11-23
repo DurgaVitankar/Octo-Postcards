@@ -238,6 +238,13 @@ input:autofill {
   const RETURN_URL = location.origin + location.pathname;
   const RESEND_WAIT = 60;   // seconds before the link can be sent again
 
+  // Arrived from "Send a postcard back" in an email: remember who to reply to,
+  // so the app's send box starts with their address
+  try {
+    const reply = new URLSearchParams(location.search).get('reply') || '';
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(reply)) localStorage.setItem('postcards.replyTo', reply);
+  } catch (_) {}
+
   const $ = id => document.getElementById(id);
   const form = $('form'), email = $('email'), error = $('error');
   const submit = $('submit'), submitLabel = $('submitLabel');

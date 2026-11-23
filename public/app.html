@@ -2324,6 +2324,11 @@ input:autofill {
       if (busy) return;
       err.hidden = true;
       email.removeAttribute('aria-invalid');
+      // Came from "Send a postcard back": start with the sender's address
+      try {
+        const reply = localStorage.getItem('postcards.replyTo');
+        if (reply) { if (!email.value) email.value = reply; localStorage.removeItem('postcards.replyTo'); }
+      } catch (_) {}
       if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
       setTimeout(() => email.focus(), 50);
     }

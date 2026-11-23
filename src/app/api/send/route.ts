@@ -14,6 +14,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const STAMPS = new Set(["yarrow", "peppermint", "rosemary", "anemone", "lotus", "laurel"]);
 const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
 const DAILY_LIMIT = Number(process.env.POSTCARDS_DAILY_LIMIT) || 10;
+// Where "Send a postcard back" leads. Always the live site: preview links are
+// private to the Vercel account, so a friend couldn't open them.
+const APP_URL = (process.env.APP_URL || "https://octo-postcards.vercel.app").replace(/\/+$/, "");
 
 type Img = { content: Buffer; type: string };
 
@@ -124,7 +127,8 @@ export async function POST(req: NextRequest) {
   const postcardId = crypto.randomUUID();
 
   const intro = `${esc(sender)} sent you a postcard`;
-  const html = front && back ? buildSnapshotEmail(intro, portrait, body.message ?? "") : buildPostcardEmail({
+  const replyUrl = `${APP_URL}/login.html?reply=${encodeURIComponent(sender)}`;
+  const html = front && back ? buildSnapshotEmail(intro, portrait, body.message ?? "", replyUrl) : buildPostcardEmail({
     message: body.message ?? "",
     to: body.to ?? {},
     sender,
@@ -132,10 +136,11 @@ export async function POST(req: NextRequest) {
     hasPhoto: !!photo,
     stampUrl: stamp ? `${origin}/stamps/stamp-${stamp}.webp` : null,
     typewriter: body.font === "type",
+    replyUrl,
   });
 
   const subject = `You received a postcard from ${sender}`;
-  const text = `${sender} sent you a postcard.\n\n${String(body.message ?? "").slice(0, 2000)}\n\nSent with Postcards`;
+  const text = `${sender} sent you a postcard.\n\n${String(body.message ?? "").slice(0, 2000)}\n\nSend a postcard back: ${replyUrl}\n\nSent with Postcards`;
   const attachments = front && back
     ? [
         { filename: "postcard-front.jpg", content: front.content, contentType: front.type, cid: "postcard-front" },
@@ -200,8 +205,18 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ success: true, id: postcardId });
 }
 
+// "Send a postcard back": a button that works in every email app
+function replyButton(url: string) {
+  return `<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:26px auto 0;border-collapse:separate;">
+      <tr><td align="center" bgcolor="#a3402f" style="border-radius:999px;">
+        <a href="${esc(url)}" target="_blank" style="display:inline-block;padding:12px 26px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:999px;">Send a postcard back</a>
+      </td></tr>
+    </table>
+    <p style="margin:10px 0 0;text-align:center;font-size:12px;color:#8a8a8a;">Sign in with your email, design a card, and drop it in the mailbox.</p>`;
+}
+
 // The card's two faces as pictures, so every email app shows them exactly as designed
-function buildSnapshotEmail(intro: string, portrait: boolean, message: string) {
+function buildSnapshotEmail(intro: string, portrait: boolean, message: string, replyUrl: string) {
   const w = portrait ? 420 : 600;
   const img = (cid: string, alt: string) =>
     `<img src="cid:${cid}" width="${w}" alt="${alt}" style="display:block;width:100%;max-width:${w}px;height:auto;border-radius:8px;box-shadow:0 2px 18px rgba(0,0,0,0.08);">`;
@@ -218,6 +233,7 @@ function buildSnapshotEmail(intro: string, portrait: boolean, message: string) {
     ${img("postcard-front", "The front of the postcard")}
     <div style="height:16px;line-height:16px;">&nbsp;</div>
     ${img("postcard-back", `The back of the postcard. Message: ${esc(message)}`)}
+    ${replyButton(replyUrl)}
     <p style="margin:22px 0 0;text-align:center;font-size:11px;color:#9a9a9a;">Sent with Postcards</p>
   </div>
 </body>
@@ -232,6 +248,7 @@ function buildPostcardEmail(o: {
   hasPhoto: boolean;
   stampUrl: string | null;
   typewriter: boolean;
+  replyUrl: string;
 }) {
   const w = o.portrait ? 420 : 600;
   const h = o.portrait ? 588 : 400;
@@ -276,6 +293,7 @@ function buildPostcardEmail(o: {
       <div style="margin-top:22px;font-family:${write};font-size:${writeSize};line-height:1.5;color:#3a3a3a;white-space:pre-wrap;">${esc(o.message) || "&nbsp;"}</div>
     </div>
 
+    ${replyButton(o.replyUrl)}
     <p style="margin:22px 0 0;text-align:center;font-size:11px;color:#9a9a9a;">Sent with Postcards</p>
   </div>
 </body>
