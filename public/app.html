@@ -1031,6 +1031,9 @@ body {
 }
 
 .pc svg { display: block; width: 100%; height: 100%; }
+/* Received cards are pictures of the whole face, border included */
+.pc-snap, .pc-big.pc-snap, .pc-thumb.pc-snap { padding: 0; overflow: hidden; }
+.pc-snap img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .pc-thumb.pc-port { height: 78px; aspect-ratio: 10 / 14; }
 .pc-thumb.pc-land { width: 96px; aspect-ratio: 14 / 10; }
 .pc-thumb { padding: 4px; }
@@ -1323,7 +1326,6 @@ input:autofill {
     </div>
     <div class="gallery-strip" role="list" aria-label="All postcards">
       <div class="gallery-col" id="galleryLeft"></div>
-      <div class="gallery-col" id="galleryRight"></div>
     </div>
   </div>
 </dialog>
@@ -1637,6 +1639,40 @@ input:autofill {
     return `${d.getDate()} ${d.toLocaleString('en-GB', { month: 'short' })} ${d.getFullYear()}`;
   }
 
+  // The signed-in user's access token, refreshed if it has expired
+  // (tokens last an hour; the page may have been open longer)
+  let sbClient = null;
+  async function freshToken() {
+    try {
+      if (!sbClient) {
+        if (!window.supabase) await new Promise((ok, fail) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
+          s.onload = ok; s.onerror = fail;
+          document.head.appendChild(s);
+        });
+        const env = await (await fetch('/api/env')).json();
+        if (!env.url || !env.key) return accessToken();
+        sbClient = window.supabase.createClient(env.url, env.key, { auth: { persistSession: true, detectSessionInUrl: false } });
+      }
+      const { data } = await sbClient.auth.getSession();
+      return (data.session && data.session.access_token) || '';
+    } catch (_) {
+      return accessToken();
+    }
+  }
+
+  function accessToken() {
+    try {
+      for (let k = 0; k < localStorage.length; k++) {
+        const key = localStorage.key(k);
+        if (/^sb-.+-auth-token$/.test(key)) return (JSON.parse(localStorage.getItem(key)) || {}).access_token || '';
+      }
+    } catch (_) {}
+    return '';
+  }
+  window.postcardsAuth = { token: freshToken };
+
   // The signed-in user, read from the session Supabase stores in this browser
   // (no network call). Returns {} for guests.
   function welcomeUser() {
@@ -1654,26 +1690,14 @@ input:autofill {
     return {};
   }
 
-  // Gallery content: dummy postcards in two thumbnail columns, the selected one
-  // opened in the centre. Each card's picture is a small scene drawn in SVG.
+  // Gallery content: the welcome card and the postcards people have sent you,
+  // the selected one opened in the centre. The welcome card's picture is a small
+  // SVG scene; received cards are pictures of both faces, as they were designed.
   (function () {
-    const CARDS = [
-      { welcome: true, msg: 'Welcome to Postcards! Write a note, add a photo and a stamp, then send it to someone you miss. This first one is from us.', deco: { front: [['cosmos', 82, 18, 12]], back: [['chamomile', 80, 86, -10], ['lavender', 88, 82, 10]] }, from: 'The Postcards team', place: 'Postcards', date: todayLabel(), scene: 'hills', pal: ['#fdf6ec', '#f3d9b1', '#c8b09a', '#8c6d55'], land: false },
-      { msg: 'The light here turns everything gold around six. Wish you could see it with me.', title: 'Golden hour on the Tagus', deco: { back: [['lavender', 84, 82, -12]] }, from: 'Maya', place: 'Lisbon', date: '12 Aug 2026', scene: 'sea',    pal: ['#f7c59f', '#ef8354', '#2d6a8a', '#fbe3c5'], land: false },
-      { msg: "Tea fields as far as I can see, and the mist hasn't lifted all morning. Thinking of you.", title: 'Morning in the hills',     from: 'Arjun', place: 'Munnar', date: '3 Jul 2026',  scene: 'hills',  pal: ['#e8f1e4', '#9cc5a1', '#49a078', '#216869'], land: true  },
-      { msg: 'It rained all day, then the whole city went silver. Found the best little bakery.', title: 'Rooftops after rain',      font: 'type', deco: { front: [['chamomile', 14, 84, 10]] }, from: 'Léa', place: 'Paris', date: '21 Mar 2026',    scene: 'city',   pal: ['#d7dde8', '#9aa9c0', '#4f5d75', '#2d3142'], land: false },
-      { msg: "Sand in everything, and I don't even mind. The stars last night were unreal.", title: 'Dunes at noon',            deco: { back: [['wildflowers', 9, 78, 8]] }, from: 'Omar', place: 'Merzouga', date: '9 Feb 2026', scene: 'desert', pal: ['#fdf0d5', '#f4a261', '#e76f51', '#c8553d'], land: true  },
-      { msg: 'The lake was so still we could see every star twice. Bring a warm coat next time.', title: 'Stars over the lake',      from: 'Ines', place: 'Bled', date: '14 Jan 2026',    scene: 'night',  pal: ['#1b263b', '#415a77', '#e0e1dd', '#778da9'], land: false },
-      { msg: "Purple to the horizon and the bees are everywhere. I'll bring you a little sachet.", title: 'Lavender fields',          deco: { front: [['lavender', 86, 80, -14]], back: [['lavender', 50, 13, -24]] }, from: 'Theo', place: 'Valensole', date: '1 Jul 2026', scene: 'hills', pal: ['#f3e8ff', '#c8b6e2', '#8e7dbe', '#5b4b8a'], land: false },
-      { msg: "Fishing boats lit up the whole harbour tonight. The curry was the best I've had.", title: 'Harbour lights',           from: 'Sana', place: 'Kochi', date: '28 Oct 2026',   scene: 'night',  pal: ['#22223b', '#4a4e69', '#f2e9e4', '#c9ada7'], land: true  },
-      { msg: 'Petals everywhere like snow. We walked the whole river path twice.', title: 'Cherry blossom walk',      deco: { front: [['cosmos', 84, 16, 16]], back: [['cosmos', 12, 86, -8]] }, from: 'Ken', place: 'Kyoto', date: '4 Apr 2026',     scene: 'hills',  pal: ['#fff0f3', '#ffccd5', '#ff8fa3', '#c9184a'], land: false },
-      { msg: 'Caught three waves and fell off a hundred times. My arms are noodles. Happy.', title: 'Surf check',               font: 'type', from: 'Noa', place: 'Ericeira', date: '17 Sep 2026', scene: 'sea',    pal: ['#caf0f8', '#90e0ef', '#0077b6', '#03045e'], land: true  },
-      { msg: 'Every wall is a different blue. Got lost on purpose all afternoon.', title: 'Blue city',                font: 'type', deco: { back: [['lily', 86, 82, -10]] }, from: 'Priya', place: 'Jodhpur', date: '22 Nov 2026', scene: 'city',  pal: ['#e0f2fe', '#7dd3fc', '#0369a1', '#0c4a6e'], land: false },
-      { msg: 'Made it up just before sunset. Windy, cold and completely worth it.', title: 'Last light on the ridge',  from: 'Sam', place: 'Snowdonia', date: '30 Sep 2026', scene: 'hills', pal: ['#ffd6a5', '#ffadad', '#6d597a', '#355070'], land: true  },
-      { msg: 'Sky on the ground, ground in the sky. Hard to tell where anything ends.', title: 'Salt flats',               deco: { back: [['chamomile', 10, 84, 6], ['wildflowers', 22, 88, -14]] }, from: 'Lucía', place: 'Uyuni', date: '6 May 2026',   scene: 'desert', pal: ['#f1faee', '#a8dadc', '#e9c46a', '#457b9d'], land: false },
-      { msg: 'Storm rolled in and the lighthouse kept blinking. Cosy with a book now.', title: 'Lighthouse weather',       font: 'type', from: 'Finn', place: 'Cornwall', date: '11 Aug 2026', scene: 'sea',   pal: ['#e9ecef', '#adb5bd', '#495057', '#212529'], land: false },
-      { msg: 'Green ribbons all over the sky at midnight. I cried a little, not going to lie.', title: 'Northern lights',          deco: { back: [['lavender', 10, 80, 12]] }, from: 'Aino', place: 'Tromsø', date: '2 Dec 2026',   scene: 'night',  pal: ['#0b132b', '#1c2541', '#6fffe9', '#5bc0be'], land: true  }
-    ];
+    // The welcome card from us; postcards people send you are added in front
+    // of it, newest first, once /api/inbox answers
+    const WELCOME = { welcome: true, msg: 'Welcome to Postcards! Write a note, add a photo and a stamp, then send it to someone you miss. This first one is from us.', deco: { front: [['cosmos', 82, 18, 12]], back: [['chamomile', 80, 86, -10], ['lavender', 88, 82, 10]] }, from: 'The Postcards team', place: 'Postcards', date: todayLabel(), scene: 'hills', pal: ['#fdf6ec', '#f3d9b1', '#c8b09a', '#8c6d55'], land: false };
+    let CARDS = [WELCOME];
 
     // Simple illustrated scenes in a 100 x 100 box, stretched to the card's shape
     function scene(c, uid) {
@@ -1730,7 +1754,25 @@ input:autofill {
         `<path d="M 18 68 q 6 -5 12 0 t 12 0 t 12 0 t 12 0 t 12 0 t 12 0" stroke="#cdc3c7" stroke-width="1"/></svg>`;
     }
 
+    const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+
+    // A received card: the snapshots of its faces. Cards sent with only a photo
+    // get a plain back with the message.
+    function snapCardHTML(c) {
+      const shape = c.land ? 'pc-land' : 'pc-port';
+      const back = c.snap.back
+        ? `<span class="pc pc-big pc-back pc-snap"><img src="${esc(c.snap.back)}" alt="${esc('The back of the postcard. ' + c.msg)}"></span>`
+        : `<span class="pc pc-big pc-back"><span class="gb"><span class="gb-head"><span class="back-title">POSTCARD</span><span class="back-sub">with love</span></span>` +
+          `<span class="gb-div"></span><span class="gb-msg">${esc(c.msg)}<span class="gb-sign">${esc(c.from)}</span></span></span></span>`;
+      return `<button type="button" class="pc-flip ${shape}" aria-pressed="false" aria-label="Turn the postcard over" data-tip="Turn over">` +
+        `<span class="pc-flip-inner">` +
+          `<span class="pc pc-big pc-front pc-snap"><img src="${esc(c.snap.front)}" alt="${esc('The front of a postcard from ' + c.from)}"></span>` +
+          back +
+        `</span></button>`;
+    }
+
     function bigCardHTML(c, i) {
+      if (c.snap) return snapCardHTML(c);
       const shape = c.land ? 'pc-land' : 'pc-port';
       return `<button type="button" class="pc-flip ${shape}" aria-pressed="false" aria-label="Turn the postcard over" data-tip="Turn over">` +
         `<span class="pc-flip-inner">` +
@@ -1746,25 +1788,30 @@ input:autofill {
     }
 
     function cardHTML(c, i, cls) {
+      if (c.snap) return `<div class="pc ${cls} pc-snap ${c.land ? 'pc-land' : 'pc-port'}"><img src="${esc(c.snap.front)}" alt=""></div>`;
       return `<div class="pc ${cls} ${c.land ? 'pc-land' : 'pc-port'}">` +
         `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, cls + i)}</svg>${decorHTML(c.deco && c.deco.front)}</div>`;
     }
 
-    const left = document.getElementById('galleryLeft'), right = document.getElementById('galleryRight');
+    const strip = document.getElementById('galleryLeft');
     const stage = document.getElementById('galleryStage');
-    const half = Math.ceil(CARDS.length / 2);
-    let current = 0;
+    let current = 0, thumbs = [];
 
-    CARDS.forEach((c, i) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'thumb';
-      b.dataset.i = i;
-      b.setAttribute('aria-label', `Postcard from ${c.from}, ${c.place}`);
-      b.innerHTML = cardHTML(c, i, 'pc-thumb');
-      (i < half ? left : right).appendChild(b);
-    });
-    const thumbs = [...document.querySelectorAll('.thumb')];
+    function renderThumbs() {
+      strip.innerHTML = '';
+      CARDS.forEach((c, i) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'thumb';
+        b.dataset.i = i;
+        b.setAttribute('aria-label', `Postcard from ${c.from}`);
+        b.innerHTML = cardHTML(c, i, 'pc-thumb');
+        b.addEventListener('click', () => select(i));
+        strip.appendChild(b);
+      });
+      thumbs = [...strip.querySelectorAll('.thumb')];
+    }
+    renderThumbs();
 
     function select(i, focus) {
       current = (i + CARDS.length) % CARDS.length;
@@ -1778,7 +1825,7 @@ input:autofill {
         flip.setAttribute('aria-pressed', String(back));
         flip.dataset.tip = back ? 'Turn back' : 'Turn over';
       });
-      document.getElementById('galleryMeta').textContent = `From ${c.from} · ${c.place}, ${c.date}`;
+      document.getElementById('galleryMeta').textContent = c.place ? `From ${c.from} · ${c.place}, ${c.date}` : `From ${c.from} · ${c.date}`;
       void stage.offsetWidth;                      // restart the fade
       stage.classList.add('show');
       thumbs.forEach((t, k) => t.setAttribute('aria-current', String(k === current)));
@@ -1786,7 +1833,6 @@ input:autofill {
       thumbs[current].scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
     }
 
-    thumbs.forEach(t => t.addEventListener('click', () => select(+t.dataset.i)));
     document.getElementById('gallery').addEventListener('keydown', e => {
       const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
       if (!step) return;
@@ -1796,7 +1842,24 @@ input:autofill {
     select(0);
 
     // Open the gallery on a card, optionally turning it over after it appears
+    function dateLabel(iso) {
+      const d = new Date(iso);
+      return isNaN(d) ? '' : `${d.getDate()} ${d.toLocaleString('en-GB', { month: 'short' })} ${d.getFullYear()}`;
+    }
+
     window.postcardGallery = {
+      // Received postcards from /api/inbox, newest first
+      setReceived(list) {
+        const id = CARDS[current] && CARDS[current].id;
+        CARDS = list.map(p => ({
+          id: p.id, snap: { front: p.front, back: p.back }, msg: p.message,
+          from: p.from, date: dateLabel(p.sentAt), land: !!p.landscape
+        })).concat(WELCOME);
+        renderThumbs();
+        const keep = CARDS.findIndex(c => c.id === id);
+        select(keep >= 0 ? keep : 0);
+      },
+      indexOf(id) { return id === 'welcome' ? CARDS.indexOf(WELCOME) : CARDS.findIndex(c => c.id === id); },
       open(i, flipAfter) {
         if (i !== undefined) select(i);
         const g = document.getElementById('gallery');
@@ -1809,32 +1872,56 @@ input:autofill {
     };
   })();
 
-  // Welcome postcard: the first time someone opens the app (per account on this
-  // browser), a postcard from us is waiting on the postcard stand. A game-style cue on the postcard stand lead them to it; opening it shows the card
-  // in the gallery and turns it over. Afterwards the stand just opens the gallery.
+  // The postcard stand: a speech bubble says when there's something new to
+  // read, either the welcome card (first visit, per account on this browser) or
+  // postcards people have sent. Clicking opens the newest one and turns it over;
+  // otherwise the stand just opens the gallery.
   (function () {
     const hotspot = document.getElementById('stand');
     const userId = welcomeUser().id || 'guest';
-    const KEY = 'postcards.welcomeSeen.' + userId;
-    let seen = false;
-    try { seen = localStorage.getItem(KEY) === '1'; } catch (_) {}
+    const WKEY = 'postcards.welcomeSeen.' + userId, SKEY = 'postcards.seen.' + userId;
+    const read = k => { try { return localStorage.getItem(k); } catch (_) { return null; } };
+    const write = (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} };
+    let welcomeSeen = read(WKEY) === '1';
+    let seen = new Set();
+    try { seen = new Set(JSON.parse(read(SKEY) || '[]')); } catch (_) {}
+    let unseen = [], loadedAt = 0;
 
-    function markSeen() {
-      seen = true;
-      try { localStorage.setItem(KEY, '1'); } catch (_) {}
-      document.body.classList.remove('has-mail');
-      hotspot.setAttribute('aria-label', 'Your postcards');
+    function cue() {
+      const n = unseen.length + (welcomeSeen ? 0 : 1);
+      document.body.classList.toggle('has-mail', n > 0);
+      hotspot.setAttribute('aria-label', n ? `Your postcards: ${n} new postcard${n > 1 ? 's' : ''}` : 'Your postcards');
     }
 
-    if (!seen) {
-      document.body.classList.add('has-mail');
-      hotspot.setAttribute('aria-label', 'Your postcards: 1 new postcard');
+    async function load() {
+      const token = await window.postcardsAuth.token();
+      if (!token) return;
+      const res = await fetch('/api/inbox', { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' });
+      if (!res.ok) return;
+      const list = (await res.json()).postcards || [];
+      loadedAt = Date.now();
+      window.postcardGallery.setReceived(list);
+      unseen = list.map(p => p.id).filter(id => !seen.has(id));
+      cue();
     }
 
-    hotspot.addEventListener('click', () => {
-      const first = !seen;
-      window.postcardGallery.open(first ? 0 : undefined, first);   // the welcome card is first
-      if (first) markSeen();
+    cue();
+    load().catch(() => {});
+
+    hotspot.addEventListener('click', async () => {
+      // Picture links last an hour; fetch fresh ones if these are getting old
+      if (Date.now() - loadedAt > 45 * 60 * 1000) await load().catch(() => {});
+      const g = window.postcardGallery;
+      if (unseen.length) g.open(g.indexOf(unseen[0]), true);
+      else if (!welcomeSeen) g.open(g.indexOf('welcome'), true);
+      else g.open();
+      // Everything is in the gallery now, so nothing is new any more
+      unseen.forEach(id => seen.add(id));
+      write(SKEY, JSON.stringify([...seen].slice(-500)));
+      unseen = [];
+      welcomeSeen = true;
+      write(WKEY, '1');
+      cue();
     });
   })();
 
@@ -2369,39 +2456,6 @@ input:autofill {
       try { return Promise.resolve(c.toDataURL('image/jpeg', 0.85)); } catch (_) { return Promise.resolve(null); }
     }
 
-    // The signed-in user's access token, refreshed if it has expired
-    // (tokens last an hour; the page may have been open longer)
-    let sbClient = null;
-    async function freshToken() {
-      try {
-        if (!sbClient) {
-          if (!window.supabase) await new Promise((ok, fail) => {
-            const s = document.createElement('script');
-            s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
-            s.onload = ok; s.onerror = fail;
-            document.head.appendChild(s);
-          });
-          const env = await (await fetch('/api/env')).json();
-          if (!env.url || !env.key) return accessToken();
-          sbClient = window.supabase.createClient(env.url, env.key, { auth: { persistSession: true, detectSessionInUrl: false } });
-        }
-        const { data } = await sbClient.auth.getSession();
-        return (data.session && data.session.access_token) || '';
-      } catch (_) {
-        return accessToken();
-      }
-    }
-
-    function accessToken() {
-      try {
-        for (let k = 0; k < localStorage.length; k++) {
-          const key = localStorage.key(k);
-          if (/^sb-.+-auth-token$/.test(key)) return (JSON.parse(localStorage.getItem(key)) || {}).access_token || '';
-        }
-      } catch (_) {}
-      return '';
-    }
-
     // Snapshot both faces of the card exactly as designed (fonts, stamp box,
     // postmark, ruled lines, flowers, the photo's framing) for the email.
     // Email apps ignore web fonts and most layout, so pictures look the same everywhere.
@@ -2492,7 +2546,7 @@ input:autofill {
             orientation: card.classList.contains('landscape') ? 'landscape' : 'portrait',
             stamp,
             font: document.body.classList.contains('font-typewriter') ? 'type' : 'hand',
-            accessToken: await freshToken()
+            accessToken: await window.postcardsAuth.token()
           })
         });
         const data = await res.json().catch(() => ({}));
