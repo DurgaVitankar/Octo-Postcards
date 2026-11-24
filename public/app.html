@@ -885,6 +885,7 @@ body {
   overflow: visible;
 }
 
+.flight-trail .trail-reveal { fill: none; stroke: #fff; stroke-width: 8; stroke-dasharray: none; }
 .flight-trail path {
   fill: none;
   stroke: #c8b09a;
@@ -2634,66 +2635,75 @@ input:autofill {
       return 'M ' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L ');
     }
 
+    // Fly the card along the path. The whole flight is worked out up front and
+    // handed to the browser as one animation, so it stays smooth even while the
+    // page is busy (it's taking the pictures of the card for the email then).
+    // The dashed trail is the same smooth curve, revealed behind the card.
     function along(copy, r, b, s) {
       const NS = 'http://www.w3.org/2000/svg';
-      const svg = document.createElementNS(NS, 'svg');
-      const path = document.createElementNS(NS, 'path');
       const a = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-      path.setAttribute('d', flightPath(a, b, Math.min(320, Math.max(160, r.height * 0.55))));
-      svg.appendChild(path);
-      svg.style.cssText = 'position:fixed;width:0;height:0;overflow:hidden';
-      document.body.appendChild(svg);
-      // dashed trail drawn behind the card as it flies
+      const d = flightPath(a, b, Math.min(320, Math.max(160, r.height * 0.55)));
+
       const trailSvg = document.createElementNS(NS, 'svg');
       trailSvg.setAttribute('class', 'flight-trail');
+      const mask = document.createElementNS(NS, 'mask');
+      mask.id = 'trailReveal';
+      mask.setAttribute('maskUnits', 'userSpaceOnUse');
+      ['x', 'y'].forEach(k => mask.setAttribute(k, '-5000'));
+      ['width', 'height'].forEach(k => mask.setAttribute(k, '10000'));
+      const reveal = document.createElementNS(NS, 'path');
+      reveal.setAttribute('d', d);
+      reveal.setAttribute('class', 'trail-reveal');
+      mask.appendChild(reveal);
       const trail = document.createElementNS(NS, 'path');
-      trailSvg.appendChild(trail);
+      trail.setAttribute('d', d);
+      trail.setAttribute('mask', 'url(#trailReveal)');
+      trailSvg.append(mask, trail);
       document.body.insertBefore(trailSvg, copy);
-      const len = path.getTotalLength(), dur = 3200;
-      // constant pace along the whole path
-      const ease = t => t;
-      let pts = '', prev = null, wind = 0, alignTo = null;
+
+      const len = trail.getTotalLength(), dur = 3200, N = 240;
       const portrait = r.height > r.width;
-      return new Promise(resolve => {
-        const start = performance.now();
-        (function frame(now) {
-          const t = Math.min(1, (now - start) / dur), e = ease(t);
-          const p = path.getPointAtLength(e * len);
-          const q = path.getPointAtLength(Math.min(len, e * len + 1));
-          const p0 = e * len >= len - 1 ? path.getPointAtLength(len - 2) : p;
-          // turn with the path like the reference video, at half the path's turn,
-          // so it banks through the loop and comes out upside down
-          let raw = Math.atan2(q.y - p0.y, q.x - p0.x) * 180 / Math.PI;
-          if (prev !== null) {
-            while (raw + wind - prev > 180) wind -= 360;
-            while (raw + wind - prev < -180) wind += 360;
-          }
-          prev = raw + wind;
-          let ang = 0.5 * prev;
-          // At the mailbox, line the card up with the horizontal slot (long side
-          // level) before it slips in: blend to the nearest such angle
-          if (alignTo === null && t > 0.6) {
-            const step = 180, offset = portrait ? 90 : 0;
-            alignTo = Math.round((ang - offset) / step) * step + offset;
-          }
-          if (alignTo !== null) {
-            const k2 = Math.min(1, Math.max(0, (t - 0.68) / 0.2));
-            const sm = k2 * k2 * (3 - 2 * k2);
-            ang = ang + (alignTo - ang) * sm;
-          }
-          const k = 1 - Math.pow(1 - e, 1.6);
-          const scale = 1 + (s - 1) * k;
-          copy.style.transform = `translate(${p.x - a.x}px, ${p.y - a.y}px) rotate(${ang}deg) scale(${scale})`;
-          pts += (pts ? ' L ' : 'M ') + p.x.toFixed(1) + ' ' + p.y.toFixed(1);
-          trail.setAttribute('d', pts);
-          if (t < 1) requestAnimationFrame(frame);
-          else {
-            svg.remove();
-            trailSvg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 900, delay: 500, fill: 'forwards' })
-              .finished.then(() => trailSvg.remove());
-            resolve();
-          }
-        })(start);
+      const frames = [];
+      let prev = null, wind = 0, alignTo = null;
+      for (let i = 0; i <= N; i++) {
+        const t = i / N, e = t;                           // constant pace along the whole path
+        const p = trail.getPointAtLength(e * len);
+        const q = trail.getPointAtLength(Math.min(len, e * len + 1));
+        const p0 = e * len >= len - 1 ? trail.getPointAtLength(len - 2) : p;
+        // turn with the path like the reference video, at half the path's turn,
+        // so it banks through the loop and comes out upside down
+        let raw = Math.atan2(q.y - p0.y, q.x - p0.x) * 180 / Math.PI;
+        if (prev !== null) {
+          while (raw + wind - prev > 180) wind -= 360;
+          while (raw + wind - prev < -180) wind += 360;
+        }
+        prev = raw + wind;
+        let ang = 0.5 * prev;
+        // At the mailbox, line the card up with the horizontal slot (long side
+        // level) before it slips in: blend to the nearest such angle
+        if (alignTo === null && t > 0.6) {
+          const step = 180, offset = portrait ? 90 : 0;
+          alignTo = Math.round((ang - offset) / step) * step + offset;
+        }
+        if (alignTo !== null) {
+          const k2 = Math.min(1, Math.max(0, (t - 0.68) / 0.2));
+          const sm = k2 * k2 * (3 - 2 * k2);
+          ang = ang + (alignTo - ang) * sm;
+        }
+        const k = 1 - Math.pow(1 - e, 1.6);
+        const scale = 1 + (s - 1) * k;
+        frames.push({ offset: t, transform: `translate(${(p.x - a.x).toFixed(2)}px, ${(p.y - a.y).toFixed(2)}px) rotate(${ang.toFixed(2)}deg) scale(${scale.toFixed(4)})` });
+      }
+
+      const flight = copy.animate(frames, { duration: dur, easing: 'linear', fill: 'forwards' });
+      reveal.style.strokeDasharray = `${len} ${len}`;
+      reveal.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], { duration: dur, easing: 'linear', fill: 'forwards' });
+      return flight.finished.then(() => {
+        // keep the final pose for the drop into the slot
+        copy.style.transform = frames[N].transform;
+        flight.cancel();
+        trailSvg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 900, delay: 500, fill: 'forwards' })
+          .finished.then(() => trailSvg.remove());
       });
     }
 
