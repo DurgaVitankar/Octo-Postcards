@@ -980,7 +980,7 @@ body {
 /* Gallery layout: opened card in the middle, all postcards in one row at the bottom */
 .gallery-body {
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr auto auto;
   gap: 20px;
   height: 100%;
   padding: 64px max(28px, env(safe-area-inset-right, 0px)) 24px max(28px, env(safe-area-inset-left, 0px));
@@ -1001,6 +1001,23 @@ body {
 }
 
 .gallery-strip::-webkit-scrollbar { display: none; }
+
+/* Until someone sends you a postcard: an empty dashed slot beside the welcome
+   card and a quiet line saying where new ones will go */
+.thumb-empty {
+  flex: none;
+  height: 78px;
+  aspect-ratio: 10 / 14;
+  border: 1.5px dashed #ddd3c9;
+  border-radius: 3px;
+}
+.gallery-hint {
+  margin: -16px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: #a39a93;
+  letter-spacing: 0.01em;
+}
 .gallery-col { display: contents; }
 
 .thumb {
@@ -1328,6 +1345,7 @@ input:autofill {
     <div class="gallery-strip" role="list" aria-label="All postcards">
       <div class="gallery-col" id="galleryLeft"></div>
     </div>
+    <p class="gallery-hint" id="galleryHint" hidden>New postcards you receive will be kept here</p>
   </div>
 </dialog>
 
@@ -1807,6 +1825,15 @@ input:autofill {
         strip.appendChild(b);
       });
       thumbs = [...strip.querySelectorAll('.thumb')];
+      // Nothing received yet: hint at where new postcards will appear
+      const none = !CARDS.some(c => c.snap);
+      if (none) {
+        const slot = document.createElement('span');
+        slot.className = 'thumb-empty';
+        slot.setAttribute('aria-hidden', 'true');
+        strip.appendChild(slot);
+      }
+      document.getElementById('galleryHint').hidden = !none;
     }
     renderThumbs();
 
