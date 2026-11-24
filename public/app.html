@@ -1406,7 +1406,6 @@ input:autofill {
       <span class="add-label">Add photo</span>
     </label>
     <img id="photo" alt="Postcard photo" tabindex="0" draggable="false" hidden>
-    <div class="decor" id="decorFront"></div>
     <span class="photo-hint" id="photoHint" hidden>Drag to move the photo</span>
     <label class="replace" id="replace" for="fileInput" tabindex="0" role="button" hidden>Replace</label>
   </div>
@@ -1429,10 +1428,7 @@ input:autofill {
       </svg>
     </div>
     <div class="address">
-      <input type="text" id="toName" placeholder="Name" aria-label="Name" autocomplete="off">
-      <input type="text" id="toAddress" placeholder="Address" aria-label="Address" autocomplete="off">
-      <input type="text" id="toCity" placeholder="City, Country" aria-label="City and country" autocomplete="off">
-      <input type="text" id="toPostal" placeholder="Postal code" aria-label="Postal code" autocomplete="off">
+      <input type="text" id="toName" placeholder="Name" aria-label="Who it's for" autocomplete="off">
     </div>
     <div class="back-divider"></div>
     <textarea class="message" id="message" placeholder="Write your message…" aria-label="Message"></textarea>
@@ -1697,7 +1693,7 @@ input:autofill {
   (function () {
     // The welcome card from us; postcards people send you are added in front
     // of it, newest first, once /api/inbox answers
-    const WELCOME = { welcome: true, msg: 'Welcome to Postcards! Write a note, add a photo and a stamp, then send it to someone you miss. This first one is from us.', deco: { front: [['cosmos', 82, 18, 12]], back: [['chamomile', 80, 86, -10], ['lavender', 88, 82, 10]] }, from: 'The Postcards team', place: 'Postcards', date: todayLabel(), scene: 'hills', pal: ['#fdf6ec', '#f3d9b1', '#c8b09a', '#8c6d55'], land: false };
+    const WELCOME = { welcome: true, msg: 'Welcome to Postcards! Write a note, add a photo and a stamp, then send it to someone you miss. This first one is from us.', deco: { back: [['chamomile', 80, 86, -10], ['lavender', 88, 82, 10]] }, from: 'The Postcards team', place: 'Postcards', date: todayLabel(), scene: 'hills', pal: ['#fdf6ec', '#f3d9b1', '#c8b09a', '#8c6d55'], land: false };
     let CARDS = [WELCOME];
 
     // Simple illustrated scenes in a 100 x 100 box, stretched to the card's shape
@@ -1781,7 +1777,7 @@ input:autofill {
           `<span class="pc pc-big pc-back"><span class="gb${c.font === 'type' ? ' gb-type' : ''}">` +
             `<span class="gb-head"><span class="back-title">POSTCARD</span><span class="back-sub">with love</span></span>` +
             `<span class="gb-stamp">${stampSVG(c, i)}</span>` +
-            `<span class="gb-addr">${(c.welcome ? [welcomeUser().name || 'You', 'Your mailbox', 'Postcards', '\u00a0'] : ['Alex Rivera', '22 Elm Street', 'Toronto, Canada', 'M5V 2T6']).map(t => `<span>${t}</span>`).join('')}</span>` +
+            `<span class="gb-addr">${[c.welcome ? (welcomeUser().name || 'You') : '\u00a0'].map(t => `<span>${t}</span>`).join('')}</span>` +
             `<span class="gb-div"></span>` +
             `<span class="gb-msg">${c.msg}<span class="gb-sign">${c.from}</span></span>` +
           `</span>${decorHTML(c.deco && c.deco.back)}</span>` +
@@ -2066,7 +2062,10 @@ input:autofill {
       grid.appendChild(b);
     });
 
-    const open = () => { tray.hidden = false; tools.hidden = true; tool.setAttribute('aria-expanded', 'true'); };
+    const open = () => {
+      tray.hidden = false; tools.hidden = true; tool.setAttribute('aria-expanded', 'true');
+      if (typeof setSide === 'function') setSide('back');      // flowers live on the back
+    };
     const close = () => { tray.hidden = true; tools.hidden = false; tool.setAttribute('aria-expanded', 'false'); };
     tool.setAttribute('aria-expanded', 'false');
     tool.addEventListener('click', () => (tray.hidden ? open() : close()));
@@ -2076,8 +2075,8 @@ input:autofill {
       close();
     });
 
-    // The decoration layer on whichever side is showing
-    const decor = () => document.getElementById(document.getElementById('backArea').hidden ? 'decorFront' : 'decorBack');
+    // Pressed flowers go on the back only (the front is the photo)
+    const decor = () => document.getElementById('decorBack');
     const inside = (el, x, y) => {
       const r = el.getBoundingClientRect();
       return r.width > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
@@ -2540,7 +2539,7 @@ input:autofill {
           body: JSON.stringify({
             recipientEmail: to,
             message: val('message'),
-            to: { name: val('toName'), address: val('toAddress'), city: val('toCity'), postal: val('toPostal') },
+            to: { name: val('toName') },
             photo: faces ? null : await photoForEmail(),
             front: faces ? faces.front : null,
             back: faces ? faces.back : null,
@@ -2732,7 +2731,7 @@ input:autofill {
       replace.hidden = true;
       document.getElementById('photoHint').hidden = true;
       empty.hidden = false;
-      ['toName', 'toAddress', 'toCity', 'toPostal', 'message'].forEach(id => { document.getElementById(id).value = ''; });
+      ['toName', 'message'].forEach(id => { document.getElementById(id).value = ''; });
       if (window.postcardStamps) window.postcardStamps.clear();
       document.querySelectorAll('.decor .flower').forEach(f => f.remove());
       applySide(false);
