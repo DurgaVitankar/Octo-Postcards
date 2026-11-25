@@ -1173,6 +1173,7 @@ body {
 }
 
 .pc svg { display: block; width: 100%; height: 100%; }
+.pc .pc-photo { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 2px; }
 /* Received cards are pictures of the whole face, border included */
 .pc-snap, .pc-big.pc-snap, .pc-thumb.pc-snap { padding: 0; overflow: hidden; }
 .pc-snap img { display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -1924,7 +1925,7 @@ input:autofill {
   (function () {
     // The welcome card from us; postcards people send you are added in front
     // of it, newest first, once /api/inbox answers
-    const WELCOME = { welcome: true, msg: 'A postcard is a small thing that travels a long way. It says: I saw this, and I thought of you. Pick a photo, write a few lines, and send one to someone you miss.', deco: { back: [['babysbreath', 80, 84, -10], ['daisies', 88, 82, 10]] }, from: 'The Postcards team', place: 'Port Octavia', date: todayLabel(), scene: 'hills', pal: ['#fdf6ec', '#f3d9b1', '#c8b09a', '#8c6d55'], land: false };
+    const WELCOME = { welcome: true, msg: 'A postcard is a small thing that travels a long way. It says: I saw this, and I thought of you. Pick a photo, write a few lines, and send one to someone you miss.', deco: { back: [['babysbreath', 80, 84, -10], ['daisies', 88, 82, 10]] }, from: 'The Postcards team', place: 'Port Octavia', date: todayLabel(), photo: 'welcome-front.webp', scene: 'hills', pal: ['#fdf6ec', '#f3d9b1', '#c8b09a', '#8c6d55'], land: false };
     let CARDS = [WELCOME];
 
     // Simple illustrated scenes in a 100 x 100 box, stretched to the card's shape
@@ -2004,7 +2005,7 @@ input:autofill {
       const shape = c.land ? 'pc-land' : 'pc-port';
       return `<button type="button" class="pc-flip ${shape}" aria-pressed="false" aria-label="Turn the postcard over">` +
         `<span class="pc-flip-inner">` +
-          `<span class="pc pc-big pc-front"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, 'big' + i)}</svg>${decorHTML(c.deco && c.deco.front)}</span>` +
+          `<span class="pc pc-big pc-front">${c.photo ? `<img class="pc-photo" src="${c.photo}" alt="A hot-air balloon over a calm sea at sunrise">` : `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, 'big' + i)}</svg>`}${decorHTML(c.deco && c.deco.front)}</span>` +
           `<span class="pc pc-big pc-back"><span class="gb${c.font === 'type' ? ' gb-type' : ''}">` +
             `<span class="gb-head"><span class="back-title">POSTCARD</span><span class="back-sub">with love</span></span>` +
             `<span class="gb-stamp">${stampSVG(c, i)}</span>` +
@@ -2018,7 +2019,7 @@ input:autofill {
     function cardHTML(c, i, cls) {
       if (c.snap) return `<div class="pc ${cls} pc-snap ${c.land ? 'pc-land' : 'pc-port'}"><img src="${esc(c.snap.front)}" alt=""></div>`;
       return `<div class="pc ${cls} ${c.land ? 'pc-land' : 'pc-port'}">` +
-        `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, cls + i)}</svg>${decorHTML(c.deco && c.deco.front)}</div>`;
+        (c.photo ? `<img class="pc-photo" src="${c.photo}" alt="">` : `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, cls + i)}</svg>`) + `${decorHTML(c.deco && c.deco.front)}</div>`;
     }
 
     const strip = document.getElementById('galleryLeft');
