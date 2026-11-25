@@ -135,6 +135,35 @@ body {
   .stand { transition: none; }
 }
 
+/* The snake plant's leaves are their own layer, laid exactly over the painting
+   (the wall behind them is filled in), so they can sway from the pot on hover */
+.plant {
+  position: absolute;
+  left: 59.75%;
+  top: 63.314%;
+  width: 17.85%;
+  height: 23.5%;          /* leaves and pot, so hovering either sets it off */
+  pointer-events: auto;
+}
+.plant img {
+  display: block;
+  width: 100%;
+  height: auto;
+  transform-origin: 50% 100%;
+  user-select: none;
+  pointer-events: none;
+}
+.plant:hover img, .plant.sway img { animation: plant-sway 1.8s ease-in-out; }
+@keyframes plant-sway {
+  0%   { transform: skewX(0deg); }
+  20%  { transform: skewX(-3.5deg); }
+  45%  { transform: skewX(2.6deg); }
+  70%  { transform: skewX(-1.4deg); }
+  88%  { transform: skewX(0.5deg); }
+  100% { transform: skewX(0deg); }
+}
+@media (prefers-reduced-motion: reduce) { .plant:hover img, .plant.sway img { animation: none; } }
+
 /* The little bird on the top shelf: hover (or tap) and it chirps */
 .bird {
   position: absolute;
@@ -1438,6 +1467,7 @@ input:autofill {
     <img class="bookshelf" src="bookshelf.webp" alt="Watercolour bookshelf of plants, books and postcards beside a potted monstera" draggable="false">
     <canvas class="globe" id="globe" aria-hidden="true"></canvas>
     <button class="bird" id="bird" type="button" aria-label="Make the bird chirp"></button>
+    <div class="plant" id="plant" aria-hidden="true"><img src="plant-leaves.webp" alt="" draggable="false"></div>
     <button class="stand" id="stand" type="button" aria-label="Your postcards">
       <img src="stand.webp" alt="" draggable="false">
       <span class="mail-bubble" aria-hidden="true">
@@ -2070,6 +2100,15 @@ input:autofill {
 
     bird.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') sing(); });
     bird.addEventListener('click', sing);
+  })();
+
+  // Plant: on phones there's no hover, so a tap sways it
+  (function () {
+    const plant = document.getElementById('plant');
+    plant.addEventListener('click', () => {
+      plant.classList.remove('sway'); void plant.offsetWidth; plant.classList.add('sway');
+    });
+    plant.addEventListener('animationend', () => plant.classList.remove('sway'));
   })();
 
   // Tools under the postcard: clickable, actions still to be decided
