@@ -3259,6 +3259,9 @@ input:autofill {
         back.hidden = side !== 'back';
         c.querySelectorAll('.empty, .replace, .photo-hint, .file-input').forEach(el => { el.hidden = true; });
         c.querySelectorAll('.flower-remove').forEach(el => el.remove());
+        // An SVG image with nothing in it (the stamp spot before a stamp is
+        // chosen) makes the snapshot fail outright, so leave it out
+        c.querySelectorAll('image').forEach(im => { if (!im.getAttribute('href') && !im.getAttribute('xlink:href')) im.remove(); });
         c.querySelectorAll('.flower').forEach(el => el.classList.remove('selected'));
         holder.appendChild(c);
         return c;
