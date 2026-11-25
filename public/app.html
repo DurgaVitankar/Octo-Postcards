@@ -2206,6 +2206,139 @@ input:autofill {
     window.postcardsAmbience = { get playing() { return playing; }, level: () => master ? master.gain.value : 0 };
   })();
 
+  // Home, on the bookshelf side: soft, slow piano-like music over a gentle chord
+  // progression, and now and then someone turning a newspaper page. Made with
+  // Web Audio at low volume, generated as it plays (it never loops); it fades in
+  // when the shelf is in view and out when you scroll away or leave the tab.
+  // Like all page sound, it can only start after the first click or key press.
+  (function () {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const scroller = document.getElementById('scroller');
+    const leftZone = document.querySelector('.zone-left');
+    if (!AC || !scroller || !leftZone) return;
+    let ctx = null, master = null, verb = null, playing = false;
+    let tick = null, nextBeat = 0, beat = 0, pageTimer = null;
+
+    const midi = m => 440 * Math.pow(2, (m - 69) / 12);
+    // Fmaj7, Cmaj7/E, Am7, G(add9): slow and warm
+    const CHORDS = [
+      { bass: 41, tones: [65, 69, 72, 76] },
+      { bass: 40, tones: [64, 67, 71, 74] },
+      { bass: 45, tones: [64, 67, 69, 72] },
+      { bass: 43, tones: [62, 67, 69, 71] },
+    ];
+    const BEAT = 0.85;                       // seconds per beat, 4 beats a chord
+
+    function build() {
+      ctx = new AC();
+      master = ctx.createGain(); master.gain.value = 0;
+      const tone = ctx.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = 2600;
+      master.connect(tone).connect(ctx.destination);
+      // a small room: a soft echo tail from decaying noise
+      verb = ctx.createConvolver();
+      const len = ctx.sampleRate * 2.6, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+      for (let c = 0; c < 2; c++) {
+        const d = ir.getChannelData(c);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+      }
+      verb.buffer = ir;
+      const wet = ctx.createGain(); wet.gain.value = 0.35;
+      verb.connect(wet).connect(master);
+    }
+
+    // One soft piano-ish note: a sine with a little overtone, quick touch, long fade
+    function note(m, t, vol, len) {
+      const f = midi(m), g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      [[1, 1], [2, 0.18], [3, 0.05]].forEach(([h, a]) => {
+        const o = ctx.createOscillator(), og = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = f * h; og.gain.value = a;
+        o.connect(og).connect(g); o.start(t); o.stop(t + len + 0.05);
+      });
+      g.connect(master); g.connect(verb);
+    }
+
+    // Schedule a little ahead of time so the music stays steady
+    function schedule() {
+      while (nextBeat < ctx.currentTime + 1.2) {
+        const chord = CHORDS[Math.floor(beat / 4) % CHORDS.length], b = beat % 4;
+        if (b === 0) note(chord.bass, nextBeat, 0.05, 4.5);
+        // a gentle, unhurried melody from the chord's notes
+        if (Math.random() < (b === 0 ? 0.9 : 0.6)) {
+          const m = chord.tones[Math.floor(Math.random() * chord.tones.length)] + (Math.random() < 0.25 ? 12 : 0);
+          note(m, nextBeat + (Math.random() < 0.3 ? BEAT / 2 : 0), 0.028 + Math.random() * 0.012, 3.2);
+        }
+        nextBeat += BEAT; beat++;
+      }
+    }
+
+    // Turning a newspaper page: a papery rustle that swells and settles, then a
+    // smaller crinkle as the page lands
+    function pageTurn() {
+      if (!playing) return;
+      const t = ctx.currentTime + 0.05;
+      const rustle = (start, dur, vol, freq) => {
+        const len = Math.ceil(ctx.sampleRate * dur), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+        let crackle = 1;
+        for (let i = 0; i < len; i++) {
+          if (i % 220 === 0) crackle = 0.35 + Math.random() * 0.65;   // the paper's crinkly texture
+          d[i] = (Math.random() * 2 - 1) * crackle;
+        }
+        const src = ctx.createBufferSource(); src.buffer = buf;
+        const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = 0.7;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, start);
+        g.gain.exponentialRampToValueAtTime(vol, start + dur * 0.35);
+        g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+        src.connect(bp).connect(g); g.connect(master); g.connect(verb);
+        src.start(start);
+      };
+      rustle(t, 0.55, 0.05, 2200);            // the page sweeping over
+      rustle(t + 0.5, 0.25, 0.025, 3200);     // settling crinkle
+      pageTimer = setTimeout(pageTurn, 15000 + Math.random() * 15000);
+    }
+
+    function inShelfView() {
+      return document.visibilityState === 'visible' && scroller.scrollLeft < leftZone.offsetWidth * 0.4;
+    }
+
+    function update() {
+      if (!ctx || ctx.state === 'closed') return;
+      const want = inShelfView();
+      if (want === playing) return;
+      playing = want;
+      const now = ctx.currentTime;
+      master.gain.cancelScheduledValues(now);
+      master.gain.setValueAtTime(master.gain.value, now);
+      if (want) {
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+        master.gain.linearRampToValueAtTime(1, now + 3);
+        nextBeat = Math.max(nextBeat, now + 0.1);
+        clearInterval(tick); tick = setInterval(schedule, 250); schedule();
+        clearTimeout(pageTimer); pageTimer = setTimeout(pageTurn, 6000 + Math.random() * 6000);
+      } else {
+        master.gain.linearRampToValueAtTime(0, now + 1.5);
+        clearTimeout(pageTimer);
+        setTimeout(() => { if (!playing) { clearInterval(tick); if (ctx.state === 'running') ctx.suspend(); } }, 1700);
+      }
+    }
+
+    const unlock = () => {
+      window.removeEventListener('pointerdown', unlock, true);
+      window.removeEventListener('keydown', unlock, true);
+      try { build(); } catch (_) { return; }
+      ctx.suspend().catch(() => {});
+      update();
+    };
+    window.addEventListener('pointerdown', unlock, true);
+    window.addEventListener('keydown', unlock, true);
+    scroller.addEventListener('scroll', update, { passive: true });
+    document.addEventListener('visibilitychange', update);
+    window.postcardsHomeSound = { get playing() { return playing; }, level: () => master ? master.gain.value : 0, pageTurn: () => pageTurn() };
+  })();
+
   // Plant: on phones there's no hover, so a tap sways it
   (function () {
     const plant = document.getElementById('plant');
