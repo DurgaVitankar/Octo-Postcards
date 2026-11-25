@@ -1346,6 +1346,24 @@ body:not(.font-typewriter) .message,
 
 .gallery-caption { text-align: center; }
 .gallery-meta { font-size: 15px; color: #4a4a4a; letter-spacing: 0.01em; }
+.write-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  margin-top: 14px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 10px;
+  background: #111;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.write-back:hover { background: #333; }
+.write-back:focus-visible { outline: 2px solid #1d1d1d; outline-offset: 2px; }
+.write-back svg { width: 16px; height: 16px; }
 
 /* Phones: smaller opened card */
 @media (max-width: 640px) {
@@ -1475,6 +1493,11 @@ input:autofill {
       <div class="gallery-card" id="galleryCard"></div>
       <div class="gallery-caption">
         <div class="gallery-meta" id="galleryMeta"></div>
+        <button type="button" class="write-back" id="writeBack" hidden>
+          <!-- Remix Icon: quill-pen-line (Apache 2.0) -->
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.93912 14.0328C6.7072 14.6563 6.51032 15.2331 6.33421 15.8155C7.29345 15.1189 8.43544 14.6767 9.75193 14.5121C12.2652 14.198 14.4976 12.5385 15.6279 10.4537L14.1721 9.00049L15.5848 7.58641C15.9185 7.25239 16.2521 6.91872 16.5858 6.58507C17.0151 6.15582 17.5 5.36319 18.0129 4.2096C12.4197 5.07688 8.99484 8.50175 6.93912 14.0328ZM17 9.00049L18 10.0005C17 13.0005 14 16.0005 10 16.5005C7.33146 16.834 5.66421 18.6665 4.99824 22.0005H3C4 16.0005 6 2.00049 21 2.00049C20.0009 4.99723 19.0018 6.99668 18.0027 7.99583C17.6662 8.33224 17.3331 8.66558 17 9.00049Z"/></svg>
+          Write back
+        </button>
       </div>
     </div>
     <div class="gallery-strip" role="list" aria-label="All postcards">
@@ -1785,6 +1808,20 @@ input:autofill {
   const gallery = document.getElementById('gallery');
   document.getElementById('galleryClose').addEventListener('click', () => gallery.close());
 
+  // Write back: close the gallery, turn your card to its back with the cursor in
+  // the message, and have the send box addressed to the sender. Whatever is
+  // already on your card stays.
+  document.getElementById('writeBack').addEventListener('click', () => {
+    const c = window.postcardGallery.current();
+    if (!c || !c.snap) return;
+    document.getElementById('sendEmail').value = c.from;
+    gallery.close();
+    const scroller = document.getElementById('scroller');
+    scroller.scrollTo({ left: document.querySelector('.zone-left').offsetWidth, behavior: 'smooth' });
+    if (typeof setSide === 'function') setSide('back');
+    setTimeout(() => document.getElementById('message').focus({ preventScroll: true }), 450);
+  });
+
   // Today's date as "19 Nov 2026"
   function todayLabel() {
     const d = new Date();
@@ -2013,6 +2050,9 @@ input:autofill {
         flip.setAttribute('aria-pressed', String(back));
       });
       document.getElementById('galleryMeta').textContent = `From ${c.from} · ${c.date}`;
+      const wb = document.getElementById('writeBack');
+      wb.hidden = !c.snap;                       // not for the welcome card
+      wb.setAttribute('aria-label', `Write back to ${c.from}`);
       void stage.offsetWidth;                      // restart the fade
       stage.classList.add('show');
       thumbs.forEach((t, k) => t.setAttribute('aria-current', String(k === current)));
@@ -2044,8 +2084,15 @@ input:autofill {
         })).concat(WELCOME);
         renderThumbs();
         const keep = CARDS.findIndex(c => c.id === id);
-        select(keep >= 0 ? keep : 0);
+        if (document.getElementById('gallery').open && keep >= 0) {
+          // a card is open: keep it as it is (turned over or not), just move the highlight
+          current = keep;
+          thumbs.forEach((t, k) => t.setAttribute('aria-current', String(k === current)));
+        } else {
+          select(keep >= 0 ? keep : 0);
+        }
       },
+      current() { return CARDS[current]; },
       indexOf(id) { return id === 'welcome' ? CARDS.indexOf(WELCOME) : CARDS.findIndex(c => c.id === id); },
       open(i, flipAfter) {
         if (i !== undefined) select(i);
@@ -2072,7 +2119,7 @@ input:autofill {
     let welcomeSeen = read(WKEY) === '1';
     let seen = new Set();
     try { seen = new Set(JSON.parse(read(SKEY) || '[]')); } catch (_) {}
-    let unseen = [], loadedAt = 0;
+    let unseen = [], loadedAt = 0, shownIds = null;
 
     function cue() {
       const n = unseen.length + (welcomeSeen ? 0 : 1);
@@ -2086,6 +2133,10 @@ input:autofill {
       const res = await fetch('/api/inbox', { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' });
       if (!res.ok) return;
       const list = (await res.json()).postcards || [];
+      const ids = list.map(p => p.id).join(',');
+      // nothing new and the picture links still fresh: leave the gallery alone
+      if (ids === shownIds && Date.now() - loadedAt < 45 * 60 * 1000) return;
+      shownIds = ids;
       loadedAt = Date.now();
       window.postcardGallery.setReceived(list);
       unseen = list.map(p => p.id).filter(id => !seen.has(id));
@@ -2094,6 +2145,11 @@ input:autofill {
 
     cue();
     load().catch(() => {});
+
+    // While the app is open, check for new postcards every minute, and as soon
+    // as you come back to the tab
+    setInterval(() => { if (document.visibilityState === 'visible') load().catch(() => {}); }, 60 * 1000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load().catch(() => {}); });
 
     hotspot.addEventListener('click', async () => {
       // Picture links last an hour; fetch fresh ones if these are getting old
