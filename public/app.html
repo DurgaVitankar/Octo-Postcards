@@ -826,7 +826,7 @@ body {
 .decor .flower {
   position: absolute;
   display: block;
-  width: 15cqmin;
+  width: 18cqmin;
   transform: translate(-50%, -50%) rotate(var(--r, 0deg));
   filter: drop-shadow(0 1px 1.5px rgba(60, 40, 20, 0.18));
   pointer-events: auto;
@@ -1206,7 +1206,7 @@ body {
 }
 
 /* Pressed flowers on the gallery cards: a layer on each face, sized like the
-   main card's flowers (15cqmin of the face) */
+   main card's flowers (18cqmin of the face) */
 .gdecor {
   position: absolute;
   inset: 0;
@@ -1216,7 +1216,7 @@ body {
 
 .gdecor img {
   position: absolute;
-  width: 15cqmin;
+  width: 18cqmin;
   height: auto;
   max-width: none;
   transform: translate(-50%, -50%) rotate(var(--r, 0deg));
@@ -2071,6 +2071,18 @@ input:autofill {
 
 
 
+  // Which part of the room is in view, for the sounds: the mailbox side (the
+  // outdoors) once most of the right panel is showing, the shelf side once most
+  // of the left panel is
+  window.postcardsView = (function () {
+    const scroller = document.getElementById('scroller');
+    const left = document.querySelector('.zone-left'), right = document.querySelector('.zone-right');
+    return {
+      mailbox: () => scroller.scrollWidth - scroller.clientWidth - scroller.scrollLeft < right.offsetWidth * 0.5,
+      shelf: () => scroller.scrollLeft < left.offsetWidth * 0.5,
+    };
+  })();
+
   // Sound on/off for the whole page (music, page turns, outdoors, the bird),
   // remembered on this browser. Changing it fires "postcards-sound" so each
   // sound can fade in or out.
@@ -2225,8 +2237,7 @@ input:autofill {
     }
 
     function inMailboxView() {
-      const fromRight = scroller.scrollWidth - scroller.clientWidth - scroller.scrollLeft;
-      return !window.postcardsSound.muted && document.visibilityState === 'visible' && fromRight < rightZone.offsetWidth * 0.4;
+      return !window.postcardsSound.muted && document.visibilityState === 'visible' && window.postcardsView.mailbox();
     }
 
     function update() {
@@ -2264,8 +2275,9 @@ input:autofill {
     window.postcardsAmbience = { get playing() { return playing; }, level: () => master ? master.gain.value : 0 };
   })();
 
-  // Home, on the bookshelf side: soft, slow piano-like music over a gentle chord
-  // progression, and now and then someone turning a newspaper page. Made with
+  // Home, indoors (the bookshelf and the postcard, everywhere but the mailbox
+  // side): soft, slow piano-like music over a gentle chord progression, and on
+  // the bookshelf side, now and then someone turning a newspaper page. Made with
   // Web Audio at low volume, generated as it plays (it never loops); it fades in
   // when the shelf is in view and out when you scroll away or leave the tab.
   // Like all page sound, it can only start after the first click or key press.
@@ -2337,6 +2349,7 @@ input:autofill {
     // smaller crinkle as the page lands
     function pageTurn() {
       if (!playing) return;
+      if (!window.postcardsView.shelf()) { pageTimer = setTimeout(pageTurn, 4000); return; }   // only by the shelf
       const t = ctx.currentTime + 0.05;
       const rustle = (start, dur, vol, freq) => {
         const len = Math.ceil(ctx.sampleRate * dur), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
@@ -2360,7 +2373,7 @@ input:autofill {
     }
 
     function inShelfView() {
-      return !window.postcardsSound.muted && document.visibilityState === 'visible' && scroller.scrollLeft < leftZone.offsetWidth * 0.4;
+      return !window.postcardsSound.muted && document.visibilityState === 'visible' && !window.postcardsView.mailbox();
     }
 
     function update() {
@@ -2373,8 +2386,8 @@ input:autofill {
       master.gain.setValueAtTime(master.gain.value, now);
       if (want) {
         if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-        master.gain.linearRampToValueAtTime(1, now + 3);
-        nextBeat = Math.max(nextBeat, now + 0.1);
+        master.gain.linearRampToValueAtTime(1, now + 1);
+        nextBeat = Math.max(nextBeat, now + 0.05);
         clearInterval(tick); tick = setInterval(schedule, 250); schedule();
         clearTimeout(pageTimer); pageTimer = setTimeout(pageTurn, 6000 + Math.random() * 6000);
       } else {
@@ -2565,9 +2578,9 @@ input:autofill {
       const r = el.getBoundingClientRect();
       return r.width > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
     };
-    const flowerWidth = el => {                 // matches .flower width: 15cqmin of the layer
+    const flowerWidth = el => {                 // matches .flower width: 18cqmin of the layer
       const r = el.getBoundingClientRect();
-      return 0.15 * Math.min(r.width, r.height);
+      return 0.18 * Math.min(r.width, r.height);
     };
 
     function place(layer, id, x, y, rot) {
