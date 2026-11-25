@@ -4,6 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Postcards</title>
+<meta name="description" content="Write a postcard to someone you miss, and send it to their inbox.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Postcards">
+<meta property="og:title" content="Postcards, with love">
+<meta property="og:description" content="Write a postcard to someone you miss, and send it to their inbox.">
+<meta property="og:image" content="https://octo-postcards.vercel.app/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The back of a postcard with a stamp, a postmark and a handwritten note, beside the words: Postcard, with love.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script>
   // Signed-out visitors go to the sign-in page before anything shows
   (function () {
@@ -1161,6 +1173,7 @@ body {
 }
 
 .pc svg { display: block; width: 100%; height: 100%; }
+.pc .pc-photo { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 2px; }
 /* Received cards are pictures of the whole face, border included */
 .pc-snap, .pc-big.pc-snap, .pc-thumb.pc-snap { padding: 0; overflow: hidden; }
 .pc-snap img { display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -1912,7 +1925,7 @@ input:autofill {
   (function () {
     // The welcome card from us; postcards people send you are added in front
     // of it, newest first, once /api/inbox answers
-    const WELCOME = { welcome: true, msg: 'A postcard is a small thing that travels a long way. It says: I saw this, and I thought of you. Pick a photo, write a few lines, and send one to someone you miss.', deco: { back: [['babysbreath', 80, 84, -10], ['daisies', 88, 82, 10]] }, from: 'The Postcards team', place: 'Port Octavia', date: todayLabel(), scene: 'hills', pal: ['#fdf6ec', '#f3d9b1', '#c8b09a', '#8c6d55'], land: false };
+    const WELCOME = { welcome: true, msg: 'A postcard is a small thing that travels a long way. It says: I saw this, and I thought of you. Pick a photo, write a few lines, and send one to someone you miss.', deco: { back: [['babysbreath', 80, 84, -10], ['daisies', 88, 82, 10]] }, from: 'The Postcards team', place: 'Port Octavia', date: todayLabel(), photo: 'welcome-front.webp', scene: 'hills', pal: ['#fdf6ec', '#f3d9b1', '#c8b09a', '#8c6d55'], land: false };
     let CARDS = [WELCOME];
 
     // Simple illustrated scenes in a 100 x 100 box, stretched to the card's shape
@@ -1992,7 +2005,7 @@ input:autofill {
       const shape = c.land ? 'pc-land' : 'pc-port';
       return `<button type="button" class="pc-flip ${shape}" aria-pressed="false" aria-label="Turn the postcard over">` +
         `<span class="pc-flip-inner">` +
-          `<span class="pc pc-big pc-front"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, 'big' + i)}</svg>${decorHTML(c.deco && c.deco.front)}</span>` +
+          `<span class="pc pc-big pc-front">${c.photo ? `<img class="pc-photo" src="${c.photo}" alt="A hot-air balloon over a calm sea at sunrise">` : `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, 'big' + i)}</svg>`}${decorHTML(c.deco && c.deco.front)}</span>` +
           `<span class="pc pc-big pc-back"><span class="gb${c.font === 'type' ? ' gb-type' : ''}">` +
             `<span class="gb-head"><span class="back-title">POSTCARD</span><span class="back-sub">with love</span></span>` +
             `<span class="gb-stamp">${stampSVG(c, i)}</span>` +
@@ -2006,7 +2019,7 @@ input:autofill {
     function cardHTML(c, i, cls) {
       if (c.snap) return `<div class="pc ${cls} pc-snap ${c.land ? 'pc-land' : 'pc-port'}"><img src="${esc(c.snap.front)}" alt=""></div>`;
       return `<div class="pc ${cls} ${c.land ? 'pc-land' : 'pc-port'}">` +
-        `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, cls + i)}</svg>${decorHTML(c.deco && c.deco.front)}</div>`;
+        (c.photo ? `<img class="pc-photo" src="${c.photo}" alt="">` : `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, cls + i)}</svg>`) + `${decorHTML(c.deco && c.deco.front)}</div>`;
     }
 
     const strip = document.getElementById('galleryLeft');
@@ -2349,7 +2362,7 @@ input:autofill {
       master.gain.setValueAtTime(master.gain.value, now);
       if (want) {
         if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-        master.gain.linearRampToValueAtTime(1, now + 2.5);
+        master.gain.linearRampToValueAtTime(1, now + 1.2);
         clearTimeout(birdTimer); birdTimer = setTimeout(birds, 1500);
       } else {
         master.gain.linearRampToValueAtTime(0, now + 1.5);
@@ -2359,11 +2372,14 @@ input:autofill {
     }
 
     // Sound may only start after the first click or key press
+    // Try to start as soon as the page opens: browsers allow it on sites you
+    // often play sound on. Otherwise it starts at the first click or key press.
+    try { build(); update(); } catch (_) { ctx = null; }
     const unlock = () => {
       window.removeEventListener('pointerdown', unlock, true);
       window.removeEventListener('keydown', unlock, true);
-      try { build(); } catch (_) { return; }
-      ctx.suspend().catch(() => {});
+      if (!ctx) { try { build(); } catch (_) { return; } }
+      if (playing && ctx.state === 'suspended') ctx.resume().catch(() => {});
       update();
     };
     window.addEventListener('pointerdown', unlock, true);
@@ -2436,9 +2452,9 @@ input:autofill {
         const chord = CHORDS[Math.floor(beat / 4) % CHORDS.length], b = beat % 4;
         if (b === 0) note(chord.bass, nextBeat, 0.04, 4.5);
         // a gentle, unhurried melody from the chord's notes
-        if (Math.random() < (b === 0 ? 0.9 : 0.6)) {
+        if (b === 0 || Math.random() < 0.6) {
           const m = chord.tones[Math.floor(Math.random() * chord.tones.length)];
-          note(m, nextBeat + (Math.random() < 0.3 ? BEAT / 2 : 0), 0.03 + Math.random() * 0.01, 3.6);
+          note(m, nextBeat + (b !== 0 && Math.random() < 0.3 ? BEAT / 2 : 0), 0.03 + Math.random() * 0.01, 3.6);
         }
         nextBeat += BEAT; beat++;
       }
@@ -2485,7 +2501,7 @@ input:autofill {
       master.gain.setValueAtTime(master.gain.value, now);
       if (want) {
         if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-        master.gain.linearRampToValueAtTime(1, now + 1);
+        master.gain.linearRampToValueAtTime(1, now + 0.4);
         nextBeat = Math.max(nextBeat, now + 0.05);
         clearInterval(tick); tick = setInterval(schedule, 250); schedule();
         clearTimeout(pageTimer); pageTimer = setTimeout(pageTurn, 6000 + Math.random() * 6000);
@@ -2496,11 +2512,14 @@ input:autofill {
       }
     }
 
+    // Try to start as soon as the page opens: browsers allow it on sites you
+    // often play sound on. Otherwise it starts at the first click or key press.
+    try { build(); update(); } catch (_) { ctx = null; }
     const unlock = () => {
       window.removeEventListener('pointerdown', unlock, true);
       window.removeEventListener('keydown', unlock, true);
-      try { build(); } catch (_) { return; }
-      ctx.suspend().catch(() => {});
+      if (!ctx) { try { build(); } catch (_) { return; } }
+      if (playing && ctx.state === 'suspended') ctx.resume().catch(() => {});
       update();
     };
     window.addEventListener('pointerdown', unlock, true);
