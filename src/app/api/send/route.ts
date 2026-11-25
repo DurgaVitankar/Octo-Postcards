@@ -301,7 +301,7 @@ function buildPostcardEmail(o: {
   const writeSize = o.typewriter ? "14px" : "26px";
   const lines = [o.to.name, o.to.address, o.to.city, o.to.postal].filter((l) => l && String(l).trim());
   const front = o.hasPhoto
-    ? `<img src="cid:postcard-photo" width="${w - 28}" height="${h - 28}" alt="Postcard photo" style="display:block;width:${w - 28}px;height:${h - 28}px;object-fit:cover;border-radius:2px;">`
+    ? `<img src="cid:postcard-photo" width="${w - 28}" alt="Postcard photo" style="display:block;width:100%;max-width:${w - 28}px;height:auto;border-radius:2px;">`
     : `<div style="width:${w - 28}px;height:${h - 28}px;background:#f4f1ec;border-radius:2px;"></div>`;
 
   return `<!DOCTYPE html>
