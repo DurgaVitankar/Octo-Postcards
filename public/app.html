@@ -1216,9 +1216,9 @@ body {
 /* Received cards are pictures of the whole face, border included */
 .pc-snap, .pc-big.pc-snap, .pc-thumb.pc-snap { padding: 0; overflow: hidden; }
 .pc-snap img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.pc-thumb.pc-port { height: 78px; aspect-ratio: 10 / 14; }
-.pc-thumb.pc-land { width: 96px; aspect-ratio: 14 / 10; }
-.pc-thumb { padding: 4px; }
+.pc-thumb.pc-port { height: 78px; aspect-ratio: 370 / 576; }
+.pc-thumb.pc-land { width: 96px; aspect-ratio: 576 / 370; }
+.pc-thumb { padding: 3.8%; }
 
 .gallery-stage {
   display: flex;
@@ -1245,8 +1245,11 @@ body {
   perspective: 1600px;
 }
 
-.pc-flip.pc-port { height: min(100vh - 330px, 560px); aspect-ratio: 10 / 14; max-width: 100%; }
-.pc-flip.pc-land { width: min(46vw, 640px, (100vh - 330px) * 1.4); aspect-ratio: 14 / 10; }
+/* Gallery cards have the shape of a real card as sent: the writing card plus
+   its white frame (370 x 576 in portrait), so the welcome card and received
+   cards match */
+.pc-flip.pc-port { height: min(100vh - 330px, 560px); aspect-ratio: 370 / 576; max-width: 100%; }
+.pc-flip.pc-land { width: min(46vw, 640px, (100vh - 330px) * 1.557); aspect-ratio: 576 / 370; }
 /* Received cards are pictures of the card as it was written: keep its exact
    shape (416 x 667), so nothing is trimmed */
 .pc-flip.pc-port.pc-sent { aspect-ratio: 416 / 667; }
@@ -1269,7 +1272,7 @@ body {
   position: absolute;
   inset: 0;
   border-radius: 6px;
-  padding: 14px;
+  padding: 3.8%;            /* the same white frame as a sent card (14px on a 370px card) */
   box-shadow: 0 6px 30px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
@@ -2154,7 +2157,8 @@ input:autofill {
       });
       document.getElementById('galleryMeta').textContent = `From ${c.from} · ${c.date}`;
       const wb = document.getElementById('writeBack');
-      wb.hidden = !c.snap;                       // not for the welcome card
+      wb.hidden = false;
+      wb.style.visibility = c.snap ? '' : 'hidden';   // not for the welcome card, but keep its space so nothing jumps
       wb.setAttribute('aria-label', `Write back to ${c.from}`);
       void stage.offsetWidth;                      // restart the fade
       stage.classList.add('show');
