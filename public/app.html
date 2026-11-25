@@ -164,6 +164,35 @@ body {
 }
 @media (prefers-reduced-motion: reduce) { .plant:hover img, .plant.sway img { animation: none; } }
 
+/* Sound on/off, top right of the screen */
+.sound-toggle {
+  position: fixed;
+  top: 20px;
+  right: max(20px, env(safe-area-inset-right, 0px));
+  z-index: 30;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: #1d1d1d;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+}
+.sound-toggle[data-tip] { position: fixed; }   /* the tooltip rule would make it relative */
+.sound-toggle:hover { background: #f4f4f4; }
+.sound-toggle:focus-visible { outline: 2px solid #1d1d1d; outline-offset: 2px; }
+.sound-toggle svg { width: 20px; height: 20px; }
+.sound-toggle .when-muted { display: none; }
+.sound-toggle[aria-pressed="true"] .when-muted { display: block; }
+.sound-toggle[aria-pressed="true"] .when-on { display: none; }
+.sound-toggle[data-tip]::after { left: auto; right: 0; transform: translate(0, -2px); }
+.sound-toggle[data-tip]:hover::after,
+.sound-toggle[data-tip]:focus-visible::after { transform: none; }
+
 /* The little bird on the top shelf: hover (or tap) and it chirps */
 .bird {
   position: absolute;
@@ -1415,6 +1444,11 @@ input:autofill {
 </head>
 <body>
 
+<button type="button" class="sound-toggle" id="soundToggle" aria-pressed="false" aria-label="Mute sound" data-tip="Mute sound">
+  <svg class="when-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z"/><path d="M15.5 9.2a4 4 0 0 1 0 5.6"/><path d="M18.2 6.6a7.6 7.6 0 0 1 0 10.8"/></svg>
+  <svg class="when-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>
+</button>
+
 <dialog class="gallery" id="gallery" aria-label="Postcards">
   <button type="button" class="gallery-close" id="galleryClose" aria-label="Close">
     <!-- Remix Icon: close-line (Apache 2.0) -->
@@ -2037,6 +2071,29 @@ input:autofill {
 
 
 
+  // Sound on/off for the whole page (music, page turns, outdoors, the bird),
+  // remembered on this browser. Changing it fires "postcards-sound" so each
+  // sound can fade in or out.
+  window.postcardsSound = (function () {
+    const btn = document.getElementById('soundToggle');
+    let muted = false;
+    try { muted = localStorage.getItem('postcards.muted') === '1'; } catch (_) {}
+    function show() {
+      btn.setAttribute('aria-pressed', String(muted));
+      const label = muted ? 'Turn sound on' : 'Mute sound';
+      btn.setAttribute('aria-label', label);
+      btn.dataset.tip = label;
+    }
+    show();
+    btn.addEventListener('click', () => {
+      muted = !muted;
+      try { localStorage.setItem('postcards.muted', muted ? '1' : '0'); } catch (_) {}
+      show();
+      document.dispatchEvent(new Event('postcards-sound'));
+    });
+    return { get muted() { return muted; } };
+  })();
+
   // The bird on the shelf chirps when you hover over it (or tap it). The chirps
   // are made with Web Audio, no sound file: quick rising whistles, each a little
   // different. Browsers only allow sound after the page has been clicked or
@@ -2075,7 +2132,7 @@ input:autofill {
       const now = performance.now();
       if (now - last < 900) return;          // not on every twitch of the mouse
       last = now;
-      const ac = audio();
+      const ac = window.postcardsSound.muted ? null : audio();
       if (ac && ac.state === 'running') {
         const n = 2 + Math.round(Math.random());
         let t = ac.currentTime + 0.01;
@@ -2169,7 +2226,7 @@ input:autofill {
 
     function inMailboxView() {
       const fromRight = scroller.scrollWidth - scroller.clientWidth - scroller.scrollLeft;
-      return document.visibilityState === 'visible' && fromRight < rightZone.offsetWidth * 0.4;
+      return !window.postcardsSound.muted && document.visibilityState === 'visible' && fromRight < rightZone.offsetWidth * 0.4;
     }
 
     function update() {
@@ -2203,6 +2260,7 @@ input:autofill {
     window.addEventListener('keydown', unlock, true);
     scroller.addEventListener('scroll', update, { passive: true });
     document.addEventListener('visibilitychange', update);
+    document.addEventListener('postcards-sound', update);
     window.postcardsAmbience = { get playing() { return playing; }, level: () => master ? master.gain.value : 0 };
   })();
 
@@ -2301,7 +2359,7 @@ input:autofill {
     }
 
     function inShelfView() {
-      return document.visibilityState === 'visible' && scroller.scrollLeft < leftZone.offsetWidth * 0.4;
+      return !window.postcardsSound.muted && document.visibilityState === 'visible' && scroller.scrollLeft < leftZone.offsetWidth * 0.4;
     }
 
     function update() {
@@ -2336,6 +2394,7 @@ input:autofill {
     window.addEventListener('keydown', unlock, true);
     scroller.addEventListener('scroll', update, { passive: true });
     document.addEventListener('visibilitychange', update);
+    document.addEventListener('postcards-sound', update);
     window.postcardsHomeSound = { get playing() { return playing; }, level: () => master ? master.gain.value : 0, pageTurn: () => pageTurn() };
   })();
 
