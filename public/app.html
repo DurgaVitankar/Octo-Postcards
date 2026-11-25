@@ -2280,17 +2280,17 @@ input:autofill {
     const midi = m => 440 * Math.pow(2, (m - 69) / 12);
     // Fmaj7, Cmaj7/E, Am7, G(add9): slow and warm
     const CHORDS = [
-      { bass: 41, tones: [65, 69, 72, 76] },
-      { bass: 40, tones: [64, 67, 71, 74] },
-      { bass: 45, tones: [64, 67, 69, 72] },
-      { bass: 43, tones: [62, 67, 69, 71] },
+      { bass: 41, tones: [53, 57, 60, 64] },
+      { bass: 40, tones: [52, 55, 59, 62] },
+      { bass: 45, tones: [52, 55, 57, 60] },
+      { bass: 43, tones: [50, 55, 57, 59] },
     ];
     const BEAT = 0.85;                       // seconds per beat, 4 beats a chord
 
     function build() {
       ctx = new AC();
       master = ctx.createGain(); master.gain.value = 0;
-      const tone = ctx.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = 2600;
+      const tone = ctx.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = 1100; tone.Q.value = 0.3;
       master.connect(tone).connect(ctx.destination);
       // a small room: a soft echo tail from decaying noise
       verb = ctx.createConvolver();
@@ -2300,17 +2300,18 @@ input:autofill {
         for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
       }
       verb.buffer = ir;
-      const wet = ctx.createGain(); wet.gain.value = 0.35;
+      const wet = ctx.createGain(); wet.gain.value = 0.5;
       verb.connect(wet).connect(master);
     }
 
-    // One soft piano-ish note: a sine with a little overtone, quick touch, long fade
+    // One soft, felt-piano-like note: mostly a pure tone with a faint overtone,
+    // eased in rather than struck, with a long fade
     function note(m, t, vol, len) {
       const f = midi(m), g = ctx.createGain();
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(vol, t + 0.015);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.09);
       g.gain.exponentialRampToValueAtTime(0.0001, t + len);
-      [[1, 1], [2, 0.18], [3, 0.05]].forEach(([h, a]) => {
+      [[1, 1], [2, 0.06]].forEach(([h, a]) => {
         const o = ctx.createOscillator(), og = ctx.createGain();
         o.type = 'sine'; o.frequency.value = f * h; og.gain.value = a;
         o.connect(og).connect(g); o.start(t); o.stop(t + len + 0.05);
@@ -2322,11 +2323,11 @@ input:autofill {
     function schedule() {
       while (nextBeat < ctx.currentTime + 1.2) {
         const chord = CHORDS[Math.floor(beat / 4) % CHORDS.length], b = beat % 4;
-        if (b === 0) note(chord.bass, nextBeat, 0.05, 4.5);
+        if (b === 0) note(chord.bass, nextBeat, 0.04, 4.5);
         // a gentle, unhurried melody from the chord's notes
         if (Math.random() < (b === 0 ? 0.9 : 0.6)) {
-          const m = chord.tones[Math.floor(Math.random() * chord.tones.length)] + (Math.random() < 0.25 ? 12 : 0);
-          note(m, nextBeat + (Math.random() < 0.3 ? BEAT / 2 : 0), 0.028 + Math.random() * 0.012, 3.2);
+          const m = chord.tones[Math.floor(Math.random() * chord.tones.length)];
+          note(m, nextBeat + (Math.random() < 0.3 ? BEAT / 2 : 0), 0.03 + Math.random() * 0.01, 3.6);
         }
         nextBeat += BEAT; beat++;
       }
