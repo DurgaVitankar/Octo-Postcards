@@ -1798,7 +1798,7 @@ input:autofill {
   (function () {
     // The welcome card from us; postcards people send you are added in front
     // of it, newest first, once /api/inbox answers
-    const WELCOME = { welcome: true, msg: 'A postcard is a small thing that travels a long way. It says: I saw this, and I thought of you. Pick a photo, write a few lines, and send one to someone you miss.', deco: { back: [['chamomile', 80, 86, -10], ['lavender', 88, 82, 10]] }, from: 'The Postcards team', place: 'Port Octavia', date: todayLabel(), scene: 'hills', pal: ['#fdf6ec', '#f3d9b1', '#c8b09a', '#8c6d55'], land: false };
+    const WELCOME = { welcome: true, msg: 'A postcard is a small thing that travels a long way. It says: I saw this, and I thought of you. Pick a photo, write a few lines, and send one to someone you miss.', deco: { back: [['celosia', 80, 84, -10], ['cosmos', 88, 82, 10]] }, from: 'The Postcards team', place: 'Port Octavia', date: todayLabel(), scene: 'hills', pal: ['#fdf6ec', '#f3d9b1', '#c8b09a', '#8c6d55'], land: false };
     let CARDS = [WELCOME];
 
     // Simple illustrated scenes in a 100 x 100 box, stretched to the card's shape
@@ -2334,8 +2334,8 @@ input:autofill {
   // placed flower to move it, or off the card to remove it.
   (function () {
     const FLOWERS = [
-      ['chamomile', 'Chamomile'], ['wildflowers', 'Wildflowers'], ['lily', 'Lily'],
-      ['lavender', 'Lavender'], ['cosmos', 'Cosmos']
+      ['cosmos', 'Cosmos'], ['goldenrod', 'Golden sprig'], ['crimson', 'Crimson buds'],
+      ['celosia', 'Celosia'], ['allium', 'Allium']
     ];
     const tool = document.getElementById('toolStickers');
     const tray = document.getElementById('flowerTray');
