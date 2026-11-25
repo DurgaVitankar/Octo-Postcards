@@ -2102,16 +2102,16 @@ input:autofill {
     bird.addEventListener('click', sing);
   })();
 
-  // A calm afternoon at home, heard only on the bookshelf side: a soft room
-  // tone, a breeze that rises and falls, and birds far off outside. All made
-  // with Web Audio at low volume; it fades in when the shelf is in view and
+  // A calm afternoon outdoors, heard only on the mailbox side: a soft low
+  // rumble, a breeze that rises and falls, and birds in the distance. All made
+  // with Web Audio at low volume; it fades in when the mailbox is in view and
   // out when you scroll back or leave the tab. Browsers only allow sound after
   // the page has been clicked or typed in once, so it starts from then.
   (function () {
     const AC = window.AudioContext || window.webkitAudioContext;
     const scroller = document.getElementById('scroller');
-    const leftZone = document.querySelector('.zone-left');
-    if (!AC || !scroller || !leftZone) return;
+    const rightZone = document.querySelector('.zone-right');
+    if (!AC || !scroller || !rightZone) return;
     let ctx = null, master = null, birdTimer = null, playing = false;
 
     function noise(kind) {
@@ -2167,13 +2167,14 @@ input:autofill {
       birdTimer = setTimeout(birds, 4000 + Math.random() * 8000);
     }
 
-    function inShelfView() {
-      return document.visibilityState === 'visible' && scroller.scrollLeft < leftZone.offsetWidth * 0.4;
+    function inMailboxView() {
+      const fromRight = scroller.scrollWidth - scroller.clientWidth - scroller.scrollLeft;
+      return document.visibilityState === 'visible' && fromRight < rightZone.offsetWidth * 0.4;
     }
 
     function update() {
       if (!ctx || ctx.state === 'closed') return;
-      const want = inShelfView();
+      const want = inMailboxView();
       if (want === playing) return;
       playing = want;
       const now = ctx.currentTime;
