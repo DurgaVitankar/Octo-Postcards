@@ -1215,7 +1215,7 @@ body {
 .pc .pc-photo { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 2px; }
 /* Received cards are pictures of the whole face, border included */
 .pc-snap, .pc-big.pc-snap, .pc-thumb.pc-snap { padding: 0; overflow: hidden; }
-.pc-snap img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.pc-snap img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .pc-thumb.pc-port { height: 78px; aspect-ratio: 10 / 14; }
 .pc-thumb.pc-land { width: 96px; aspect-ratio: 14 / 10; }
 .pc-thumb { padding: 4px; }
@@ -2107,6 +2107,13 @@ input:autofill {
     const stage = document.getElementById('galleryStage');
     let current = 0, thumbs = [];
 
+    // A received card is a picture of the card as written, white frame and all:
+    // give its frame exactly that picture's shape, so the border stays even
+    function fitToPicture(frame, img) {
+      const fit = () => { if (img.naturalWidth) frame.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`; };
+      if (img.complete) fit(); else img.addEventListener('load', fit, { once: true });
+    }
+
     function renderThumbs() {
       strip.innerHTML = '';
       CARDS.forEach((c, i) => {
@@ -2116,6 +2123,7 @@ input:autofill {
         b.dataset.i = i;
         b.setAttribute('aria-label', `Postcard from ${c.from}`);
         b.innerHTML = cardHTML(c, i, 'pc-thumb');
+        if (c.snap) fitToPicture(b.querySelector('.pc'), b.querySelector('img'));
         b.addEventListener('click', () => select(i));
         strip.appendChild(b);
       });
@@ -2139,6 +2147,7 @@ input:autofill {
       const holder = document.getElementById('galleryCard');
       holder.innerHTML = bigCardHTML(c, current);
       const flip = holder.querySelector('.pc-flip');
+      if (c.snap) fitToPicture(flip, holder.querySelector('.pc-front img'));
       flip.addEventListener('click', () => {
         const back = flip.getAttribute('aria-pressed') !== 'true';
         flip.setAttribute('aria-pressed', String(back));
