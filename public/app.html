@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Postcards</title>
+<script>
+  // Signed-out visitors go to the sign-in page before anything shows
+  (function () {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        if (/^sb-.+-auth-token$/.test(localStorage.key(i))) return;
+      }
+    } catch (_) { return; }       // storage blocked: can't tell, so let the page decide later
+    location.replace('/login.html');
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500&family=Libre+Baskerville:wght@700&family=Tangerine:wght@400;700&family=Geist+Pixel&display=swap">
@@ -186,6 +197,7 @@ body {
 .sound-toggle:hover { background: #f4f4f4; }
 .sound-toggle:focus-visible { outline: 2px solid #1d1d1d; outline-offset: 2px; }
 .sound-toggle svg { width: 20px; height: 20px; }
+.sign-out { left: calc(max(20px, env(safe-area-inset-left, 0px)) + 48px); }
 .sound-toggle .when-muted { display: none; }
 .sound-toggle[aria-pressed="true"] .when-muted { display: block; }
 .sound-toggle[aria-pressed="true"] .when-on { display: none; }
@@ -1449,6 +1461,10 @@ input:autofill {
   <svg class="when-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>
 </button>
 
+<button type="button" class="sound-toggle sign-out" id="signOut" aria-label="Sign out" data-tip="Sign out">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4.5H6.5a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1H14"/><path d="M10.5 12h9.5M16.8 8.8 20 12l-3.2 3.2"/></svg>
+</button>
+
 <dialog class="gallery" id="gallery" aria-label="Postcards">
   <button type="button" class="gallery-close" id="galleryClose" aria-label="Close">
     <!-- Remix Icon: close-line (Apache 2.0) -->
@@ -1808,6 +1824,33 @@ input:autofill {
     return '';
   }
   window.postcardsAuth = { token: freshToken };
+
+  // A sign-in that has expired and can't be renewed: back to the sign-in page
+  freshToken().then(t => { if (!t) location.replace('/login.html'); });
+
+  // Sign out: end the session with Supabase, forget it here, go to sign-in
+  (function () {
+    const btn = document.getElementById('signOut');
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!/^sb-.+-auth-token$/.test(k)) continue;
+        const email = ((JSON.parse(localStorage.getItem(k)) || {}).user || {}).email;
+        if (email) { btn.dataset.tip = `Sign out (${email})`; btn.setAttribute('aria-label', `Sign out, signed in as ${email}`); }
+      }
+    } catch (_) {}
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        await freshToken();
+        if (sbClient) await sbClient.auth.signOut();
+      } catch (_) {}
+      try {
+        Object.keys(localStorage).filter(k => /^sb-.+-auth-token$/.test(k)).forEach(k => localStorage.removeItem(k));
+      } catch (_) {}
+      location.replace('/login.html');
+    });
+  })();
 
   // The signed-in user, read from the session Supabase stores in this browser
   // (no network call). Returns {} for guests.
