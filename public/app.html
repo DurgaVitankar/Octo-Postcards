@@ -1466,7 +1466,7 @@ input:autofill {
         <circle cx="52" cy="68" r="15" stroke="#cdc3c7" stroke-width="0.6"/>
         <text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.45" fill="#b9adb2"><textPath href="#pmArc" startOffset="50%" text-anchor="middle">YOUR LOCATION</textPath></text>
         <text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.45" fill="#b9adb2"><textPath href="#pmArcLow" startOffset="50%" text-anchor="middle" id="pmDate">SEP 2026</textPath></text>
-        <path d="M 18 68 q 6 -5 12 0 t 12 0 t 12 0 t 12 0 t 12 0 t 12 0" stroke="#cdc3c7" stroke-width="1"/>
+        <path d="M 0 62.6 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 66.2 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 69.8 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 73.4 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0" stroke="#cdc3c7" stroke-width="0.9" stroke-linecap="round"/>
       </svg>
     </div>
     <div class="address">
@@ -1790,7 +1790,7 @@ input:autofill {
         `<circle cx="52" cy="68" r="15" stroke="#cdc3c7" stroke-width="0.6"/>` +
         `<text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.45" fill="#b9adb2"><textPath href="#${id}a" startOffset="50%" text-anchor="middle">${c.place.toUpperCase()}</textPath></text>` +
         `<text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.45" fill="#b9adb2"><textPath href="#${id}b" startOffset="50%" text-anchor="middle">${when}</textPath></text>` +
-        `<path d="M 18 68 q 6 -5 12 0 t 12 0 t 12 0 t 12 0 t 12 0 t 12 0" stroke="#cdc3c7" stroke-width="1"/></svg>`;
+        `<path d="M 0 62.6 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 66.2 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 69.8 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 73.4 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0" stroke="#cdc3c7" stroke-width="0.9" stroke-linecap="round"/></svg>`;
     }
 
     const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
