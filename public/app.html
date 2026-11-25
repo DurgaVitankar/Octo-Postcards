@@ -135,6 +135,38 @@ body {
   .stand { transition: none; }
 }
 
+/* The little bird on the top shelf: hover (or tap) and it chirps */
+.bird {
+  position: absolute;
+  left: 78.1%;
+  top: 1.75%;
+  width: 5.65%;
+  height: 6.1%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.bird:focus-visible { outline: 2px solid #8a8a8a; outline-offset: 4px; border-radius: 4px; }
+
+/* Tiny notes that float up when it sings */
+.bird-note {
+  position: absolute;
+  left: 30%;
+  top: 0;
+  font: 600 13px/1 Georgia, serif;
+  color: #8f9fb8;
+  pointer-events: none;
+  animation: bird-note 1.1s ease-out forwards;
+}
+@keyframes bird-note {
+  from { opacity: 0; transform: translate(0, 0) rotate(-8deg); }
+  20% { opacity: 1; }
+  to { opacity: 0; transform: translate(var(--dx, 10px), -26px) rotate(8deg); }
+}
+@media (prefers-reduced-motion: reduce) { .bird-note { display: none; } }
+
 /* Right panel: mailbox with flying letters at its left edge. A quarter of it
    peeks into the postcard's screen, mirroring the bookshelf. */
 .zone-right { position: relative; }
@@ -1405,6 +1437,7 @@ input:autofill {
   <div class="shelf">
     <img class="bookshelf" src="bookshelf.webp" alt="Watercolour bookshelf of plants, books and postcards beside a potted monstera" draggable="false">
     <canvas class="globe" id="globe" aria-hidden="true"></canvas>
+    <button class="bird" id="bird" type="button" aria-label="Make the bird chirp"></button>
     <button class="stand" id="stand" type="button" aria-label="Your postcards">
       <img src="stand.webp" alt="" draggable="false">
       <span class="mail-bubble" aria-hidden="true">
@@ -1973,6 +2006,71 @@ input:autofill {
   })();
 
 
+
+  // The bird on the shelf chirps when you hover over it (or tap it). The chirps
+  // are made with Web Audio, no sound file: quick rising whistles, each a little
+  // different. Browsers only allow sound after the page has been clicked or
+  // typed in once, so a hover before that stays silent (the notes still float).
+  (function () {
+    const bird = document.getElementById('bird');
+    const AC = window.AudioContext || window.webkitAudioContext;
+    let ctx = null, last = 0;
+
+    function audio() {
+      if (!AC) return null;
+      if (!ctx) ctx = new AC();
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      return ctx;
+    }
+    // Unlock sound on the first click or key press anywhere
+    const unlock = () => { audio(); window.removeEventListener('pointerdown', unlock, true); window.removeEventListener('keydown', unlock, true); };
+    window.addEventListener('pointerdown', unlock, true);
+    window.addEventListener('keydown', unlock, true);
+
+    function chirp(ac, at, f0, f1, len, vol) {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(f0, at);
+      o.frequency.exponentialRampToValueAtTime(f1, at + len * 0.7);
+      o.frequency.exponentialRampToValueAtTime(f1 * 0.92, at + len);
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(vol, at + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + len);
+      o.connect(g).connect(ac.destination);
+      o.start(at);
+      o.stop(at + len + 0.02);
+    }
+
+    function sing() {
+      const now = performance.now();
+      if (now - last < 900) return;          // not on every twitch of the mouse
+      last = now;
+      const ac = audio();
+      if (ac && ac.state === 'running') {
+        const n = 2 + Math.round(Math.random());
+        let t = ac.currentTime + 0.01;
+        for (let i = 0; i < n; i++) {
+          const base = 2600 + Math.random() * 700;
+          const len = 0.07 + Math.random() * 0.04;
+          chirp(ac, t, base, base * (1.45 + Math.random() * 0.25), len, 0.07);
+          t += len + 0.05 + Math.random() * 0.04;
+        }
+      }
+      ['\u266A', '\u266B'].forEach((ch, i) => {
+        const note = document.createElement('span');
+        note.className = 'bird-note';
+        note.textContent = ch;
+        note.style.setProperty('--dx', (i ? 14 : -4) + 'px');
+        note.style.animationDelay = (i * 0.15) + 's';
+        note.style.opacity = '0';
+        bird.appendChild(note);
+        setTimeout(() => note.remove(), 1400);
+      });
+    }
+
+    bird.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') sing(); });
+    bird.addEventListener('click', sing);
+  })();
 
   // Tools under the postcard: clickable, actions still to be decided
   // Font tool: each click switches between handwritten and typewriter.
