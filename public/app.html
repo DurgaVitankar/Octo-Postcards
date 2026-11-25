@@ -1201,6 +1201,20 @@ body {
 }
 
 .gb-sign { display: block; text-align: right; }
+
+/* Handwritten text rests on its lines: the script font sits high in its line
+   box, so the rules are drawn 2cqmin higher to meet the writing (the
+   typewriter font is already dropped onto its lines) */
+body:not(.font-typewriter) .address input,
+.gb:not(.gb-type) .gb-addr span {
+  border-bottom-color: transparent;
+  background: linear-gradient(var(--rule), var(--rule)) 0 calc(100% - 2cqmin) / 100% 1px no-repeat;
+}
+body:not(.font-typewriter) .address input:focus {
+  background-image: linear-gradient(#cfcac4, #cfcac4);
+}
+body:not(.font-typewriter) .message,
+.gb:not(.gb-type) .gb-msg { background-position: 0 -2cqmin; }
 .gb-div { grid-area: div; display: none; background: var(--rule); }
 
 /* Landscape back: message on the left, address side on the right */
