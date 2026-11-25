@@ -251,7 +251,7 @@ async function storeImages(
 // "Send a postcard back": a button that works in every email app
 function replyButton(url: string) {
   return `<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:26px auto 0;border-collapse:separate;">
-      <tr><td align="center" bgcolor="#a3402f" style="border-radius:999px;">
+      <tr><td align="center" bgcolor="#111111" style="border-radius:999px;">
         <a href="${esc(url)}" target="_blank" style="display:inline-block;padding:12px 26px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:999px;">Send a postcard back</a>
       </td></tr>
     </table>

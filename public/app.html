@@ -836,7 +836,7 @@ body {
 }
 
 .send-input::placeholder { color: #cfc9c4; }
-.send-input:focus { outline: none; border-bottom-color: #c8b09a; }
+.send-input:focus { outline: none; border-bottom-color: #1d1d1d; }
 .send-input[aria-invalid="true"] { border-bottom-color: #a3402f; }
 .send-error { margin-top: 8px; font-size: 13px; color: #a3402f; }
 
@@ -852,12 +852,12 @@ body {
   cursor: pointer;
 }
 
-.send-cancel { background: transparent; color: #5c422f; }
-.send-cancel:hover { background: #f4efe9; }
+.send-cancel { background: transparent; color: #3a3a3a; }
+.send-cancel:hover { background: #f2f2f2; }
 .send-go { display: inline-flex; align-items: center; gap: 8px; background: #111; color: #fff; }
 .send-go:hover { background: #333; }
 .send-go svg { width: 16px; height: 16px; }
-.send-cancel:focus-visible, .send-go:focus-visible { outline: 2px solid #8c6d55; outline-offset: 2px; }
+.send-cancel:focus-visible, .send-go:focus-visible { outline: 2px solid #1d1d1d; outline-offset: 2px; }
 
 /* While a postcard is flying, nothing else can be clicked */
 .sending .scroller { pointer-events: none; }
@@ -1035,9 +1035,9 @@ body {
 }
 
 .thumb:hover { transform: scale(1.06); }
-.thumb[aria-current="true"] .pc { outline: 2px solid #c8b09a; outline-offset: 3px; }
+.thumb[aria-current="true"] .pc { outline: 2px solid #1d1d1d; outline-offset: 3px; }
 .thumb:focus-visible { outline: none; }
-.thumb:focus-visible .pc { outline: 2px solid #8c6d55; outline-offset: 3px; }
+.thumb:focus-visible .pc { outline: 2px solid #1d1d1d; outline-offset: 3px; }
 
 /* A postcard: white border around a picture, soft shadow */
 .pc {
@@ -1093,7 +1093,7 @@ body {
 
 .pc-flip[aria-pressed="true"] .pc-flip-inner { transform: rotateY(180deg); }
 .pc-flip:focus-visible { outline: none; }
-.pc-flip:focus-visible .pc-big { outline: 2px solid #8c6d55; outline-offset: 4px; }
+.pc-flip:focus-visible .pc-big { outline: 2px solid #1d1d1d; outline-offset: 4px; }
 
 .pc-big {
   position: absolute;
@@ -1264,7 +1264,7 @@ body:not(.font-typewriter) .message,
 
 .gallery-close svg { width: 18px; height: 18px; }
 .gallery-close:hover { background: #f0efed; }
-.gallery-close:focus-visible { outline: 2px solid #8c6d55; outline-offset: 2px; }
+.gallery-close:focus-visible { outline: 2px solid #1d1d1d; outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) { .gallery { transition: none; } }
 
@@ -1451,11 +1451,11 @@ input:autofill {
         <rect x="48.5" y="0.5" width="51" height="71" rx="1.5" stroke="#c9a6ad" stroke-width="1" stroke-dasharray="3 2"/>
         <rect id="stampSlot" x="52" y="4" width="44" height="64" rx="1.5" fill="#eeece9"/>
         <image id="stampImg" x="52" y="4" width="44" height="64" preserveAspectRatio="xMidYMid meet" style="visibility:hidden"/>
-        <defs><path id="pmArc" d="M 31.89 64 A 20.5 20.5 0 0 1 72.11 64"/><path id="pmArcLow" d="M 34.96 72 A 17.5 17.5 0 0 0 69.04 72"/></defs>
+        <defs><path id="pmArc" d="M 34.3 68 A 17.7 17.7 0 0 1 69.7 68"/><path id="pmArcLow" d="M 31.7 68 A 20.3 20.3 0 0 0 72.3 68"/></defs>
         <circle cx="52" cy="68" r="23" stroke="#cdc3c7" stroke-width="1"/>
-        <circle cx="52" cy="68" r="19.5" stroke="#cdc3c7" stroke-width="0.6"/>
-        <text font-family="'Libre Baskerville', Georgia, serif" font-size="4.2" letter-spacing="1.3" fill="#b9adb2"><textPath href="#pmArc" startOffset="50%" text-anchor="middle">YOUR LOCATION</textPath></text>
-        <text font-family="'Libre Baskerville', Georgia, serif" font-size="4.2" letter-spacing="1.2" fill="#b9adb2"><textPath href="#pmArcLow" startOffset="50%" text-anchor="middle" id="pmDate">SEP 2026</textPath></text>
+        <circle cx="52" cy="68" r="15" stroke="#cdc3c7" stroke-width="0.6"/>
+        <text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.45" fill="#b9adb2"><textPath href="#pmArc" startOffset="50%" text-anchor="middle">YOUR LOCATION</textPath></text>
+        <text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.45" fill="#b9adb2"><textPath href="#pmArcLow" startOffset="50%" text-anchor="middle" id="pmDate">SEP 2026</textPath></text>
         <path d="M 18 68 q 6 -5 12 0 t 12 0 t 12 0 t 12 0 t 12 0 t 12 0" stroke="#cdc3c7" stroke-width="1"/>
       </svg>
     </div>
@@ -1775,11 +1775,11 @@ input:autofill {
       return `<svg viewBox="0 0 100 92" fill="none" aria-hidden="true">` +
         `<rect x="48.5" y="0.5" width="51" height="71" rx="1.5" stroke="#c9a6ad" stroke-width="1" stroke-dasharray="3 2"/>` +
         `<image href="stamps/stamp-${STAMP_FILES[i % STAMP_FILES.length]}.webp" x="52" y="4" width="44" height="64" preserveAspectRatio="xMidYMid meet"/>` +
-        `<defs><path id="${id}a" d="M 31.89 64 A 20.5 20.5 0 0 1 72.11 64"/><path id="${id}b" d="M 34.96 72 A 17.5 17.5 0 0 0 69.04 72"/></defs>` +
+        `<defs><path id="${id}a" d="M 34.3 68 A 17.7 17.7 0 0 1 69.7 68"/><path id="${id}b" d="M 31.7 68 A 20.3 20.3 0 0 0 72.3 68"/></defs>` +
         `<circle cx="52" cy="68" r="23" stroke="#cdc3c7" stroke-width="1"/>` +
-        `<circle cx="52" cy="68" r="19.5" stroke="#cdc3c7" stroke-width="0.6"/>` +
-        `<text font-family="'Libre Baskerville', Georgia, serif" font-size="4.2" letter-spacing="1.3" fill="#b9adb2"><textPath href="#${id}a" startOffset="50%" text-anchor="middle">${c.place.toUpperCase()}</textPath></text>` +
-        `<text font-family="'Libre Baskerville', Georgia, serif" font-size="4.2" letter-spacing="1.2" fill="#b9adb2"><textPath href="#${id}b" startOffset="50%" text-anchor="middle">${when}</textPath></text>` +
+        `<circle cx="52" cy="68" r="15" stroke="#cdc3c7" stroke-width="0.6"/>` +
+        `<text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.45" fill="#b9adb2"><textPath href="#${id}a" startOffset="50%" text-anchor="middle">${c.place.toUpperCase()}</textPath></text>` +
+        `<text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.45" fill="#b9adb2"><textPath href="#${id}b" startOffset="50%" text-anchor="middle">${when}</textPath></text>` +
         `<path d="M 18 68 q 6 -5 12 0 t 12 0 t 12 0 t 12 0 t 12 0 t 12 0" stroke="#cdc3c7" stroke-width="1"/></svg>`;
     }
 
