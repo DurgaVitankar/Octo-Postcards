@@ -1803,7 +1803,7 @@ input:autofill {
         ? `<span class="pc pc-big pc-back pc-snap"><img src="${esc(c.snap.back)}" alt="${esc('The back of the postcard. ' + c.msg)}"></span>`
         : `<span class="pc pc-big pc-back"><span class="gb"><span class="gb-head"><span class="back-title">POSTCARD</span><span class="back-sub">with love</span></span>` +
           `<span class="gb-div"></span><span class="gb-msg">${esc(c.msg)}<span class="gb-sign">${esc(c.from)}</span></span></span></span>`;
-      return `<button type="button" class="pc-flip ${shape}" aria-pressed="false" aria-label="Turn the postcard over" data-tip="Turn over">` +
+      return `<button type="button" class="pc-flip ${shape}" aria-pressed="false" aria-label="Turn the postcard over">` +
         `<span class="pc-flip-inner">` +
           `<span class="pc pc-big pc-front pc-snap"><img src="${esc(c.snap.front)}" alt="${esc('The front of a postcard from ' + c.from)}"></span>` +
           back +
@@ -1813,7 +1813,7 @@ input:autofill {
     function bigCardHTML(c, i) {
       if (c.snap) return snapCardHTML(c);
       const shape = c.land ? 'pc-land' : 'pc-port';
-      return `<button type="button" class="pc-flip ${shape}" aria-pressed="false" aria-label="Turn the postcard over" data-tip="Turn over">` +
+      return `<button type="button" class="pc-flip ${shape}" aria-pressed="false" aria-label="Turn the postcard over">` +
         `<span class="pc-flip-inner">` +
           `<span class="pc pc-big pc-front"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, 'big' + i)}</svg>${decorHTML(c.deco && c.deco.front)}</span>` +
           `<span class="pc pc-big pc-back"><span class="gb${c.font === 'type' ? ' gb-type' : ''}">` +
@@ -1871,9 +1871,8 @@ input:autofill {
       flip.addEventListener('click', () => {
         const back = flip.getAttribute('aria-pressed') !== 'true';
         flip.setAttribute('aria-pressed', String(back));
-        flip.dataset.tip = back ? 'Turn back' : 'Turn over';
       });
-      document.getElementById('galleryMeta').textContent = c.place ? `From ${c.from} · ${c.place}, ${c.date}` : `From ${c.from} · ${c.date}`;
+      document.getElementById('galleryMeta').textContent = `From ${c.from} · ${c.date}`;
       void stage.offsetWidth;                      // restart the fade
       stage.classList.add('show');
       thumbs.forEach((t, k) => t.setAttribute('aria-current', String(k === current)));
