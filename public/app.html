@@ -391,6 +391,16 @@ body {
 @media (hover: none) {
   [data-tip]:hover::after { opacity: 0; }
 }
+
+/* The tool tiles sit at the bottom of the screen: their tooltips go above, and
+   stay level and normal-sized while the tile tilts and grows on hover */
+.tool[data-tip]::after {
+  top: auto;
+  bottom: calc(100% + 10px);
+  transform: translate(-50%, 2px) rotate(calc(-1 * var(--r))) scale(0.87);
+}
+.tool[data-tip]:hover::after,
+.tool[data-tip]:focus-visible::after { transform: translate(-50%, 0) rotate(calc(-1 * var(--r))) scale(0.87); }
 .side-toggle button[aria-pressed="true"] { background: #efefef; }
 
 .side-toggle button:focus-visible,
