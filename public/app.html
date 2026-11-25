@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Postcards</title>
+<script>
+  // Signed-out visitors go to the sign-in page before anything shows
+  (function () {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        if (/^sb-.+-auth-token$/.test(localStorage.key(i))) return;
+      }
+    } catch (_) { return; }       // storage blocked: can't tell, so let the page decide later
+    location.replace('/login.html');
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500&family=Libre+Baskerville:wght@700&family=Tangerine:wght@400;700&family=Geist+Pixel&display=swap">
@@ -134,6 +145,97 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .stand { transition: none; }
 }
+
+/* The snake plant's leaves are their own layer, laid exactly over the painting
+   (the wall behind them is filled in), so they can sway from the pot on hover */
+.plant {
+  position: absolute;
+  left: 59.75%;
+  top: 63.314%;
+  width: 17.85%;
+  height: 23.5%;          /* leaves and pot, so hovering either sets it off */
+  pointer-events: auto;
+}
+.plant img {
+  display: block;
+  width: 100%;
+  height: auto;
+  transform-origin: 50% 100%;
+  user-select: none;
+  pointer-events: none;
+}
+.plant:hover img, .plant.sway img { animation: plant-sway 1.8s ease-in-out; }
+@keyframes plant-sway {
+  0%   { transform: skewX(0deg); }
+  20%  { transform: skewX(-3.5deg); }
+  45%  { transform: skewX(2.6deg); }
+  70%  { transform: skewX(-1.4deg); }
+  88%  { transform: skewX(0.5deg); }
+  100% { transform: skewX(0deg); }
+}
+@media (prefers-reduced-motion: reduce) { .plant:hover img, .plant.sway img { animation: none; } }
+
+/* Sound on/off, bottom left of the screen */
+.sound-toggle {
+  position: fixed;
+  bottom: max(20px, env(safe-area-inset-bottom, 0px));
+  left: max(20px, env(safe-area-inset-left, 0px));
+  z-index: 30;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: #1d1d1d;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+}
+.sound-toggle[data-tip] { position: fixed; }   /* the tooltip rule would make it relative */
+.sound-toggle:hover { background: #f4f4f4; }
+.sound-toggle:focus-visible { outline: 2px solid #1d1d1d; outline-offset: 2px; }
+.sound-toggle svg { width: 20px; height: 20px; }
+.sign-out { left: calc(max(20px, env(safe-area-inset-left, 0px)) + 48px); }
+.sound-toggle .when-muted { display: none; }
+.sound-toggle[aria-pressed="true"] .when-muted { display: block; }
+.sound-toggle[aria-pressed="true"] .when-on { display: none; }
+.sound-toggle[data-tip]::after { top: auto; bottom: calc(100% + 8px); left: 0; transform: translate(0, 2px); }
+.sound-toggle[data-tip]:hover::after,
+.sound-toggle[data-tip]:focus-visible::after { transform: none; }
+
+/* The little bird on the top shelf: hover (or tap) and it chirps */
+.bird {
+  position: absolute;
+  left: 78.1%;
+  top: 1.75%;
+  width: 5.65%;
+  height: 6.1%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.bird:focus-visible { outline: 2px solid #8a8a8a; outline-offset: 4px; border-radius: 4px; }
+
+/* Tiny notes that float up when it sings */
+.bird-note {
+  position: absolute;
+  left: 30%;
+  top: 0;
+  font: 600 13px/1 Georgia, serif;
+  color: #8f9fb8;
+  pointer-events: none;
+  animation: bird-note 1.1s ease-out forwards;
+}
+@keyframes bird-note {
+  from { opacity: 0; transform: translate(0, 0) rotate(-8deg); }
+  20% { opacity: 1; }
+  to { opacity: 0; transform: translate(var(--dx, 10px), -26px) rotate(8deg); }
+}
+@media (prefers-reduced-motion: reduce) { .bird-note { display: none; } }
 
 /* Right panel: mailbox with flying letters at its left edge. A quarter of it
    peeks into the postcard's screen, mirroring the bookshelf. */
@@ -391,6 +493,16 @@ body {
 @media (hover: none) {
   [data-tip]:hover::after { opacity: 0; }
 }
+
+/* The tool tiles sit at the bottom of the screen: their tooltips go above, and
+   stay level and normal-sized while the tile tilts and grows on hover */
+.tool[data-tip]::after {
+  top: auto;
+  bottom: calc(100% + 10px);
+  transform: translate(-50%, 2px) rotate(calc(-1 * var(--r))) scale(0.87);
+}
+.tool[data-tip]:hover::after,
+.tool[data-tip]:focus-visible::after { transform: translate(-50%, 0) rotate(calc(-1 * var(--r))) scale(0.87); }
 .side-toggle button[aria-pressed="true"] { background: #efefef; }
 
 .side-toggle button:focus-visible,
@@ -726,7 +838,7 @@ body {
 .decor .flower {
   position: absolute;
   display: block;
-  width: 15cqmin;
+  width: 18cqmin;
   transform: translate(-50%, -50%) rotate(var(--r, 0deg));
   filter: drop-shadow(0 1px 1.5px rgba(60, 40, 20, 0.18));
   pointer-events: auto;
@@ -836,7 +948,7 @@ body {
 }
 
 .send-input::placeholder { color: #cfc9c4; }
-.send-input:focus { outline: none; border-bottom-color: #c8b09a; }
+.send-input:focus { outline: none; border-bottom-color: #1d1d1d; }
 .send-input[aria-invalid="true"] { border-bottom-color: #a3402f; }
 .send-error { margin-top: 8px; font-size: 13px; color: #a3402f; }
 
@@ -852,12 +964,12 @@ body {
   cursor: pointer;
 }
 
-.send-cancel { background: transparent; color: #5c422f; }
-.send-cancel:hover { background: #f4efe9; }
+.send-cancel { background: transparent; color: #3a3a3a; }
+.send-cancel:hover { background: #f2f2f2; }
 .send-go { display: inline-flex; align-items: center; gap: 8px; background: #111; color: #fff; }
 .send-go:hover { background: #333; }
 .send-go svg { width: 16px; height: 16px; }
-.send-cancel:focus-visible, .send-go:focus-visible { outline: 2px solid #8c6d55; outline-offset: 2px; }
+.send-cancel:focus-visible, .send-go:focus-visible { outline: 2px solid #1d1d1d; outline-offset: 2px; }
 
 /* While a postcard is flying, nothing else can be clicked */
 .sending .scroller { pointer-events: none; }
@@ -885,6 +997,7 @@ body {
   overflow: visible;
 }
 
+.flight-trail .trail-reveal { fill: none; stroke: #fff; stroke-width: 8; stroke-dasharray: none; }
 .flight-trail path {
   fill: none;
   stroke: #c8b09a;
@@ -979,7 +1092,7 @@ body {
 /* Gallery layout: opened card in the middle, all postcards in one row at the bottom */
 .gallery-body {
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr auto auto;
   gap: 20px;
   height: 100%;
   padding: 64px max(28px, env(safe-area-inset-right, 0px)) 24px max(28px, env(safe-area-inset-left, 0px));
@@ -1000,6 +1113,23 @@ body {
 }
 
 .gallery-strip::-webkit-scrollbar { display: none; }
+
+/* Until someone sends you a postcard: an empty dashed slot beside the welcome
+   card and a quiet line saying where new ones will go */
+.thumb-empty {
+  flex: none;
+  height: 78px;
+  aspect-ratio: 10 / 14;
+  border: 1.5px dashed #ddd3c9;
+  border-radius: 3px;
+}
+.gallery-hint {
+  margin: -16px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: #a39a93;
+  letter-spacing: 0.01em;
+}
 .gallery-col { display: contents; }
 
 .thumb {
@@ -1017,9 +1147,9 @@ body {
 }
 
 .thumb:hover { transform: scale(1.06); }
-.thumb[aria-current="true"] .pc { outline: 2px solid #c8b09a; outline-offset: 3px; }
+.thumb[aria-current="true"] .pc { outline: 2px solid #1d1d1d; outline-offset: 3px; }
 .thumb:focus-visible { outline: none; }
-.thumb:focus-visible .pc { outline: 2px solid #8c6d55; outline-offset: 3px; }
+.thumb:focus-visible .pc { outline: 2px solid #1d1d1d; outline-offset: 3px; }
 
 /* A postcard: white border around a picture, soft shadow */
 .pc {
@@ -1031,6 +1161,9 @@ body {
 }
 
 .pc svg { display: block; width: 100%; height: 100%; }
+/* Received cards are pictures of the whole face, border included */
+.pc-snap, .pc-big.pc-snap, .pc-thumb.pc-snap { padding: 0; overflow: hidden; }
+.pc-snap img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .pc-thumb.pc-port { height: 78px; aspect-ratio: 10 / 14; }
 .pc-thumb.pc-land { width: 96px; aspect-ratio: 14 / 10; }
 .pc-thumb { padding: 4px; }
@@ -1072,7 +1205,7 @@ body {
 
 .pc-flip[aria-pressed="true"] .pc-flip-inner { transform: rotateY(180deg); }
 .pc-flip:focus-visible { outline: none; }
-.pc-flip:focus-visible .pc-big { outline: 2px solid #8c6d55; outline-offset: 4px; }
+.pc-flip:focus-visible .pc-big { outline: 2px solid #1d1d1d; outline-offset: 4px; }
 
 .pc-big {
   position: absolute;
@@ -1085,7 +1218,7 @@ body {
 }
 
 /* Pressed flowers on the gallery cards: a layer on each face, sized like the
-   main card's flowers (15cqmin of the face) */
+   main card's flowers (18cqmin of the face) */
 .gdecor {
   position: absolute;
   inset: 0;
@@ -1095,7 +1228,7 @@ body {
 
 .gdecor img {
   position: absolute;
-  width: 15cqmin;
+  width: 18cqmin;
   height: auto;
   max-width: none;
   transform: translate(-50%, -50%) rotate(var(--r, 0deg));
@@ -1179,7 +1312,21 @@ body {
     var(--rule) calc(9.5cqmin - 1px) 9.5cqmin);
 }
 
-.gb-sign { display: block; text-align: right; }
+.gb-sign { display: block; }
+
+/* Handwritten text rests on its lines: the script font sits high in its line
+   box, so the rules are drawn 2cqmin higher to meet the writing (the
+   typewriter font is already dropped onto its lines) */
+body:not(.font-typewriter) .address input,
+.gb:not(.gb-type) .gb-addr span {
+  border-bottom-color: transparent;
+  background: linear-gradient(var(--rule), var(--rule)) 0 calc(100% - 2cqmin) / 100% 1px no-repeat;
+}
+body:not(.font-typewriter) .address input:focus {
+  background-image: linear-gradient(#cfcac4, #cfcac4);
+}
+body:not(.font-typewriter) .message,
+.gb:not(.gb-type) .gb-msg { background-position: 0 -2cqmin; }
 .gb-div { grid-area: div; display: none; background: var(--rule); }
 
 /* Landscape back: message on the left, address side on the right */
@@ -1229,7 +1376,7 @@ body {
 
 .gallery-close svg { width: 18px; height: 18px; }
 .gallery-close:hover { background: #f0efed; }
-.gallery-close:focus-visible { outline: 2px solid #8c6d55; outline-offset: 2px; }
+.gallery-close:focus-visible { outline: 2px solid #1d1d1d; outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) { .gallery { transition: none; } }
 
@@ -1309,6 +1456,15 @@ input:autofill {
 </head>
 <body>
 
+<button type="button" class="sound-toggle" id="soundToggle" aria-pressed="false" aria-label="Mute sound" data-tip="Mute sound">
+  <svg class="when-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z"/><path d="M15.5 9.2a4 4 0 0 1 0 5.6"/><path d="M18.2 6.6a7.6 7.6 0 0 1 0 10.8"/></svg>
+  <svg class="when-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>
+</button>
+
+<button type="button" class="sound-toggle sign-out" id="signOut" aria-label="Sign out" data-tip="Sign out">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4.5H6.5a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1H14"/><path d="M10.5 12h9.5M16.8 8.8 20 12l-3.2 3.2"/></svg>
+</button>
+
 <dialog class="gallery" id="gallery" aria-label="Postcards">
   <button type="button" class="gallery-close" id="galleryClose" aria-label="Close">
     <!-- Remix Icon: close-line (Apache 2.0) -->
@@ -1323,8 +1479,8 @@ input:autofill {
     </div>
     <div class="gallery-strip" role="list" aria-label="All postcards">
       <div class="gallery-col" id="galleryLeft"></div>
-      <div class="gallery-col" id="galleryRight"></div>
     </div>
+    <p class="gallery-hint" id="galleryHint" hidden>New postcards you receive will be kept here</p>
   </div>
 </dialog>
 
@@ -1360,6 +1516,8 @@ input:autofill {
   <div class="shelf">
     <img class="bookshelf" src="bookshelf.webp" alt="Watercolour bookshelf of plants, books and postcards beside a potted monstera" draggable="false">
     <canvas class="globe" id="globe" aria-hidden="true"></canvas>
+    <button class="bird" id="bird" type="button" aria-label="Make the bird chirp"></button>
+    <div class="plant" id="plant" aria-hidden="true"><img src="plant-leaves.webp" alt="" draggable="false"></div>
     <button class="stand" id="stand" type="button" aria-label="Your postcards">
       <img src="stand.webp" alt="" draggable="false">
       <span class="mail-bubble" aria-hidden="true">
@@ -1403,7 +1561,6 @@ input:autofill {
       <span class="add-label">Add photo</span>
     </label>
     <img id="photo" alt="Postcard photo" tabindex="0" draggable="false" hidden>
-    <div class="decor" id="decorFront"></div>
     <span class="photo-hint" id="photoHint" hidden>Drag to move the photo</span>
     <label class="replace" id="replace" for="fileInput" tabindex="0" role="button" hidden>Replace</label>
   </div>
@@ -1417,19 +1574,16 @@ input:autofill {
         <rect x="48.5" y="0.5" width="51" height="71" rx="1.5" stroke="#c9a6ad" stroke-width="1" stroke-dasharray="3 2"/>
         <rect id="stampSlot" x="52" y="4" width="44" height="64" rx="1.5" fill="#eeece9"/>
         <image id="stampImg" x="52" y="4" width="44" height="64" preserveAspectRatio="xMidYMid meet" style="visibility:hidden"/>
-        <defs><path id="pmArc" d="M 31.89 64 A 20.5 20.5 0 0 1 72.11 64"/><path id="pmArcLow" d="M 34.96 72 A 17.5 17.5 0 0 0 69.04 72"/></defs>
+        <defs><path id="pmArc" d="M 34.3 68 A 17.7 17.7 0 0 1 69.7 68"/><path id="pmArcLow" d="M 31.7 68 A 20.3 20.3 0 0 0 72.3 68"/></defs>
         <circle cx="52" cy="68" r="23" stroke="#cdc3c7" stroke-width="1"/>
-        <circle cx="52" cy="68" r="19.5" stroke="#cdc3c7" stroke-width="0.6"/>
-        <text font-family="'Libre Baskerville', Georgia, serif" font-size="4.2" letter-spacing="1.3" fill="#b9adb2"><textPath href="#pmArc" startOffset="50%" text-anchor="middle">YOUR LOCATION</textPath></text>
-        <text font-family="'Libre Baskerville', Georgia, serif" font-size="4.2" letter-spacing="1.2" fill="#b9adb2"><textPath href="#pmArcLow" startOffset="50%" text-anchor="middle" id="pmDate">SEP 2026</textPath></text>
-        <path d="M 18 68 q 6 -5 12 0 t 12 0 t 12 0 t 12 0 t 12 0 t 12 0" stroke="#cdc3c7" stroke-width="1"/>
+        <circle cx="52" cy="68" r="15" stroke="#cdc3c7" stroke-width="0.6"/>
+        <text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.45" fill="#b9adb2"><textPath href="#pmArc" startOffset="50%" text-anchor="middle">PORT OCTAVIA</textPath></text>
+        <text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.45" fill="#b9adb2"><textPath href="#pmArcLow" startOffset="50%" text-anchor="middle" id="pmDate">&nbsp;</textPath></text>
+        <path d="M 0 62.6 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 66.2 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 69.8 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 73.4 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0" stroke="#cdc3c7" stroke-width="0.9" stroke-linecap="round"/>
       </svg>
     </div>
     <div class="address">
-      <input type="text" id="toName" placeholder="Name" aria-label="Name" autocomplete="off">
-      <input type="text" id="toAddress" placeholder="Address" aria-label="Address" autocomplete="off">
-      <input type="text" id="toCity" placeholder="City, Country" aria-label="City and country" autocomplete="off">
-      <input type="text" id="toPostal" placeholder="Postal code" aria-label="Postal code" autocomplete="off">
+      <input type="text" id="toName" placeholder="Name" aria-label="Who it's for" autocomplete="off">
     </div>
     <div class="back-divider"></div>
     <textarea class="message" id="message" placeholder="Write your message…" aria-label="Message"></textarea>
@@ -1637,6 +1791,67 @@ input:autofill {
     return `${d.getDate()} ${d.toLocaleString('en-GB', { month: 'short' })} ${d.getFullYear()}`;
   }
 
+  // The signed-in user's access token, refreshed if it has expired
+  // (tokens last an hour; the page may have been open longer)
+  let sbClient = null;
+  async function freshToken() {
+    try {
+      if (!sbClient) {
+        if (!window.supabase) await new Promise((ok, fail) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
+          s.onload = ok; s.onerror = fail;
+          document.head.appendChild(s);
+        });
+        const env = await (await fetch('/api/env')).json();
+        if (!env.url || !env.key) return accessToken();
+        sbClient = window.supabase.createClient(env.url, env.key, { auth: { persistSession: true, detectSessionInUrl: false } });
+      }
+      const { data } = await sbClient.auth.getSession();
+      return (data.session && data.session.access_token) || '';
+    } catch (_) {
+      return accessToken();
+    }
+  }
+
+  function accessToken() {
+    try {
+      for (let k = 0; k < localStorage.length; k++) {
+        const key = localStorage.key(k);
+        if (/^sb-.+-auth-token$/.test(key)) return (JSON.parse(localStorage.getItem(key)) || {}).access_token || '';
+      }
+    } catch (_) {}
+    return '';
+  }
+  window.postcardsAuth = { token: freshToken };
+
+  // A sign-in that has expired and can't be renewed: back to the sign-in page
+  freshToken().then(t => { if (!t) location.replace('/login.html'); });
+
+  // Sign out: end the session with Supabase, forget it here, go to sign-in
+  (function () {
+    const btn = document.getElementById('signOut');
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!/^sb-.+-auth-token$/.test(k)) continue;
+        const email = ((JSON.parse(localStorage.getItem(k)) || {}).user || {}).email;
+        if (email) { btn.dataset.tip = `Sign out (${email})`; btn.setAttribute('aria-label', `Sign out, signed in as ${email}`); }
+      }
+    } catch (_) {}
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        await freshToken();
+        if (sbClient) await sbClient.auth.signOut();
+      } catch (_) {}
+      try {
+        Object.keys(localStorage).filter(k => /^sb-.+-auth-token$/.test(k)).forEach(k => localStorage.removeItem(k));
+      } catch (_) {}
+      location.replace('/login.html');
+    });
+  })();
+
   // The signed-in user, read from the session Supabase stores in this browser
   // (no network call). Returns {} for guests.
   function welcomeUser() {
@@ -1654,26 +1869,14 @@ input:autofill {
     return {};
   }
 
-  // Gallery content: dummy postcards in two thumbnail columns, the selected one
-  // opened in the centre. Each card's picture is a small scene drawn in SVG.
+  // Gallery content: the welcome card and the postcards people have sent you,
+  // the selected one opened in the centre. The welcome card's picture is a small
+  // SVG scene; received cards are pictures of both faces, as they were designed.
   (function () {
-    const CARDS = [
-      { welcome: true, msg: 'Welcome to Postcards! Write a note, add a photo and a stamp, then send it to someone you miss. This first one is from us.', deco: { front: [['cosmos', 82, 18, 12]], back: [['chamomile', 80, 86, -10], ['lavender', 88, 82, 10]] }, from: 'The Postcards team', place: 'Postcards', date: todayLabel(), scene: 'hills', pal: ['#fdf6ec', '#f3d9b1', '#c8b09a', '#8c6d55'], land: false },
-      { msg: 'The light here turns everything gold around six. Wish you could see it with me.', title: 'Golden hour on the Tagus', deco: { back: [['lavender', 84, 82, -12]] }, from: 'Maya', place: 'Lisbon', date: '12 Aug 2026', scene: 'sea',    pal: ['#f7c59f', '#ef8354', '#2d6a8a', '#fbe3c5'], land: false },
-      { msg: "Tea fields as far as I can see, and the mist hasn't lifted all morning. Thinking of you.", title: 'Morning in the hills',     from: 'Arjun', place: 'Munnar', date: '3 Jul 2026',  scene: 'hills',  pal: ['#e8f1e4', '#9cc5a1', '#49a078', '#216869'], land: true  },
-      { msg: 'It rained all day, then the whole city went silver. Found the best little bakery.', title: 'Rooftops after rain',      font: 'type', deco: { front: [['chamomile', 14, 84, 10]] }, from: 'Léa', place: 'Paris', date: '21 Mar 2026',    scene: 'city',   pal: ['#d7dde8', '#9aa9c0', '#4f5d75', '#2d3142'], land: false },
-      { msg: "Sand in everything, and I don't even mind. The stars last night were unreal.", title: 'Dunes at noon',            deco: { back: [['wildflowers', 9, 78, 8]] }, from: 'Omar', place: 'Merzouga', date: '9 Feb 2026', scene: 'desert', pal: ['#fdf0d5', '#f4a261', '#e76f51', '#c8553d'], land: true  },
-      { msg: 'The lake was so still we could see every star twice. Bring a warm coat next time.', title: 'Stars over the lake',      from: 'Ines', place: 'Bled', date: '14 Jan 2026',    scene: 'night',  pal: ['#1b263b', '#415a77', '#e0e1dd', '#778da9'], land: false },
-      { msg: "Purple to the horizon and the bees are everywhere. I'll bring you a little sachet.", title: 'Lavender fields',          deco: { front: [['lavender', 86, 80, -14]], back: [['lavender', 50, 13, -24]] }, from: 'Theo', place: 'Valensole', date: '1 Jul 2026', scene: 'hills', pal: ['#f3e8ff', '#c8b6e2', '#8e7dbe', '#5b4b8a'], land: false },
-      { msg: "Fishing boats lit up the whole harbour tonight. The curry was the best I've had.", title: 'Harbour lights',           from: 'Sana', place: 'Kochi', date: '28 Oct 2026',   scene: 'night',  pal: ['#22223b', '#4a4e69', '#f2e9e4', '#c9ada7'], land: true  },
-      { msg: 'Petals everywhere like snow. We walked the whole river path twice.', title: 'Cherry blossom walk',      deco: { front: [['cosmos', 84, 16, 16]], back: [['cosmos', 12, 86, -8]] }, from: 'Ken', place: 'Kyoto', date: '4 Apr 2026',     scene: 'hills',  pal: ['#fff0f3', '#ffccd5', '#ff8fa3', '#c9184a'], land: false },
-      { msg: 'Caught three waves and fell off a hundred times. My arms are noodles. Happy.', title: 'Surf check',               font: 'type', from: 'Noa', place: 'Ericeira', date: '17 Sep 2026', scene: 'sea',    pal: ['#caf0f8', '#90e0ef', '#0077b6', '#03045e'], land: true  },
-      { msg: 'Every wall is a different blue. Got lost on purpose all afternoon.', title: 'Blue city',                font: 'type', deco: { back: [['lily', 86, 82, -10]] }, from: 'Priya', place: 'Jodhpur', date: '22 Nov 2026', scene: 'city',  pal: ['#e0f2fe', '#7dd3fc', '#0369a1', '#0c4a6e'], land: false },
-      { msg: 'Made it up just before sunset. Windy, cold and completely worth it.', title: 'Last light on the ridge',  from: 'Sam', place: 'Snowdonia', date: '30 Sep 2026', scene: 'hills', pal: ['#ffd6a5', '#ffadad', '#6d597a', '#355070'], land: true  },
-      { msg: 'Sky on the ground, ground in the sky. Hard to tell where anything ends.', title: 'Salt flats',               deco: { back: [['chamomile', 10, 84, 6], ['wildflowers', 22, 88, -14]] }, from: 'Lucía', place: 'Uyuni', date: '6 May 2026',   scene: 'desert', pal: ['#f1faee', '#a8dadc', '#e9c46a', '#457b9d'], land: false },
-      { msg: 'Storm rolled in and the lighthouse kept blinking. Cosy with a book now.', title: 'Lighthouse weather',       font: 'type', from: 'Finn', place: 'Cornwall', date: '11 Aug 2026', scene: 'sea',   pal: ['#e9ecef', '#adb5bd', '#495057', '#212529'], land: false },
-      { msg: 'Green ribbons all over the sky at midnight. I cried a little, not going to lie.', title: 'Northern lights',          deco: { back: [['lavender', 10, 80, 12]] }, from: 'Aino', place: 'Tromsø', date: '2 Dec 2026',   scene: 'night',  pal: ['#0b132b', '#1c2541', '#6fffe9', '#5bc0be'], land: true  }
-    ];
+    // The welcome card from us; postcards people send you are added in front
+    // of it, newest first, once /api/inbox answers
+    const WELCOME = { welcome: true, msg: 'A postcard is a small thing that travels a long way. It says: I saw this, and I thought of you. Pick a photo, write a few lines, and send one to someone you miss.', deco: { back: [['babysbreath', 80, 84, -10], ['daisies', 88, 82, 10]] }, from: 'The Postcards team', place: 'Port Octavia', date: todayLabel(), scene: 'hills', pal: ['#fdf6ec', '#f3d9b1', '#c8b09a', '#8c6d55'], land: false };
+    let CARDS = [WELCOME];
 
     // Simple illustrated scenes in a 100 x 100 box, stretched to the card's shape
     function scene(c, uid) {
@@ -1722,23 +1925,41 @@ input:autofill {
       return `<svg viewBox="0 0 100 92" fill="none" aria-hidden="true">` +
         `<rect x="48.5" y="0.5" width="51" height="71" rx="1.5" stroke="#c9a6ad" stroke-width="1" stroke-dasharray="3 2"/>` +
         `<image href="stamps/stamp-${STAMP_FILES[i % STAMP_FILES.length]}.webp" x="52" y="4" width="44" height="64" preserveAspectRatio="xMidYMid meet"/>` +
-        `<defs><path id="${id}a" d="M 31.89 64 A 20.5 20.5 0 0 1 72.11 64"/><path id="${id}b" d="M 34.96 72 A 17.5 17.5 0 0 0 69.04 72"/></defs>` +
+        `<defs><path id="${id}a" d="M 34.3 68 A 17.7 17.7 0 0 1 69.7 68"/><path id="${id}b" d="M 31.7 68 A 20.3 20.3 0 0 0 72.3 68"/></defs>` +
         `<circle cx="52" cy="68" r="23" stroke="#cdc3c7" stroke-width="1"/>` +
-        `<circle cx="52" cy="68" r="19.5" stroke="#cdc3c7" stroke-width="0.6"/>` +
-        `<text font-family="'Libre Baskerville', Georgia, serif" font-size="4.2" letter-spacing="1.3" fill="#b9adb2"><textPath href="#${id}a" startOffset="50%" text-anchor="middle">${c.place.toUpperCase()}</textPath></text>` +
-        `<text font-family="'Libre Baskerville', Georgia, serif" font-size="4.2" letter-spacing="1.2" fill="#b9adb2"><textPath href="#${id}b" startOffset="50%" text-anchor="middle">${when}</textPath></text>` +
-        `<path d="M 18 68 q 6 -5 12 0 t 12 0 t 12 0 t 12 0 t 12 0 t 12 0" stroke="#cdc3c7" stroke-width="1"/></svg>`;
+        `<circle cx="52" cy="68" r="15" stroke="#cdc3c7" stroke-width="0.6"/>` +
+        `<text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.45" fill="#b9adb2"><textPath href="#${id}a" startOffset="50%" text-anchor="middle">${c.place.toUpperCase()}</textPath></text>` +
+        `<text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.45" fill="#b9adb2"><textPath href="#${id}b" startOffset="50%" text-anchor="middle">${when}</textPath></text>` +
+        `<path d="M 0 62.6 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 66.2 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 69.8 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 73.4 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0" stroke="#cdc3c7" stroke-width="0.9" stroke-linecap="round"/></svg>`;
+    }
+
+    const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+
+    // A received card: the snapshots of its faces. Cards sent with only a photo
+    // get a plain back with the message.
+    function snapCardHTML(c) {
+      const shape = c.land ? 'pc-land' : 'pc-port';
+      const back = c.snap.back
+        ? `<span class="pc pc-big pc-back pc-snap"><img src="${esc(c.snap.back)}" alt="${esc('The back of the postcard. ' + c.msg)}"></span>`
+        : `<span class="pc pc-big pc-back"><span class="gb"><span class="gb-head"><span class="back-title">POSTCARD</span><span class="back-sub">with love</span></span>` +
+          `<span class="gb-div"></span><span class="gb-msg">${esc(c.msg)}<span class="gb-sign">${esc(c.from)}</span></span></span></span>`;
+      return `<button type="button" class="pc-flip ${shape}" aria-pressed="false" aria-label="Turn the postcard over">` +
+        `<span class="pc-flip-inner">` +
+          `<span class="pc pc-big pc-front pc-snap"><img src="${esc(c.snap.front)}" alt="${esc('The front of a postcard from ' + c.from)}"></span>` +
+          back +
+        `</span></button>`;
     }
 
     function bigCardHTML(c, i) {
+      if (c.snap) return snapCardHTML(c);
       const shape = c.land ? 'pc-land' : 'pc-port';
-      return `<button type="button" class="pc-flip ${shape}" aria-pressed="false" aria-label="Turn the postcard over" data-tip="Turn over">` +
+      return `<button type="button" class="pc-flip ${shape}" aria-pressed="false" aria-label="Turn the postcard over">` +
         `<span class="pc-flip-inner">` +
           `<span class="pc pc-big pc-front"><svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, 'big' + i)}</svg>${decorHTML(c.deco && c.deco.front)}</span>` +
           `<span class="pc pc-big pc-back"><span class="gb${c.font === 'type' ? ' gb-type' : ''}">` +
             `<span class="gb-head"><span class="back-title">POSTCARD</span><span class="back-sub">with love</span></span>` +
             `<span class="gb-stamp">${stampSVG(c, i)}</span>` +
-            `<span class="gb-addr">${(c.welcome ? [welcomeUser().name || 'You', 'Your mailbox', 'Postcards', '\u00a0'] : ['Alex Rivera', '22 Elm Street', 'Toronto, Canada', 'M5V 2T6']).map(t => `<span>${t}</span>`).join('')}</span>` +
+            `<span class="gb-addr">${[c.welcome ? 'Dear friend' : '\u00a0'].map(t => `<span>${t}</span>`).join('')}</span>` +
             `<span class="gb-div"></span>` +
             `<span class="gb-msg">${c.msg}<span class="gb-sign">${c.from}</span></span>` +
           `</span>${decorHTML(c.deco && c.deco.back)}</span>` +
@@ -1746,25 +1967,39 @@ input:autofill {
     }
 
     function cardHTML(c, i, cls) {
+      if (c.snap) return `<div class="pc ${cls} pc-snap ${c.land ? 'pc-land' : 'pc-port'}"><img src="${esc(c.snap.front)}" alt=""></div>`;
       return `<div class="pc ${cls} ${c.land ? 'pc-land' : 'pc-port'}">` +
         `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, cls + i)}</svg>${decorHTML(c.deco && c.deco.front)}</div>`;
     }
 
-    const left = document.getElementById('galleryLeft'), right = document.getElementById('galleryRight');
+    const strip = document.getElementById('galleryLeft');
     const stage = document.getElementById('galleryStage');
-    const half = Math.ceil(CARDS.length / 2);
-    let current = 0;
+    let current = 0, thumbs = [];
 
-    CARDS.forEach((c, i) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'thumb';
-      b.dataset.i = i;
-      b.setAttribute('aria-label', `Postcard from ${c.from}, ${c.place}`);
-      b.innerHTML = cardHTML(c, i, 'pc-thumb');
-      (i < half ? left : right).appendChild(b);
-    });
-    const thumbs = [...document.querySelectorAll('.thumb')];
+    function renderThumbs() {
+      strip.innerHTML = '';
+      CARDS.forEach((c, i) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'thumb';
+        b.dataset.i = i;
+        b.setAttribute('aria-label', `Postcard from ${c.from}`);
+        b.innerHTML = cardHTML(c, i, 'pc-thumb');
+        b.addEventListener('click', () => select(i));
+        strip.appendChild(b);
+      });
+      thumbs = [...strip.querySelectorAll('.thumb')];
+      // Nothing received yet: hint at where new postcards will appear
+      const none = !CARDS.some(c => c.snap);
+      if (none) {
+        const slot = document.createElement('span');
+        slot.className = 'thumb-empty';
+        slot.setAttribute('aria-hidden', 'true');
+        strip.appendChild(slot);
+      }
+      document.getElementById('galleryHint').hidden = !none;
+    }
+    renderThumbs();
 
     function select(i, focus) {
       current = (i + CARDS.length) % CARDS.length;
@@ -1776,9 +2011,8 @@ input:autofill {
       flip.addEventListener('click', () => {
         const back = flip.getAttribute('aria-pressed') !== 'true';
         flip.setAttribute('aria-pressed', String(back));
-        flip.dataset.tip = back ? 'Turn back' : 'Turn over';
       });
-      document.getElementById('galleryMeta').textContent = `From ${c.from} · ${c.place}, ${c.date}`;
+      document.getElementById('galleryMeta').textContent = `From ${c.from} · ${c.date}`;
       void stage.offsetWidth;                      // restart the fade
       stage.classList.add('show');
       thumbs.forEach((t, k) => t.setAttribute('aria-current', String(k === current)));
@@ -1786,7 +2020,6 @@ input:autofill {
       thumbs[current].scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
     }
 
-    thumbs.forEach(t => t.addEventListener('click', () => select(+t.dataset.i)));
     document.getElementById('gallery').addEventListener('keydown', e => {
       const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
       if (!step) return;
@@ -1796,7 +2029,24 @@ input:autofill {
     select(0);
 
     // Open the gallery on a card, optionally turning it over after it appears
+    function dateLabel(iso) {
+      const d = new Date(iso);
+      return isNaN(d) ? '' : `${d.getDate()} ${d.toLocaleString('en-GB', { month: 'short' })} ${d.getFullYear()}`;
+    }
+
     window.postcardGallery = {
+      // Received postcards from /api/inbox, newest first
+      setReceived(list) {
+        const id = CARDS[current] && CARDS[current].id;
+        CARDS = list.map(p => ({
+          id: p.id, snap: { front: p.front, back: p.back }, msg: p.message,
+          from: p.from, date: dateLabel(p.sentAt), land: !!p.landscape
+        })).concat(WELCOME);
+        renderThumbs();
+        const keep = CARDS.findIndex(c => c.id === id);
+        select(keep >= 0 ? keep : 0);
+      },
+      indexOf(id) { return id === 'welcome' ? CARDS.indexOf(WELCOME) : CARDS.findIndex(c => c.id === id); },
       open(i, flipAfter) {
         if (i !== undefined) select(i);
         const g = document.getElementById('gallery');
@@ -1809,36 +2059,410 @@ input:autofill {
     };
   })();
 
-  // Welcome postcard: the first time someone opens the app (per account on this
-  // browser), a postcard from us is waiting on the postcard stand. A game-style cue on the postcard stand lead them to it; opening it shows the card
-  // in the gallery and turns it over. Afterwards the stand just opens the gallery.
+  // The postcard stand: a speech bubble says when there's something new to
+  // read, either the welcome card (first visit, per account on this browser) or
+  // postcards people have sent. Clicking opens the newest one and turns it over;
+  // otherwise the stand just opens the gallery.
   (function () {
     const hotspot = document.getElementById('stand');
     const userId = welcomeUser().id || 'guest';
-    const KEY = 'postcards.welcomeSeen.' + userId;
-    let seen = false;
-    try { seen = localStorage.getItem(KEY) === '1'; } catch (_) {}
+    const WKEY = 'postcards.welcomeSeen.' + userId, SKEY = 'postcards.seen.' + userId;
+    const read = k => { try { return localStorage.getItem(k); } catch (_) { return null; } };
+    const write = (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} };
+    let welcomeSeen = read(WKEY) === '1';
+    let seen = new Set();
+    try { seen = new Set(JSON.parse(read(SKEY) || '[]')); } catch (_) {}
+    let unseen = [], loadedAt = 0;
 
-    function markSeen() {
-      seen = true;
-      try { localStorage.setItem(KEY, '1'); } catch (_) {}
-      document.body.classList.remove('has-mail');
-      hotspot.setAttribute('aria-label', 'Your postcards');
+    function cue() {
+      const n = unseen.length + (welcomeSeen ? 0 : 1);
+      document.body.classList.toggle('has-mail', n > 0);
+      hotspot.setAttribute('aria-label', n ? `Your postcards: ${n} new postcard${n > 1 ? 's' : ''}` : 'Your postcards');
     }
 
-    if (!seen) {
-      document.body.classList.add('has-mail');
-      hotspot.setAttribute('aria-label', 'Your postcards: 1 new postcard');
+    async function load() {
+      const token = await window.postcardsAuth.token();
+      if (!token) return;
+      const res = await fetch('/api/inbox', { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' });
+      if (!res.ok) return;
+      const list = (await res.json()).postcards || [];
+      loadedAt = Date.now();
+      window.postcardGallery.setReceived(list);
+      unseen = list.map(p => p.id).filter(id => !seen.has(id));
+      cue();
     }
 
-    hotspot.addEventListener('click', () => {
-      const first = !seen;
-      window.postcardGallery.open(first ? 0 : undefined, first);   // the welcome card is first
-      if (first) markSeen();
+    cue();
+    load().catch(() => {});
+
+    hotspot.addEventListener('click', async () => {
+      // Picture links last an hour; fetch fresh ones if these are getting old
+      if (Date.now() - loadedAt > 45 * 60 * 1000) await load().catch(() => {});
+      const g = window.postcardGallery;
+      if (unseen.length) g.open(g.indexOf(unseen[0]), true);
+      else if (!welcomeSeen) g.open(g.indexOf('welcome'), true);
+      else g.open();
+      // Everything is in the gallery now, so nothing is new any more
+      unseen.forEach(id => seen.add(id));
+      write(SKEY, JSON.stringify([...seen].slice(-500)));
+      unseen = [];
+      welcomeSeen = true;
+      write(WKEY, '1');
+      cue();
     });
   })();
 
 
+
+  // Which part of the room is in view, for the sounds: the mailbox side (the
+  // outdoors) once most of the right panel is showing, the shelf side once most
+  // of the left panel is
+  window.postcardsView = (function () {
+    const scroller = document.getElementById('scroller');
+    const left = document.querySelector('.zone-left'), right = document.querySelector('.zone-right');
+    return {
+      mailbox: () => scroller.scrollWidth - scroller.clientWidth - scroller.scrollLeft < right.offsetWidth * 0.5,
+      shelf: () => scroller.scrollLeft < left.offsetWidth * 0.5,
+    };
+  })();
+
+  // Sound on/off for the whole page (music, page turns, outdoors, the bird),
+  // remembered on this browser. Changing it fires "postcards-sound" so each
+  // sound can fade in or out.
+  window.postcardsSound = (function () {
+    const btn = document.getElementById('soundToggle');
+    let muted = false;
+    try { muted = localStorage.getItem('postcards.muted') === '1'; } catch (_) {}
+    function show() {
+      btn.setAttribute('aria-pressed', String(muted));
+      const label = muted ? 'Turn sound on' : 'Mute sound';
+      btn.setAttribute('aria-label', label);
+      btn.dataset.tip = label;
+    }
+    show();
+    btn.addEventListener('click', () => {
+      muted = !muted;
+      try { localStorage.setItem('postcards.muted', muted ? '1' : '0'); } catch (_) {}
+      show();
+      document.dispatchEvent(new Event('postcards-sound'));
+    });
+    return { get muted() { return muted; } };
+  })();
+
+  // The bird on the shelf chirps when you hover over it (or tap it). The chirps
+  // are made with Web Audio, no sound file: quick rising whistles, each a little
+  // different. Browsers only allow sound after the page has been clicked or
+  // typed in once, so a hover before that stays silent (the notes still float).
+  (function () {
+    const bird = document.getElementById('bird');
+    const AC = window.AudioContext || window.webkitAudioContext;
+    let ctx = null, last = 0;
+
+    function audio() {
+      if (!AC) return null;
+      if (!ctx) ctx = new AC();
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      return ctx;
+    }
+    // Unlock sound on the first click or key press anywhere
+    const unlock = () => { audio(); window.removeEventListener('pointerdown', unlock, true); window.removeEventListener('keydown', unlock, true); };
+    window.addEventListener('pointerdown', unlock, true);
+    window.addEventListener('keydown', unlock, true);
+
+    function chirp(ac, at, f0, f1, len, vol) {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(f0, at);
+      o.frequency.exponentialRampToValueAtTime(f1, at + len * 0.7);
+      o.frequency.exponentialRampToValueAtTime(f1 * 0.92, at + len);
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(vol, at + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + len);
+      o.connect(g).connect(ac.destination);
+      o.start(at);
+      o.stop(at + len + 0.02);
+    }
+
+    function sing() {
+      const now = performance.now();
+      if (now - last < 900) return;          // not on every twitch of the mouse
+      last = now;
+      const ac = window.postcardsSound.muted ? null : audio();
+      if (ac && ac.state === 'running') {
+        const n = 2 + Math.round(Math.random());
+        let t = ac.currentTime + 0.01;
+        for (let i = 0; i < n; i++) {
+          const base = 2600 + Math.random() * 700;
+          const len = 0.07 + Math.random() * 0.04;
+          chirp(ac, t, base, base * (1.45 + Math.random() * 0.25), len, 0.07);
+          t += len + 0.05 + Math.random() * 0.04;
+        }
+      }
+      ['\u266A', '\u266B'].forEach((ch, i) => {
+        const note = document.createElement('span');
+        note.className = 'bird-note';
+        note.textContent = ch;
+        note.style.setProperty('--dx', (i ? 14 : -4) + 'px');
+        note.style.animationDelay = (i * 0.15) + 's';
+        note.style.opacity = '0';
+        bird.appendChild(note);
+        setTimeout(() => note.remove(), 1400);
+      });
+    }
+
+    bird.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') sing(); });
+    bird.addEventListener('click', sing);
+  })();
+
+  // A calm afternoon outdoors, heard only on the mailbox side: a soft low
+  // rumble, a breeze that rises and falls, and birds in the distance. All made
+  // with Web Audio at low volume; it fades in when the mailbox is in view and
+  // out when you scroll back or leave the tab. Browsers only allow sound after
+  // the page has been clicked or typed in once, so it starts from then.
+  (function () {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const scroller = document.getElementById('scroller');
+    const rightZone = document.querySelector('.zone-right');
+    if (!AC || !scroller || !rightZone) return;
+    let ctx = null, master = null, birdTimer = null, playing = false;
+
+    function noise(kind) {
+      const len = ctx.sampleRate * 6, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+      let b0 = 0, b1 = 0, b2 = 0, last = 0;
+      for (let i = 0; i < len; i++) {
+        const w = Math.random() * 2 - 1;
+        if (kind === 'brown') { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; }
+        else { b0 = 0.997 * b0 + 0.029591 * w; b1 = 0.985 * b1 + 0.032534 * w; b2 = 0.95 * b2 + 0.048056 * w; d[i] = (b0 + b1 + b2 + w * 0.05) * 0.8; }
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf; src.loop = true;
+      return src;
+    }
+
+    function build() {
+      ctx = new AC();
+      master = ctx.createGain();
+      master.gain.value = 0;
+      master.connect(ctx.destination);
+      // room tone: deep and barely there
+      const room = noise('brown'), roomLp = ctx.createBiquadFilter(), roomG = ctx.createGain();
+      roomLp.type = 'lowpass'; roomLp.frequency.value = 260; roomG.gain.value = 0.05;
+      room.connect(roomLp).connect(roomG).connect(master); room.start();
+      // breeze: airy noise whose loudness drifts slowly
+      const air = noise('pink'), airBp = ctx.createBiquadFilter(), airG = ctx.createGain();
+      airBp.type = 'bandpass'; airBp.frequency.value = 650; airBp.Q.value = 0.6; airG.gain.value = 0.022;
+      const lfo = ctx.createOscillator(), lfoG = ctx.createGain();
+      lfo.frequency.value = 0.07; lfoG.gain.value = 0.016;
+      lfo.connect(lfoG).connect(airG.gain); lfo.start();
+      air.connect(airBp).connect(airG).connect(master); air.start();
+    }
+
+    // Birds outside: a few soft chirps every so often, muffled by distance
+    function birds() {
+      if (!playing) return;
+      const lp = ctx.createBiquadFilter(), g = ctx.createGain();
+      lp.type = 'lowpass'; lp.frequency.value = 3200; g.gain.value = 1;
+      lp.connect(g).connect(master);
+      let t = ctx.currentTime + 0.05;
+      const n = 2 + Math.floor(Math.random() * 3), base = 2300 + Math.random() * 900;
+      for (let i = 0; i < n; i++) {
+        const o = ctx.createOscillator(), e = ctx.createGain(), len = 0.06 + Math.random() * 0.05;
+        const f = base * (0.95 + Math.random() * 0.1);
+        o.frequency.setValueAtTime(f, t);
+        o.frequency.exponentialRampToValueAtTime(f * (1.3 + Math.random() * 0.3), t + len * 0.7);
+        e.gain.setValueAtTime(0.0001, t);
+        e.gain.exponentialRampToValueAtTime(0.012, t + 0.012);
+        e.gain.exponentialRampToValueAtTime(0.0001, t + len);
+        o.connect(e).connect(lp); o.start(t); o.stop(t + len + 0.02);
+        t += len + 0.06 + Math.random() * 0.08;
+      }
+      birdTimer = setTimeout(birds, 4000 + Math.random() * 8000);
+    }
+
+    function inMailboxView() {
+      return !window.postcardsSound.muted && document.visibilityState === 'visible' && window.postcardsView.mailbox();
+    }
+
+    function update() {
+      if (!ctx || ctx.state === 'closed') return;
+      const want = inMailboxView();
+      if (want === playing) return;
+      playing = want;
+      const now = ctx.currentTime;
+      master.gain.cancelScheduledValues(now);
+      master.gain.setValueAtTime(master.gain.value, now);
+      if (want) {
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+        master.gain.linearRampToValueAtTime(1, now + 2.5);
+        clearTimeout(birdTimer); birdTimer = setTimeout(birds, 1500);
+      } else {
+        master.gain.linearRampToValueAtTime(0, now + 1.5);
+        clearTimeout(birdTimer);
+        setTimeout(() => { if (!playing && ctx.state === 'running') ctx.suspend(); }, 1700);
+      }
+    }
+
+    // Sound may only start after the first click or key press
+    const unlock = () => {
+      window.removeEventListener('pointerdown', unlock, true);
+      window.removeEventListener('keydown', unlock, true);
+      try { build(); } catch (_) { return; }
+      ctx.suspend().catch(() => {});
+      update();
+    };
+    window.addEventListener('pointerdown', unlock, true);
+    window.addEventListener('keydown', unlock, true);
+    scroller.addEventListener('scroll', update, { passive: true });
+    document.addEventListener('visibilitychange', update);
+    document.addEventListener('postcards-sound', update);
+    window.postcardsAmbience = { get playing() { return playing; }, level: () => master ? master.gain.value : 0 };
+  })();
+
+  // Home, indoors (the bookshelf and the postcard, everywhere but the mailbox
+  // side): soft, slow piano-like music over a gentle chord progression, and on
+  // the bookshelf side, now and then someone turning a newspaper page. Made with
+  // Web Audio at low volume, generated as it plays (it never loops); it fades in
+  // when the shelf is in view and out when you scroll away or leave the tab.
+  // Like all page sound, it can only start after the first click or key press.
+  (function () {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const scroller = document.getElementById('scroller');
+    const leftZone = document.querySelector('.zone-left');
+    if (!AC || !scroller || !leftZone) return;
+    let ctx = null, master = null, verb = null, playing = false;
+    let tick = null, nextBeat = 0, beat = 0, pageTimer = null;
+
+    const midi = m => 440 * Math.pow(2, (m - 69) / 12);
+    // Fmaj7, Cmaj7/E, Am7, G(add9): slow and warm
+    const CHORDS = [
+      { bass: 41, tones: [53, 57, 60, 64] },
+      { bass: 40, tones: [52, 55, 59, 62] },
+      { bass: 45, tones: [52, 55, 57, 60] },
+      { bass: 43, tones: [50, 55, 57, 59] },
+    ];
+    const BEAT = 0.85;                       // seconds per beat, 4 beats a chord
+
+    function build() {
+      ctx = new AC();
+      master = ctx.createGain(); master.gain.value = 0;
+      const tone = ctx.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = 1100; tone.Q.value = 0.3;
+      master.connect(tone).connect(ctx.destination);
+      // a small room: a soft echo tail from decaying noise
+      verb = ctx.createConvolver();
+      const len = ctx.sampleRate * 2.6, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+      for (let c = 0; c < 2; c++) {
+        const d = ir.getChannelData(c);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+      }
+      verb.buffer = ir;
+      const wet = ctx.createGain(); wet.gain.value = 0.5;
+      verb.connect(wet).connect(master);
+    }
+
+    // One soft, felt-piano-like note: mostly a pure tone with a faint overtone,
+    // eased in rather than struck, with a long fade
+    function note(m, t, vol, len) {
+      const f = midi(m), g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.09);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      [[1, 1], [2, 0.06]].forEach(([h, a]) => {
+        const o = ctx.createOscillator(), og = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = f * h; og.gain.value = a;
+        o.connect(og).connect(g); o.start(t); o.stop(t + len + 0.05);
+      });
+      g.connect(master); g.connect(verb);
+    }
+
+    // Schedule a little ahead of time so the music stays steady
+    function schedule() {
+      while (nextBeat < ctx.currentTime + 1.2) {
+        const chord = CHORDS[Math.floor(beat / 4) % CHORDS.length], b = beat % 4;
+        if (b === 0) note(chord.bass, nextBeat, 0.04, 4.5);
+        // a gentle, unhurried melody from the chord's notes
+        if (Math.random() < (b === 0 ? 0.9 : 0.6)) {
+          const m = chord.tones[Math.floor(Math.random() * chord.tones.length)];
+          note(m, nextBeat + (Math.random() < 0.3 ? BEAT / 2 : 0), 0.03 + Math.random() * 0.01, 3.6);
+        }
+        nextBeat += BEAT; beat++;
+      }
+    }
+
+    // Turning a newspaper page: a papery rustle that swells and settles, then a
+    // smaller crinkle as the page lands
+    function pageTurn() {
+      if (!playing) return;
+      if (!window.postcardsView.shelf()) { pageTimer = setTimeout(pageTurn, 4000); return; }   // only by the shelf
+      const t = ctx.currentTime + 0.05;
+      const rustle = (start, dur, vol, freq) => {
+        const len = Math.ceil(ctx.sampleRate * dur), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+        let crackle = 1;
+        for (let i = 0; i < len; i++) {
+          if (i % 220 === 0) crackle = 0.35 + Math.random() * 0.65;   // the paper's crinkly texture
+          d[i] = (Math.random() * 2 - 1) * crackle;
+        }
+        const src = ctx.createBufferSource(); src.buffer = buf;
+        const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = 0.7;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, start);
+        g.gain.exponentialRampToValueAtTime(vol, start + dur * 0.35);
+        g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+        src.connect(bp).connect(g); g.connect(master); g.connect(verb);
+        src.start(start);
+      };
+      rustle(t, 0.55, 0.05, 2200);            // the page sweeping over
+      rustle(t + 0.5, 0.25, 0.025, 3200);     // settling crinkle
+      pageTimer = setTimeout(pageTurn, 15000 + Math.random() * 15000);
+    }
+
+    function inShelfView() {
+      return !window.postcardsSound.muted && document.visibilityState === 'visible' && !window.postcardsView.mailbox();
+    }
+
+    function update() {
+      if (!ctx || ctx.state === 'closed') return;
+      const want = inShelfView();
+      if (want === playing) return;
+      playing = want;
+      const now = ctx.currentTime;
+      master.gain.cancelScheduledValues(now);
+      master.gain.setValueAtTime(master.gain.value, now);
+      if (want) {
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+        master.gain.linearRampToValueAtTime(1, now + 1);
+        nextBeat = Math.max(nextBeat, now + 0.05);
+        clearInterval(tick); tick = setInterval(schedule, 250); schedule();
+        clearTimeout(pageTimer); pageTimer = setTimeout(pageTurn, 6000 + Math.random() * 6000);
+      } else {
+        master.gain.linearRampToValueAtTime(0, now + 1.5);
+        clearTimeout(pageTimer);
+        setTimeout(() => { if (!playing) { clearInterval(tick); if (ctx.state === 'running') ctx.suspend(); } }, 1700);
+      }
+    }
+
+    const unlock = () => {
+      window.removeEventListener('pointerdown', unlock, true);
+      window.removeEventListener('keydown', unlock, true);
+      try { build(); } catch (_) { return; }
+      ctx.suspend().catch(() => {});
+      update();
+    };
+    window.addEventListener('pointerdown', unlock, true);
+    window.addEventListener('keydown', unlock, true);
+    scroller.addEventListener('scroll', update, { passive: true });
+    document.addEventListener('visibilitychange', update);
+    document.addEventListener('postcards-sound', update);
+    window.postcardsHomeSound = { get playing() { return playing; }, level: () => master ? master.gain.value : 0, pageTurn: () => pageTurn() };
+  })();
+
+  // Plant: on phones there's no hover, so a tap sways it
+  (function () {
+    const plant = document.getElementById('plant');
+    plant.addEventListener('click', () => {
+      plant.classList.remove('sway'); void plant.offsetWidth; plant.classList.add('sway');
+    });
+    plant.addEventListener('animationend', () => plant.classList.remove('sway'));
+  })();
 
   // Tools under the postcard: clickable, actions still to be decided
   // Font tool: each click switches between handwritten and typewriter.
@@ -1959,8 +2583,8 @@ input:autofill {
   // placed flower to move it, or off the card to remove it.
   (function () {
     const FLOWERS = [
-      ['chamomile', 'Chamomile'], ['wildflowers', 'Wildflowers'], ['lily', 'Lily'],
-      ['lavender', 'Lavender'], ['cosmos', 'Cosmos']
+      ['babysbreath', "Baby's breath"], ['blossom', 'White blossom'], ['daisies', 'Orange daisies'],
+      ['buds', 'Cream buds'], ['poppy', 'Poppy']
     ];
     const tool = document.getElementById('toolStickers');
     const tray = document.getElementById('flowerTray');
@@ -1978,7 +2602,10 @@ input:autofill {
       grid.appendChild(b);
     });
 
-    const open = () => { tray.hidden = false; tools.hidden = true; tool.setAttribute('aria-expanded', 'true'); };
+    const open = () => {
+      tray.hidden = false; tools.hidden = true; tool.setAttribute('aria-expanded', 'true');
+      if (typeof setSide === 'function') setSide('back');      // flowers live on the back
+    };
     const close = () => { tray.hidden = true; tools.hidden = false; tool.setAttribute('aria-expanded', 'false'); };
     tool.setAttribute('aria-expanded', 'false');
     tool.addEventListener('click', () => (tray.hidden ? open() : close()));
@@ -1988,15 +2615,15 @@ input:autofill {
       close();
     });
 
-    // The decoration layer on whichever side is showing
-    const decor = () => document.getElementById(document.getElementById('backArea').hidden ? 'decorFront' : 'decorBack');
+    // Pressed flowers go on the back only (the front is the photo)
+    const decor = () => document.getElementById('decorBack');
     const inside = (el, x, y) => {
       const r = el.getBoundingClientRect();
       return r.width > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
     };
-    const flowerWidth = el => {                 // matches .flower width: 15cqmin of the layer
+    const flowerWidth = el => {                 // matches .flower width: 18cqmin of the layer
       const r = el.getBoundingClientRect();
-      return 0.15 * Math.min(r.width, r.height);
+      return 0.18 * Math.min(r.width, r.height);
     };
 
     function place(layer, id, x, y, rot) {
@@ -2369,39 +2996,6 @@ input:autofill {
       try { return Promise.resolve(c.toDataURL('image/jpeg', 0.85)); } catch (_) { return Promise.resolve(null); }
     }
 
-    // The signed-in user's access token, refreshed if it has expired
-    // (tokens last an hour; the page may have been open longer)
-    let sbClient = null;
-    async function freshToken() {
-      try {
-        if (!sbClient) {
-          if (!window.supabase) await new Promise((ok, fail) => {
-            const s = document.createElement('script');
-            s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
-            s.onload = ok; s.onerror = fail;
-            document.head.appendChild(s);
-          });
-          const env = await (await fetch('/api/env')).json();
-          if (!env.url || !env.key) return accessToken();
-          sbClient = window.supabase.createClient(env.url, env.key, { auth: { persistSession: true, detectSessionInUrl: false } });
-        }
-        const { data } = await sbClient.auth.getSession();
-        return (data.session && data.session.access_token) || '';
-      } catch (_) {
-        return accessToken();
-      }
-    }
-
-    function accessToken() {
-      try {
-        for (let k = 0; k < localStorage.length; k++) {
-          const key = localStorage.key(k);
-          if (/^sb-.+-auth-token$/.test(key)) return (JSON.parse(localStorage.getItem(key)) || {}).access_token || '';
-        }
-      } catch (_) {}
-      return '';
-    }
-
     // Snapshot both faces of the card exactly as designed (fonts, stamp box,
     // postmark, ruled lines, flowers, the photo's framing) for the email.
     // Email apps ignore web fonts and most layout, so pictures look the same everywhere.
@@ -2485,14 +3079,14 @@ input:autofill {
           body: JSON.stringify({
             recipientEmail: to,
             message: val('message'),
-            to: { name: val('toName'), address: val('toAddress'), city: val('toCity'), postal: val('toPostal') },
+            to: { name: val('toName') },
             photo: faces ? null : await photoForEmail(),
             front: faces ? faces.front : null,
             back: faces ? faces.back : null,
             orientation: card.classList.contains('landscape') ? 'landscape' : 'portrait',
             stamp,
             font: document.body.classList.contains('font-typewriter') ? 'type' : 'hand',
-            accessToken: await freshToken()
+            accessToken: await window.postcardsAuth.token()
           })
         });
         const data = await res.json().catch(() => ({}));
@@ -2580,66 +3174,75 @@ input:autofill {
       return 'M ' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L ');
     }
 
+    // Fly the card along the path. The whole flight is worked out up front and
+    // handed to the browser as one animation, so it stays smooth even while the
+    // page is busy (it's taking the pictures of the card for the email then).
+    // The dashed trail is the same smooth curve, revealed behind the card.
     function along(copy, r, b, s) {
       const NS = 'http://www.w3.org/2000/svg';
-      const svg = document.createElementNS(NS, 'svg');
-      const path = document.createElementNS(NS, 'path');
       const a = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-      path.setAttribute('d', flightPath(a, b, Math.min(320, Math.max(160, r.height * 0.55))));
-      svg.appendChild(path);
-      svg.style.cssText = 'position:fixed;width:0;height:0;overflow:hidden';
-      document.body.appendChild(svg);
-      // dashed trail drawn behind the card as it flies
+      const d = flightPath(a, b, Math.min(320, Math.max(160, r.height * 0.55)));
+
       const trailSvg = document.createElementNS(NS, 'svg');
       trailSvg.setAttribute('class', 'flight-trail');
+      const mask = document.createElementNS(NS, 'mask');
+      mask.id = 'trailReveal';
+      mask.setAttribute('maskUnits', 'userSpaceOnUse');
+      ['x', 'y'].forEach(k => mask.setAttribute(k, '-5000'));
+      ['width', 'height'].forEach(k => mask.setAttribute(k, '10000'));
+      const reveal = document.createElementNS(NS, 'path');
+      reveal.setAttribute('d', d);
+      reveal.setAttribute('class', 'trail-reveal');
+      mask.appendChild(reveal);
       const trail = document.createElementNS(NS, 'path');
-      trailSvg.appendChild(trail);
+      trail.setAttribute('d', d);
+      trail.setAttribute('mask', 'url(#trailReveal)');
+      trailSvg.append(mask, trail);
       document.body.insertBefore(trailSvg, copy);
-      const len = path.getTotalLength(), dur = 3200;
-      // constant pace along the whole path
-      const ease = t => t;
-      let pts = '', prev = null, wind = 0, alignTo = null;
+
+      const len = trail.getTotalLength(), dur = 3200, N = 240;
       const portrait = r.height > r.width;
-      return new Promise(resolve => {
-        const start = performance.now();
-        (function frame(now) {
-          const t = Math.min(1, (now - start) / dur), e = ease(t);
-          const p = path.getPointAtLength(e * len);
-          const q = path.getPointAtLength(Math.min(len, e * len + 1));
-          const p0 = e * len >= len - 1 ? path.getPointAtLength(len - 2) : p;
-          // turn with the path like the reference video, at half the path's turn,
-          // so it banks through the loop and comes out upside down
-          let raw = Math.atan2(q.y - p0.y, q.x - p0.x) * 180 / Math.PI;
-          if (prev !== null) {
-            while (raw + wind - prev > 180) wind -= 360;
-            while (raw + wind - prev < -180) wind += 360;
-          }
-          prev = raw + wind;
-          let ang = 0.5 * prev;
-          // At the mailbox, line the card up with the horizontal slot (long side
-          // level) before it slips in: blend to the nearest such angle
-          if (alignTo === null && t > 0.6) {
-            const step = 180, offset = portrait ? 90 : 0;
-            alignTo = Math.round((ang - offset) / step) * step + offset;
-          }
-          if (alignTo !== null) {
-            const k2 = Math.min(1, Math.max(0, (t - 0.68) / 0.2));
-            const sm = k2 * k2 * (3 - 2 * k2);
-            ang = ang + (alignTo - ang) * sm;
-          }
-          const k = 1 - Math.pow(1 - e, 1.6);
-          const scale = 1 + (s - 1) * k;
-          copy.style.transform = `translate(${p.x - a.x}px, ${p.y - a.y}px) rotate(${ang}deg) scale(${scale})`;
-          pts += (pts ? ' L ' : 'M ') + p.x.toFixed(1) + ' ' + p.y.toFixed(1);
-          trail.setAttribute('d', pts);
-          if (t < 1) requestAnimationFrame(frame);
-          else {
-            svg.remove();
-            trailSvg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 900, delay: 500, fill: 'forwards' })
-              .finished.then(() => trailSvg.remove());
-            resolve();
-          }
-        })(start);
+      const frames = [];
+      let prev = null, wind = 0, alignTo = null;
+      for (let i = 0; i <= N; i++) {
+        const t = i / N, e = t;                           // constant pace along the whole path
+        const p = trail.getPointAtLength(e * len);
+        const q = trail.getPointAtLength(Math.min(len, e * len + 1));
+        const p0 = e * len >= len - 1 ? trail.getPointAtLength(len - 2) : p;
+        // turn with the path like the reference video, at half the path's turn,
+        // so it banks through the loop and comes out upside down
+        let raw = Math.atan2(q.y - p0.y, q.x - p0.x) * 180 / Math.PI;
+        if (prev !== null) {
+          while (raw + wind - prev > 180) wind -= 360;
+          while (raw + wind - prev < -180) wind += 360;
+        }
+        prev = raw + wind;
+        let ang = 0.5 * prev;
+        // At the mailbox, line the card up with the horizontal slot (long side
+        // level) before it slips in: blend to the nearest such angle
+        if (alignTo === null && t > 0.6) {
+          const step = 180, offset = portrait ? 90 : 0;
+          alignTo = Math.round((ang - offset) / step) * step + offset;
+        }
+        if (alignTo !== null) {
+          const k2 = Math.min(1, Math.max(0, (t - 0.68) / 0.2));
+          const sm = k2 * k2 * (3 - 2 * k2);
+          ang = ang + (alignTo - ang) * sm;
+        }
+        const k = 1 - Math.pow(1 - e, 1.6);
+        const scale = 1 + (s - 1) * k;
+        frames.push({ offset: t, transform: `translate(${(p.x - a.x).toFixed(2)}px, ${(p.y - a.y).toFixed(2)}px) rotate(${ang.toFixed(2)}deg) scale(${scale.toFixed(4)})` });
+      }
+
+      const flight = copy.animate(frames, { duration: dur, easing: 'linear', fill: 'forwards' });
+      reveal.style.strokeDasharray = `${len} ${len}`;
+      reveal.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], { duration: dur, easing: 'linear', fill: 'forwards' });
+      return flight.finished.then(() => {
+        // keep the final pose for the drop into the slot
+        copy.style.transform = frames[N].transform;
+        flight.cancel();
+        trailSvg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 900, delay: 500, fill: 'forwards' })
+          .finished.then(() => trailSvg.remove());
       });
     }
 
@@ -2668,7 +3271,7 @@ input:autofill {
       replace.hidden = true;
       document.getElementById('photoHint').hidden = true;
       empty.hidden = false;
-      ['toName', 'toAddress', 'toCity', 'toPostal', 'message'].forEach(id => { document.getElementById(id).value = ''; });
+      ['toName', 'message'].forEach(id => { document.getElementById(id).value = ''; });
       if (window.postcardStamps) window.postcardStamps.clear();
       document.querySelectorAll('.decor .flower').forEach(f => f.remove());
       applySide(false);

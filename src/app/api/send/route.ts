@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import nodemailer from "nodemailer";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 // Sends a postcard by email. The card's images travel inside the email as
 // inline attachments (cid:), so no file hosting is needed.
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
     const { count, error: countErr } = await db
       .from("postcards")
       .select("*", { count: "exact", head: true })
-      .eq("sender_email", sender)
+      .eq("sender_email", sender.toLowerCase())
       .gte("sent_at", since);
     if (countErr) {
       // Without the count there's no cap, so don't send
@@ -188,27 +188,70 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Keep a record; this is also what the daily limit counts
+  // Keep a record (this is also what the daily limit counts), with the card's
+  // pictures in private storage so it shows up in the recipient's gallery
   if (db) {
-    const { error: dbErr } = await db.from("postcards").insert({
-      sender_email: sender,
-      recipient_email: recipient,
+    const imageKey = await storeImages(db, postcardId, front, back, photo);
+    const row = {
+      sender_email: sender.toLowerCase(),
+      recipient_email: recipient.toLowerCase(),
       message: String(body.message ?? "").slice(0, 2000),
       orientation: portrait ? "portrait" : "landscape",
       stamp_emoji: stamp ?? "",
       status: "sent",
       sent_at: new Date().toISOString(),
-    });
+    };
+    let { error: dbErr } = await db.from("postcards").insert({ ...row, image_key: imageKey });
+    // Older table without the image_key column: still keep the record
+    if (dbErr && /image_key/.test(dbErr.message || "")) ({ error: dbErr } = await db.from("postcards").insert(row));
     if (dbErr) console.error("Postcard sent but not recorded:", dbErr);
   }
 
   return NextResponse.json({ success: true, id: postcardId });
 }
 
+const BUCKET = "postcards";
+
+// Upload the card's pictures to private storage as <key>/front.jpg and
+// <key>/back.jpg (or just front, when only the photo came). Returns the key,
+// or null if storage isn't available; the email has already gone out.
+async function storeImages(
+  db: SupabaseClient,
+  key: string,
+  front: Img | null,
+  back: Img | null,
+  photo: Img | null,
+): Promise<string | null> {
+  const files: [string, Img][] = front && back ? [["front", front], ["back", back]] : photo ? [["front", photo]] : [];
+  if (!files.length) return null;
+  const upload = () =>
+    Promise.all(
+      files.map(([name, img]) =>
+        db.storage.from(BUCKET).upload(`${key}/${name}.jpg`, img.content, { contentType: img.type, upsert: true }),
+      ),
+    );
+  try {
+    let results = await upload();
+    if (results.some((r) => r.error && /bucket not found/i.test(r.error.message))) {
+      await db.storage.createBucket(BUCKET, { public: false });
+      results = await upload();
+    }
+    const failed = results.find((r) => r.error);
+    if (failed) {
+      console.error("Couldn't store the postcard's pictures:", failed.error);
+      return null;
+    }
+    return key;
+  } catch (err) {
+    console.error("Couldn't store the postcard's pictures:", err);
+    return null;
+  }
+}
+
 // "Send a postcard back": a button that works in every email app
 function replyButton(url: string) {
   return `<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:26px auto 0;border-collapse:separate;">
-      <tr><td align="center" bgcolor="#a3402f" style="border-radius:999px;">
+      <tr><td align="center" bgcolor="#111111" style="border-radius:999px;">
         <a href="${esc(url)}" target="_blank" style="display:inline-block;padding:12px 26px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:999px;">Send a postcard back</a>
       </td></tr>
     </table>
