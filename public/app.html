@@ -164,11 +164,11 @@ body {
 }
 @media (prefers-reduced-motion: reduce) { .plant:hover img, .plant.sway img { animation: none; } }
 
-/* Sound on/off, top right of the screen */
+/* Sound on/off, bottom left of the screen */
 .sound-toggle {
   position: fixed;
-  top: 20px;
-  right: max(20px, env(safe-area-inset-right, 0px));
+  bottom: max(20px, env(safe-area-inset-bottom, 0px));
+  left: max(20px, env(safe-area-inset-left, 0px));
   z-index: 30;
   width: 40px;
   height: 40px;
@@ -189,7 +189,7 @@ body {
 .sound-toggle .when-muted { display: none; }
 .sound-toggle[aria-pressed="true"] .when-muted { display: block; }
 .sound-toggle[aria-pressed="true"] .when-on { display: none; }
-.sound-toggle[data-tip]::after { left: auto; right: 0; transform: translate(0, -2px); }
+.sound-toggle[data-tip]::after { top: auto; bottom: calc(100% + 8px); left: 0; transform: translate(0, 2px); }
 .sound-toggle[data-tip]:hover::after,
 .sound-toggle[data-tip]:focus-visible::after { transform: none; }
 
