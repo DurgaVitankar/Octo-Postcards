@@ -1216,9 +1216,9 @@ body {
 /* Received cards are pictures of the whole face, border included */
 .pc-snap, .pc-big.pc-snap, .pc-thumb.pc-snap { padding: 0; overflow: hidden; }
 .pc-snap img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.pc-thumb.pc-port { height: 78px; aspect-ratio: 10 / 14; }
-.pc-thumb.pc-land { width: 96px; aspect-ratio: 14 / 10; }
-.pc-thumb { padding: 4px; }
+.pc-thumb.pc-port { height: 78px; aspect-ratio: 370 / 576; }
+.pc-thumb.pc-land { width: 96px; aspect-ratio: 576 / 370; }
+.pc-thumb { padding: 3.8%; }
 
 .gallery-stage {
   display: flex;
@@ -1245,8 +1245,11 @@ body {
   perspective: 1600px;
 }
 
-.pc-flip.pc-port { height: min(100vh - 330px, 560px); aspect-ratio: 10 / 14; max-width: 100%; }
-.pc-flip.pc-land { width: min(46vw, 640px, (100vh - 330px) * 1.4); aspect-ratio: 14 / 10; }
+/* Gallery cards have the shape of a real card as sent: the writing card plus
+   its white frame (370 x 576 in portrait), so the welcome card and received
+   cards match */
+.pc-flip.pc-port { height: min(100vh - 330px, 560px); aspect-ratio: 370 / 576; max-width: 100%; }
+.pc-flip.pc-land { width: min(46vw, 640px, (100vh - 330px) * 1.557); aspect-ratio: 576 / 370; }
 /* Received cards are pictures of the card as it was written: keep its exact
    shape (416 x 667), so nothing is trimmed */
 .pc-flip.pc-port.pc-sent { aspect-ratio: 416 / 667; }
@@ -1269,7 +1272,7 @@ body {
   position: absolute;
   inset: 0;
   border-radius: 6px;
-  padding: 14px;
+  padding: 3.8%;            /* the same white frame as a sent card (14px on a 370px card) */
   box-shadow: 0 6px 30px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
@@ -2042,6 +2045,7 @@ input:autofill {
     }
 
     const STAMP_FILES = ["yarrow", "peppermint", "rosemary", "anemone", "lotus", "laurel"];
+    const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
     // Pressed flowers for one face of a card: [flower, x%, y%, tilt]
     function decorHTML(list) {
       if (!list || !list.length) return '';
@@ -2053,27 +2057,26 @@ input:autofill {
     // its place and date around the postmark
     function stampSVG(c, i) {
       const id = 'gpm' + i, when = c.date.split(' ').slice(1).join(' ').toUpperCase();
+      // received cards carry their own stamp (or none); the welcome card picks one
+      const stamp = 'stamp' in c ? (STAMP_FILES.includes(c.stamp) ? c.stamp : null) : STAMP_FILES[i % STAMP_FILES.length];
       return `<svg viewBox="0 0 100 92" fill="none" aria-hidden="true">` +
         `<rect x="48.5" y="0.5" width="51" height="71" rx="1.5" stroke="#c9a6ad" stroke-width="1" stroke-dasharray="3 2"/>` +
-        `<image href="stamps/stamp-${STAMP_FILES[i % STAMP_FILES.length]}.webp" x="52" y="4" width="44" height="64" preserveAspectRatio="xMidYMid meet"/>` +
+        (stamp ? `<image href="stamps/stamp-${stamp}.webp" x="52" y="4" width="44" height="64" preserveAspectRatio="xMidYMid meet"/>` : `<rect x="52" y="4" width="44" height="64" rx="1.5" fill="#eeece9"/>`) +
         `<defs><path id="${id}a" d="M 34.3 68 A 17.7 17.7 0 0 1 69.7 68"/><path id="${id}b" d="M 31.7 68 A 20.3 20.3 0 0 0 72.3 68"/></defs>` +
         `<circle cx="52" cy="68" r="23" stroke="#cdc3c7" stroke-width="1"/>` +
         `<circle cx="52" cy="68" r="15" stroke="#cdc3c7" stroke-width="0.6"/>` +
-        `<text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.45" fill="#b9adb2"><textPath href="#${id}a" startOffset="50%" text-anchor="middle">${c.place.toUpperCase()}</textPath></text>` +
+        `<text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.45" fill="#b9adb2"><textPath href="#${id}a" startOffset="50%" text-anchor="middle">${esc(c.place.toUpperCase())}</textPath></text>` +
         `<text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.45" fill="#b9adb2"><textPath href="#${id}b" startOffset="50%" text-anchor="middle">${when}</textPath></text>` +
         `<path d="M 0 62.6 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 66.2 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 69.8 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 73.4 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0" stroke="#cdc3c7" stroke-width="0.9" stroke-linecap="round"/></svg>`;
     }
 
-    const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
-
     // A received card: the snapshots of its faces. Cards sent with only a photo
     // get a plain back with the message.
-    function snapCardHTML(c) {
+    function snapCardHTML(c, i) {
       const shape = c.land ? 'pc-land' : 'pc-port';
       const back = c.snap.back
         ? `<span class="pc pc-big pc-back pc-snap"><img src="${esc(c.snap.back)}" alt="${esc('The back of the postcard. ' + c.msg)}"></span>`
-        : `<span class="pc pc-big pc-back"><span class="gb"><span class="gb-head"><span class="back-title">POSTCARD</span><span class="back-sub">with love</span></span>` +
-          `<span class="gb-div"></span><span class="gb-msg">${esc(c.msg)}<span class="gb-sign">${esc(c.from)}</span></span></span></span>`;
+        : backFaceHTML(c, i);
       return `<button type="button" class="pc-flip ${shape} pc-sent" aria-pressed="false" aria-label="Turn the postcard over">` +
         `<span class="pc-flip-inner">` +
           `<span class="pc pc-big pc-front pc-snap"><img src="${esc(c.snap.front)}" alt="${esc('The front of a postcard from ' + c.from)}"></span>` +
@@ -2081,19 +2084,27 @@ input:autofill {
         `</span></button>`;
     }
 
+    // The back of a gallery card: the same layout as the writing card's back
+    // (heading, stamp box with postmark, name line, ruled message) in both
+    // orientations. Used by the welcome card and by received cards whose back
+    // wasn't captured as a picture.
+    function backFaceHTML(c, i) {
+      return `<span class="pc pc-big pc-back"><span class="gb${c.font === 'type' ? ' gb-type' : ''}">` +
+          `<span class="gb-head"><span class="back-title">POSTCARD</span><span class="back-sub">with love</span></span>` +
+          `<span class="gb-stamp">${stampSVG(c, i)}</span>` +
+          `<span class="gb-addr"><span>${esc(c.welcome ? 'Dear friend' : (c.name || '\u00a0'))}</span></span>` +
+          `<span class="gb-div"></span>` +
+          `<span class="gb-msg">${esc(c.msg)}<span class="gb-sign">${esc(c.from)}</span></span>` +
+        `</span>${decorHTML(c.deco && c.deco.back)}</span>`;
+    }
+
     function bigCardHTML(c, i) {
-      if (c.snap) return snapCardHTML(c);
+      if (c.snap) return snapCardHTML(c, i);
       const shape = c.land ? 'pc-land' : 'pc-port';
       return `<button type="button" class="pc-flip ${shape}" aria-pressed="false" aria-label="Turn the postcard over">` +
         `<span class="pc-flip-inner">` +
           `<span class="pc pc-big pc-front">${c.photo ? `<img class="pc-photo" src="${c.photo}" alt="A hot-air balloon over a calm sea at sunrise">` : `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c, 'big' + i)}</svg>`}${decorHTML(c.deco && c.deco.front)}</span>` +
-          `<span class="pc pc-big pc-back"><span class="gb${c.font === 'type' ? ' gb-type' : ''}">` +
-            `<span class="gb-head"><span class="back-title">POSTCARD</span><span class="back-sub">with love</span></span>` +
-            `<span class="gb-stamp">${stampSVG(c, i)}</span>` +
-            `<span class="gb-addr">${[c.welcome ? 'Dear friend' : '\u00a0'].map(t => `<span>${t}</span>`).join('')}</span>` +
-            `<span class="gb-div"></span>` +
-            `<span class="gb-msg">${c.msg}<span class="gb-sign">${c.from}</span></span>` +
-          `</span>${decorHTML(c.deco && c.deco.back)}</span>` +
+          backFaceHTML(c, i) +
         `</span></button>`;
     }
 
@@ -2154,7 +2165,8 @@ input:autofill {
       });
       document.getElementById('galleryMeta').textContent = `From ${c.from} · ${c.date}`;
       const wb = document.getElementById('writeBack');
-      wb.hidden = !c.snap;                       // not for the welcome card
+      wb.hidden = false;
+      wb.style.visibility = c.snap ? '' : 'hidden';   // not for the welcome card, but keep its space so nothing jumps
       wb.setAttribute('aria-label', `Write back to ${c.from}`);
       void stage.offsetWidth;                      // restart the fade
       stage.classList.add('show');
@@ -2183,7 +2195,8 @@ input:autofill {
         const id = CARDS[current] && CARDS[current].id;
         CARDS = list.map(p => ({
           id: p.id, snap: { front: p.front, back: p.back }, msg: p.message,
-          from: p.from, date: dateLabel(p.sentAt), land: !!p.landscape
+          from: p.from, date: dateLabel(p.sentAt), land: !!p.landscape,
+          stamp: p.stamp || null, place: 'Port Octavia'
         })).concat(WELCOME);
         renderThumbs();
         const keep = CARDS.findIndex(c => c.id === id);

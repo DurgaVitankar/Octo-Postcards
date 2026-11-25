@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   const db = createClient(sbUrl, sbService);
   const { data: rows, error } = await db
     .from("postcards")
-    .select("image_key, sender_email, message, orientation, sent_at")
+    .select("image_key, sender_email, message, orientation, sent_at, stamp_emoji")
     .eq("recipient_email", email)
     .not("image_key", "is", null)
     .order("sent_at", { ascending: false })
@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
       from: r.sender_email as string,
       message: (r.message as string) || "",
       landscape: r.orientation === "landscape",
+      stamp: (r.stamp_emoji as string) || null,
       sentAt: r.sent_at as string,
       front: link.get(`${r.image_key}/front.jpg`) || null,
       back: link.get(`${r.image_key}/back.jpg`) || null,
