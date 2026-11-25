@@ -64,6 +64,7 @@ body {
 }
 
 .stamp {
+  display: block;
   width: 52px;
   flex: none;
   transform: rotate(4deg);
@@ -134,19 +135,61 @@ form { margin-top: 20px; display: grid; gap: 16px; }
   color: var(--error);
 }
 
-/* "Check your inbox" state */
+/* "Check your inbox" state: the address written on a ruled line like the
+   front of a postcard, a button to open the mail app, quieter extras below */
 .sent h2 {
-  margin-top: 28px;
+  margin-top: 22px;
   font-family: var(--serif);
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 700;
 }
 
-.sent p { margin-top: 10px; font-size: 15px; line-height: 1.5; color: #444; }
-.sent p.note { font-size: 12.5px; color: var(--muted); }
-.sent strong { color: var(--ink); font-weight: 600; word-break: break-all; }
+.sent p { font-size: 15px; line-height: 1.5; color: #444; }
+.sent .to-label { margin-top: 14px; font-size: 12px; letter-spacing: 0.04em; color: var(--muted); }
+.sent .to {
+  margin-top: 2px;
+  padding: 2px 2px 6px;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--script);
+  font-size: 30px;
+  line-height: 1.2;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.sent .then { margin-top: 14px; }
+.sent .btn { width: 100%; margin-top: 20px; text-decoration: none; }
 
-.actions { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.actions {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.actions .spacer { flex: 1; }
+
+/* A postmark lands on the stamp once the link is on its way */
+.stamp-wrap { position: relative; flex: none; }
+.postmark {
+  position: absolute;
+  left: -40px;
+  top: 22px;
+  width: 84px;
+  pointer-events: none;
+  opacity: 0;
+}
+.sent-mode .postmark { animation: postmark-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) 0.15s forwards; }
+@keyframes postmark-in {
+  from { opacity: 0; transform: scale(1.6) rotate(-14deg); }
+  to   { opacity: 0.9; transform: scale(1) rotate(-8deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sent-mode .postmark { animation: none; opacity: 0.9; transform: rotate(-8deg); }
+}
 
 .link {
   padding: 0;
@@ -192,7 +235,20 @@ input:autofill {
       <div class="title">POSTCARD</div>
       <div class="sub">with love</div>
     </div>
-    <img class="stamp" src="stamps/stamp-yarrow.webp" alt="">
+    <div class="stamp-wrap">
+      <img class="stamp" src="stamps/stamp-yarrow.webp" alt="">
+      <svg class="postmark" viewBox="0 0 84 52" fill="none" aria-hidden="true">
+        <defs>
+          <path id="pmTop" d="M 40.3 26 A 15.7 15.7 0 0 1 71.7 26"/>
+          <path id="pmLow" d="M 38 26 A 18 18 0 0 0 74 26"/>
+        </defs>
+        <path d="M 2 18 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 M 2 23 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 M 2 28 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 M 2 33 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0" stroke="#9c8f94" stroke-width="1" stroke-linecap="round"/>
+        <circle cx="56" cy="26" r="21" stroke="#9c8f94" stroke-width="1.1"/>
+        <circle cx="56" cy="26" r="13.5" stroke="#9c8f94" stroke-width="0.7"/>
+        <text font-family="'Libre Baskerville', Georgia, serif" font-size="3.4" letter-spacing="0.4" fill="#8e8186"><textPath href="#pmTop" startOffset="50%" text-anchor="middle">PORT OCTAVIA</textPath></text>
+        <text font-family="'Libre Baskerville', Georgia, serif" font-size="3.4" letter-spacing="0.4" fill="#8e8186"><textPath href="#pmLow" startOffset="50%" text-anchor="middle" id="pmWhen">&nbsp;</textPath></text>
+      </svg>
+    </div>
   </div>
 
   <!-- Step 1: ask for an email -->
@@ -217,11 +273,18 @@ input:autofill {
   <!-- Step 2: link sent -->
   <section class="sent" id="sentStep" hidden>
     <h2>Check your inbox</h2>
-    <p>We sent a sign-in link to <strong id="sentTo"></strong>. Open it on this device to continue.</p>
-    <p class="note" style="margin-top:10px">Can't find it? Check your spam folder.</p>
+    <p class="to-label">Sign-in link sent to</p>
+    <p class="to" id="sentTo"></p>
+    <p class="then">Open the link on this device to continue. It can take a minute, and sometimes lands in spam.</p>
+    <a class="btn" id="openMail" href="#" target="_blank" rel="noopener" hidden>
+      <span id="openMailLabel">Open Gmail</span>
+      <!-- Remix Icon: arrow-right-up-line (Apache 2.0) -->
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.0037 9.41421L7.39712 18.0208L5.98291 16.6066L14.5895 8H7.00373V6H18.0037V17H16.0037V9.41421Z"/></svg>
+    </a>
     <p class="error" id="resendError" role="alert" hidden style="margin-top:12px"></p>
     <div class="actions">
       <button class="link" id="resend" type="button">Resend link</button>
+      <span class="spacer"></span>
       <button class="link" id="changeEmail" type="button">Use a different email</button>
     </div>
   </section>
@@ -262,7 +325,24 @@ input:autofill {
     return client;
   }
 
+  // A button that opens the inbox, for the common mail services
+  const MAIL_APPS = [
+    [/^(gmail|googlemail)\.com$/, 'Open Gmail', 'https://mail.google.com/mail/u/0/#inbox'],
+    [/^(outlook|hotmail|live|msn)\.[a-z.]+$/, 'Open Outlook', 'https://outlook.live.com/mail/'],
+    [/^(yahoo|ymail)\.[a-z.]+$/, 'Open Yahoo Mail', 'https://mail.yahoo.com/'],
+    [/^(icloud|me|mac)\.com$/, 'Open iCloud Mail', 'https://www.icloud.com/mail'],
+  ];
+  function mailApp(address) {
+    const domain = (address.split('@')[1] || '').toLowerCase();
+    const hit = MAIL_APPS.find(([re]) => re.test(domain));
+    $('openMail').hidden = !hit;
+    if (hit) { $('openMailLabel').textContent = hit[1]; $('openMail').href = hit[2]; }
+  }
+
+  $('pmWhen').textContent = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase();
+
   function show(step) {
+    document.body.classList.toggle('sent-mode', step === 'sent');
     $('askStep').hidden = step !== 'ask';
     $('sentStep').hidden = step !== 'sent';
     $('signingIn').hidden = step !== 'signing';
@@ -320,6 +400,7 @@ input:autofill {
       await sendLink(address);
       lastEmail = address;
       $('sentTo').textContent = address;
+      mailApp(address);
       show('sent');
       startCooldown();
     } catch (err) {
