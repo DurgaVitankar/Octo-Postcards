@@ -2102,6 +2102,109 @@ input:autofill {
     bird.addEventListener('click', sing);
   })();
 
+  // A calm afternoon at home, heard only on the bookshelf side: a soft room
+  // tone, a breeze that rises and falls, and birds far off outside. All made
+  // with Web Audio at low volume; it fades in when the shelf is in view and
+  // out when you scroll back or leave the tab. Browsers only allow sound after
+  // the page has been clicked or typed in once, so it starts from then.
+  (function () {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const scroller = document.getElementById('scroller');
+    const leftZone = document.querySelector('.zone-left');
+    if (!AC || !scroller || !leftZone) return;
+    let ctx = null, master = null, birdTimer = null, playing = false;
+
+    function noise(kind) {
+      const len = ctx.sampleRate * 6, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+      let b0 = 0, b1 = 0, b2 = 0, last = 0;
+      for (let i = 0; i < len; i++) {
+        const w = Math.random() * 2 - 1;
+        if (kind === 'brown') { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; }
+        else { b0 = 0.997 * b0 + 0.029591 * w; b1 = 0.985 * b1 + 0.032534 * w; b2 = 0.95 * b2 + 0.048056 * w; d[i] = (b0 + b1 + b2 + w * 0.05) * 0.8; }
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf; src.loop = true;
+      return src;
+    }
+
+    function build() {
+      ctx = new AC();
+      master = ctx.createGain();
+      master.gain.value = 0;
+      master.connect(ctx.destination);
+      // room tone: deep and barely there
+      const room = noise('brown'), roomLp = ctx.createBiquadFilter(), roomG = ctx.createGain();
+      roomLp.type = 'lowpass'; roomLp.frequency.value = 260; roomG.gain.value = 0.05;
+      room.connect(roomLp).connect(roomG).connect(master); room.start();
+      // breeze: airy noise whose loudness drifts slowly
+      const air = noise('pink'), airBp = ctx.createBiquadFilter(), airG = ctx.createGain();
+      airBp.type = 'bandpass'; airBp.frequency.value = 650; airBp.Q.value = 0.6; airG.gain.value = 0.022;
+      const lfo = ctx.createOscillator(), lfoG = ctx.createGain();
+      lfo.frequency.value = 0.07; lfoG.gain.value = 0.016;
+      lfo.connect(lfoG).connect(airG.gain); lfo.start();
+      air.connect(airBp).connect(airG).connect(master); air.start();
+    }
+
+    // Birds outside: a few soft chirps every so often, muffled by distance
+    function birds() {
+      if (!playing) return;
+      const lp = ctx.createBiquadFilter(), g = ctx.createGain();
+      lp.type = 'lowpass'; lp.frequency.value = 3200; g.gain.value = 1;
+      lp.connect(g).connect(master);
+      let t = ctx.currentTime + 0.05;
+      const n = 2 + Math.floor(Math.random() * 3), base = 2300 + Math.random() * 900;
+      for (let i = 0; i < n; i++) {
+        const o = ctx.createOscillator(), e = ctx.createGain(), len = 0.06 + Math.random() * 0.05;
+        const f = base * (0.95 + Math.random() * 0.1);
+        o.frequency.setValueAtTime(f, t);
+        o.frequency.exponentialRampToValueAtTime(f * (1.3 + Math.random() * 0.3), t + len * 0.7);
+        e.gain.setValueAtTime(0.0001, t);
+        e.gain.exponentialRampToValueAtTime(0.012, t + 0.012);
+        e.gain.exponentialRampToValueAtTime(0.0001, t + len);
+        o.connect(e).connect(lp); o.start(t); o.stop(t + len + 0.02);
+        t += len + 0.06 + Math.random() * 0.08;
+      }
+      birdTimer = setTimeout(birds, 4000 + Math.random() * 8000);
+    }
+
+    function inShelfView() {
+      return document.visibilityState === 'visible' && scroller.scrollLeft < leftZone.offsetWidth * 0.4;
+    }
+
+    function update() {
+      if (!ctx || ctx.state === 'closed') return;
+      const want = inShelfView();
+      if (want === playing) return;
+      playing = want;
+      const now = ctx.currentTime;
+      master.gain.cancelScheduledValues(now);
+      master.gain.setValueAtTime(master.gain.value, now);
+      if (want) {
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+        master.gain.linearRampToValueAtTime(1, now + 2.5);
+        clearTimeout(birdTimer); birdTimer = setTimeout(birds, 1500);
+      } else {
+        master.gain.linearRampToValueAtTime(0, now + 1.5);
+        clearTimeout(birdTimer);
+        setTimeout(() => { if (!playing && ctx.state === 'running') ctx.suspend(); }, 1700);
+      }
+    }
+
+    // Sound may only start after the first click or key press
+    const unlock = () => {
+      window.removeEventListener('pointerdown', unlock, true);
+      window.removeEventListener('keydown', unlock, true);
+      try { build(); } catch (_) { return; }
+      ctx.suspend().catch(() => {});
+      update();
+    };
+    window.addEventListener('pointerdown', unlock, true);
+    window.addEventListener('keydown', unlock, true);
+    scroller.addEventListener('scroll', update, { passive: true });
+    document.addEventListener('visibilitychange', update);
+    window.postcardsAmbience = { get playing() { return playing; }, level: () => master ? master.gain.value : 0 };
+  })();
+
   // Plant: on phones there's no hover, so a tap sways it
   (function () {
     const plant = document.getElementById('plant');
