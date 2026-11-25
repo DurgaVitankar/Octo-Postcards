@@ -1795,7 +1795,7 @@ input:autofill {
           `<span class="pc pc-big pc-back"><span class="gb${c.font === 'type' ? ' gb-type' : ''}">` +
             `<span class="gb-head"><span class="back-title">POSTCARD</span><span class="back-sub">with love</span></span>` +
             `<span class="gb-stamp">${stampSVG(c, i)}</span>` +
-            `<span class="gb-addr">${[c.welcome ? (welcomeUser().name || 'You') : '\u00a0'].map(t => `<span>${t}</span>`).join('')}</span>` +
+            `<span class="gb-addr">${[c.welcome ? 'Dear friend' : '\u00a0'].map(t => `<span>${t}</span>`).join('')}</span>` +
             `<span class="gb-div"></span>` +
             `<span class="gb-msg">${c.msg}<span class="gb-sign">${c.from}</span></span>` +
           `</span>${decorHTML(c.deco && c.deco.back)}</span>` +
