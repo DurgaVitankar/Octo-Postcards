@@ -1625,7 +1625,7 @@ input:autofill {
     <textarea class="message" id="message" placeholder="Write your message…" aria-label="Message"></textarea>
     <div class="decor" id="decorBack"></div>
   </div>
-  <input type="file" id="fileInput" class="file-input" accept="image/*" tabindex="-1" aria-hidden="true">
+  <input type="file" id="fileInput" class="file-input" accept="image/*,.heic,.heif" tabindex="-1" aria-hidden="true">
 </div>
 </div>
 
@@ -1740,8 +1740,38 @@ input:autofill {
     return { reset, layout };
   })();
 
-  function showPhoto(file) {
-    if (!file || !file.type || !file.type.startsWith('image/')) return;
+  // iPhone photos are often HEIC, which most browsers can't show: turn them into
+  // JPEG first. The converter (heic2any, about 1 MB) loads only when needed.
+  const isHeic = f => /image\/hei[cf]/i.test(f.type || '') || /\.(heic|heif)$/i.test(f.name || '');
+  const isImage = f => !!f && ((f.type || '').startsWith('image/') || isHeic(f));
+  let heicLib = null;
+  function heicToJpeg(file) {
+    heicLib = heicLib || new Promise((ok, fail) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+      s.onload = () => ok(window.heic2any); s.onerror = () => { heicLib = null; fail(new Error('load')); };
+      document.head.appendChild(s);
+    });
+    return heicLib.then(conv => conv({ blob: file, toType: 'image/jpeg', quality: 0.9 }))
+      .then(out => Array.isArray(out) ? out[0] : out);
+  }
+  function photoNote(text) {
+    const label = empty.querySelector('.add-label');
+    label.textContent = text || 'Add photo';
+  }
+
+  async function showPhoto(file) {
+    if (!isImage(file)) return;
+    if (isHeic(file)) {
+      photoNote('Opening photo…');
+      try { file = await heicToJpeg(file); }
+      catch (_) {
+        photoNote("Couldn't open that photo");
+        setTimeout(() => photoNote(), 3500);
+        return;
+      }
+      photoNote();
+    }
     const reader = new FileReader();
     reader.onload = () => {
       photo.hidden = false;
@@ -3511,7 +3541,7 @@ input:autofill {
     if (!hasFiles(e)) return;
     e.preventDefault();
     dropZone.classList.remove('dragging');
-    showPhoto([...e.dataTransfer.files].find(f => f.type.startsWith('image/')));
+    showPhoto([...e.dataTransfer.files].find(isImage));
   });
 
   // Paste an image (Cmd/Ctrl+V) to add it as the photo, unless typing in a field
