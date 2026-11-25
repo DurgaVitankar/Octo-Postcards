@@ -2362,7 +2362,7 @@ input:autofill {
       master.gain.setValueAtTime(master.gain.value, now);
       if (want) {
         if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-        master.gain.linearRampToValueAtTime(1, now + 2.5);
+        master.gain.linearRampToValueAtTime(1, now + 1.2);
         clearTimeout(birdTimer); birdTimer = setTimeout(birds, 1500);
       } else {
         master.gain.linearRampToValueAtTime(0, now + 1.5);
@@ -2372,11 +2372,14 @@ input:autofill {
     }
 
     // Sound may only start after the first click or key press
+    // Try to start as soon as the page opens: browsers allow it on sites you
+    // often play sound on. Otherwise it starts at the first click or key press.
+    try { build(); update(); } catch (_) { ctx = null; }
     const unlock = () => {
       window.removeEventListener('pointerdown', unlock, true);
       window.removeEventListener('keydown', unlock, true);
-      try { build(); } catch (_) { return; }
-      ctx.suspend().catch(() => {});
+      if (!ctx) { try { build(); } catch (_) { return; } }
+      if (playing && ctx.state === 'suspended') ctx.resume().catch(() => {});
       update();
     };
     window.addEventListener('pointerdown', unlock, true);
@@ -2449,9 +2452,9 @@ input:autofill {
         const chord = CHORDS[Math.floor(beat / 4) % CHORDS.length], b = beat % 4;
         if (b === 0) note(chord.bass, nextBeat, 0.04, 4.5);
         // a gentle, unhurried melody from the chord's notes
-        if (Math.random() < (b === 0 ? 0.9 : 0.6)) {
+        if (b === 0 || Math.random() < 0.6) {
           const m = chord.tones[Math.floor(Math.random() * chord.tones.length)];
-          note(m, nextBeat + (Math.random() < 0.3 ? BEAT / 2 : 0), 0.03 + Math.random() * 0.01, 3.6);
+          note(m, nextBeat + (b !== 0 && Math.random() < 0.3 ? BEAT / 2 : 0), 0.03 + Math.random() * 0.01, 3.6);
         }
         nextBeat += BEAT; beat++;
       }
@@ -2498,7 +2501,7 @@ input:autofill {
       master.gain.setValueAtTime(master.gain.value, now);
       if (want) {
         if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-        master.gain.linearRampToValueAtTime(1, now + 1);
+        master.gain.linearRampToValueAtTime(1, now + 0.4);
         nextBeat = Math.max(nextBeat, now + 0.05);
         clearInterval(tick); tick = setInterval(schedule, 250); schedule();
         clearTimeout(pageTimer); pageTimer = setTimeout(pageTurn, 6000 + Math.random() * 6000);
@@ -2509,11 +2512,14 @@ input:autofill {
       }
     }
 
+    // Try to start as soon as the page opens: browsers allow it on sites you
+    // often play sound on. Otherwise it starts at the first click or key press.
+    try { build(); update(); } catch (_) { ctx = null; }
     const unlock = () => {
       window.removeEventListener('pointerdown', unlock, true);
       window.removeEventListener('keydown', unlock, true);
-      try { build(); } catch (_) { return; }
-      ctx.suspend().catch(() => {});
+      if (!ctx) { try { build(); } catch (_) { return; } }
+      if (playing && ctx.state === 'suspended') ctx.resume().catch(() => {});
       update();
     };
     window.addEventListener('pointerdown', unlock, true);
