@@ -1037,6 +1037,45 @@ body {
 }
 
 .sent-note span { color: #1d1d1d; }
+
+/* A postcard arrived while the app is open */
+.arrival-note {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 8px 8px 16px;
+  border-radius: 999px;
+  background: #fff;
+  color: #3a3a3a;
+  font: 500 14px/1.3 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  box-shadow: 0 6px 24px rgba(60, 40, 20, 0.16), 0 1px 3px rgba(60, 40, 20, 0.1);
+  transform: translate(-50%, -12px);
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.arrival-note.show { opacity: 1; transform: translate(-50%, 0); }
+.arrival-note strong { color: #1d1d1d; font-weight: 600; overflow-wrap: anywhere; }
+.arrival-note button {
+  flex: none;
+  height: 32px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: #111;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.arrival-note button:hover { background: #333; }
+.arrival-note button:focus-visible { outline: 2px solid #1d1d1d; outline-offset: 2px; }
+.arrival-note .arrival-close { background: none; color: #8a8a8a; padding: 0 8px; }
+.arrival-note .arrival-close:hover { background: #f2f2f2; }
 .sent-note.error { border-color: #a3402f; color: #a3402f; white-space: normal; max-width: min(320px, calc(100vw - 32px)); border-radius: 18px; padding: 9px 15px; text-align: center; }
 .sent-note.show { opacity: 1; transform: none; }
 
@@ -1208,6 +1247,12 @@ body {
 
 .pc-flip.pc-port { height: min(100vh - 330px, 560px); aspect-ratio: 10 / 14; max-width: 100%; }
 .pc-flip.pc-land { width: min(46vw, 640px, (100vh - 330px) * 1.4); aspect-ratio: 14 / 10; }
+/* Received cards are pictures of the card as it was written: keep its exact
+   shape (416 x 667), so nothing is trimmed */
+.pc-flip.pc-port.pc-sent { aspect-ratio: 416 / 667; }
+.pc-flip.pc-land.pc-sent { width: min(46vw, 640px, (100vh - 330px) * 1.603); aspect-ratio: 667 / 416; }
+.pc-thumb.pc-port.pc-snap { aspect-ratio: 416 / 667; }
+.pc-thumb.pc-land.pc-snap { aspect-ratio: 667 / 416; }
 
 .pc-flip-inner {
   position: absolute;
@@ -1495,6 +1540,12 @@ input:autofill {
 <button type="button" class="sound-toggle sign-out" id="signOut" aria-label="Sign out" data-tip="Sign out">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4.5H6.5a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1H14"/><path d="M10.5 12h9.5M16.8 8.8 20 12l-3.2 3.2"/></svg>
 </button>
+
+<div class="arrival-note" id="arrivalNote" role="status" hidden>
+  <span>New postcard from <strong id="arrivalFrom"></strong></span>
+  <button type="button" id="arrivalOpen">Open</button>
+  <button type="button" class="arrival-close" id="arrivalClose" aria-label="Dismiss">&times;</button>
+</div>
 
 <dialog class="gallery" id="gallery" aria-label="Postcards">
   <button type="button" class="gallery-close" id="galleryClose" aria-label="Close">
@@ -2023,7 +2074,7 @@ input:autofill {
         ? `<span class="pc pc-big pc-back pc-snap"><img src="${esc(c.snap.back)}" alt="${esc('The back of the postcard. ' + c.msg)}"></span>`
         : `<span class="pc pc-big pc-back"><span class="gb"><span class="gb-head"><span class="back-title">POSTCARD</span><span class="back-sub">with love</span></span>` +
           `<span class="gb-div"></span><span class="gb-msg">${esc(c.msg)}<span class="gb-sign">${esc(c.from)}</span></span></span></span>`;
-      return `<button type="button" class="pc-flip ${shape}" aria-pressed="false" aria-label="Turn the postcard over">` +
+      return `<button type="button" class="pc-flip ${shape} pc-sent" aria-pressed="false" aria-label="Turn the postcard over">` +
         `<span class="pc-flip-inner">` +
           `<span class="pc pc-big pc-front pc-snap"><img src="${esc(c.snap.front)}" alt="${esc('The front of a postcard from ' + c.from)}"></span>` +
           back +
@@ -2179,12 +2230,40 @@ input:autofill {
       const ids = list.map(p => p.id).join(',');
       // nothing new and the picture links still fresh: leave the gallery alone
       if (ids === shownIds && Date.now() - loadedAt < 45 * 60 * 1000) return;
+      const before = shownIds === null ? null : new Set(shownIds.split(','));
       shownIds = ids;
       loadedAt = Date.now();
       window.postcardGallery.setReceived(list);
       unseen = list.map(p => p.id).filter(id => !seen.has(id));
       cue();
+      // Something new since the last check (not on the first one): say so
+      if (before) {
+        const fresh = list.find(p => !before.has(p.id) && !seen.has(p.id));
+        if (fresh) announce(fresh);
+      }
     }
+
+    // "New postcard from …" at the top of the screen, with a soft chime
+    const note = document.getElementById('arrivalNote');
+    let noteTimer = null;
+    function hideNote() {
+      note.classList.remove('show');
+      setTimeout(() => { if (!note.classList.contains('show')) note.hidden = true; }, 300);
+    }
+    function announce(p) {
+      document.getElementById('arrivalFrom').textContent = p.from;
+      note.dataset.id = p.id;
+      note.hidden = false;
+      requestAnimationFrame(() => note.classList.add('show'));
+      clearTimeout(noteTimer);
+      noteTimer = setTimeout(hideNote, 10000);
+      if (window.postcardsChime) window.postcardsChime();
+    }
+    document.getElementById('arrivalClose').addEventListener('click', () => { clearTimeout(noteTimer); hideNote(); });
+    document.getElementById('arrivalOpen').addEventListener('click', () => {
+      clearTimeout(noteTimer); hideNote();
+      openMail(note.dataset.id);
+    });
 
     cue();
     load().catch(() => {});
@@ -2194,11 +2273,13 @@ input:autofill {
     setInterval(() => { if (document.visibilityState === 'visible') load().catch(() => {}); }, 60 * 1000);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load().catch(() => {}); });
 
-    hotspot.addEventListener('click', async () => {
+    hotspot.addEventListener('click', () => openMail());
+    async function openMail(id) {
       // Picture links last an hour; fetch fresh ones if these are getting old
       if (Date.now() - loadedAt > 45 * 60 * 1000) await load().catch(() => {});
       const g = window.postcardGallery;
-      if (unseen.length) g.open(g.indexOf(unseen[0]), true);
+      if (id && g.indexOf(id) >= 0) g.open(g.indexOf(id), true);
+      else if (unseen.length) g.open(g.indexOf(unseen[0]), true);
       else if (!welcomeSeen) g.open(g.indexOf('welcome'), true);
       else g.open();
       // Everything is in the gallery now, so nothing is new any more
@@ -2208,7 +2289,7 @@ input:autofill {
       welcomeSeen = true;
       write(WKEY, '1');
       cue();
-    });
+    }
   })();
 
 
@@ -2308,6 +2389,22 @@ input:autofill {
         setTimeout(() => note.remove(), 1400);
       });
     }
+
+    // A soft two-note chime for a newly arrived postcard (silent when muted, or
+    // before the page has been clicked once)
+    window.postcardsChime = function () {
+      if (window.postcardsSound.muted) return;
+      const ac = audio();
+      if (!ac || ac.state !== 'running') return;
+      [[1046.5, 0], [1568, 0.16]].forEach(([f, d]) => {
+        const t = ac.currentTime + 0.02 + d, o = ac.createOscillator(), g = ac.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.06, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
+        o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 1.5);
+      });
+    };
 
     bird.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') sing(); });
     bird.addEventListener('click', sing);
