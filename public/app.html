@@ -266,6 +266,7 @@ body {
 .mailbox {
   display: block;
   height: 100%;
+  transform-origin: 50% 100%;   /* any movement pivots from the foot of the post */
   width: auto;
   max-width: none;
   user-select: none;
@@ -3532,6 +3533,15 @@ input:autofill {
           // fly to just above the slot, then drop through it
           await along(copy, r, { x: b.x, y: b.y - visH / 2 - 1 }, s);
           await dropIn(copy, b.y, visH);
+          // a small "thunk" as the card lands inside: the box dips and rocks
+          // slightly on its post, then settles
+          mailboxImg.animate([
+            { transform: 'none' },
+            { transform: 'translateY(2px) rotate(0.7deg)', offset: 0.25 },
+            { transform: 'translateY(0) rotate(-0.4deg)', offset: 0.55 },
+            { transform: 'rotate(0.15deg)', offset: 0.8 },
+            { transform: 'none' }
+          ], { duration: 520, easing: 'ease-out' });
           copy.remove();
         }
         const result = await sending;
