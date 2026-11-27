@@ -1406,26 +1406,35 @@ body:not(.font-typewriter) .message,
 
 @media (prefers-reduced-motion: reduce) { .pc-flip-inner { transition: none; } }
 
-.gallery-caption { text-align: center; }
-.gallery-meta { font-size: 15px; color: #4a4a4a; letter-spacing: 0.01em; }
+/* One quiet row under the opened card: who it's from and when, and Write back
+   beside it. The row keeps the same height with or without the button, so
+   the card never moves. */
+.gallery-caption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 32px;
+}
+.gallery-meta { font-size: 14px; color: #9a9a9a; letter-spacing: 0.01em; }
+.gallery-meta .who { color: #3a3a3a; }
 .write-back {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 38px;
-  margin-top: 14px;
-  padding: 0 16px;
+  height: 32px;
+  padding: 0 14px 0 12px;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #111;
   color: #fff;
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
 }
 .write-back:hover { background: #333; }
 .write-back:focus-visible { outline: 2px solid #1d1d1d; outline-offset: 2px; }
-.write-back svg { width: 16px; height: 16px; }
+.write-back svg { width: 14px; height: 14px; }
 
 /* Phones: smaller opened card */
 @media (max-width: 640px) {
@@ -2164,10 +2173,14 @@ input:autofill {
         const back = flip.getAttribute('aria-pressed') !== 'true';
         flip.setAttribute('aria-pressed', String(back));
       });
-      document.getElementById('galleryMeta').textContent = `From ${c.from} · ${c.date}`;
+      const meta = document.getElementById('galleryMeta');
+      meta.textContent = 'From ';
+      const who = document.createElement('span');
+      who.className = 'who';
+      who.textContent = c.from;
+      meta.append(who, ` · ${c.date}`);
       const wb = document.getElementById('writeBack');
-      wb.hidden = false;
-      wb.style.visibility = c.snap ? '' : 'hidden';   // not for the welcome card, but keep its space so nothing jumps
+      wb.hidden = !c.snap;                       // not for the welcome card (the row keeps its height)
       wb.setAttribute('aria-label', `Write back to ${c.from}`);
       void stage.offsetWidth;                      // restart the fade
       stage.classList.add('show');
