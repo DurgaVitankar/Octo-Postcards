@@ -217,6 +217,11 @@ body {
 .sound-toggle[data-tip]:hover::after,
 .sound-toggle[data-tip]:focus-visible::after { transform: none; }
 
+/* The card you're writing has no postmark yet: it's stamped on when you send.
+   The emailed picture of the back (a posted card) shows it again. */
+.back-area .pm-mark { display: none; }
+.mailed .back-area .pm-mark { display: inline; }
+
 /* A postmark stamped onto the card just before it's sent (flies with it) */
 .postcard { position: relative; }
 .send-postmark {
@@ -1729,11 +1734,13 @@ input:autofill {
         <rect id="stampSlot" x="52" y="4" width="44" height="64" rx="1.5" fill="#eeece9"/>
         <image id="stampImg" x="52" y="4" width="44" height="64" preserveAspectRatio="xMidYMid meet" style="visibility:hidden"/>
         <defs><path id="pmArc" d="M 34.3 68 A 17.7 17.7 0 0 1 69.7 68"/><path id="pmArcLow" d="M 31.7 68 A 20.3 20.3 0 0 0 72.3 68"/></defs>
+        <g class="pm-mark">
         <circle cx="52" cy="68" r="23" stroke="#cdc3c7" stroke-width="1"/>
         <circle cx="52" cy="68" r="15" stroke="#cdc3c7" stroke-width="0.6"/>
         <text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.45" fill="#b9adb2"><textPath href="#pmArc" startOffset="50%" text-anchor="middle">PORT OCTAVIA</textPath></text>
         <text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.45" fill="#b9adb2"><textPath href="#pmArcLow" startOffset="50%" text-anchor="middle" id="pmDate">&nbsp;</textPath></text>
         <path d="M 0 62.6 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 66.2 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 69.8 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0 M 0 73.4 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 t 7 0" stroke="#cdc3c7" stroke-width="0.9" stroke-linecap="round"/>
+        </g>
       </svg>
     </div>
     <div class="address">
@@ -3464,6 +3471,7 @@ input:autofill {
         back.hidden = side !== 'back';
         c.querySelectorAll('.empty, .replace, .photo-hint, .file-input').forEach(el => { el.hidden = true; });
         c.querySelectorAll('.flower-remove, .send-postmark').forEach(el => el.remove());
+        c.classList.add('mailed');                 // the posted card carries its postmark
         // An SVG image with nothing in it (the stamp spot before a stamp is
         // chosen) makes the snapshot fail outright, so leave it out
         c.querySelectorAll('image').forEach(im => { if (!im.getAttribute('href') && !im.getAttribute('xlink:href')) im.remove(); });
