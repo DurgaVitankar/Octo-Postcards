@@ -240,6 +240,16 @@ body {
 }
 @media (prefers-reduced-motion: reduce) { .decor .flower.settle { animation: none; } }
 
+/* Tiny stamps that burst from the slot for your first postcard */
+.stamp-confetti {
+  position: fixed;
+  z-index: 61;
+  width: 18px;
+  height: auto;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgba(60, 40, 20, 0.2));
+}
+
 /* The little bird on the top shelf: hover (or tap) and it chirps */
 .bird {
   position: absolute;
@@ -286,10 +296,31 @@ body {
   overflow: hidden;
 }
 
+/* The painting and its flag move together (the "thunk" when a card goes in) */
+.mailbox-art {
+  position: relative;
+  height: 100%;
+  aspect-ratio: 1262 / 2000;    /* exactly the painting, so the flag's % position lines up */
+  transform-origin: 30% 100%;   /* movement pivots from the foot of the post */
+}
+
+/* The brass flag on the box's side is its own layer (the box behind it is
+   painted in), laid exactly over the painting; it swings up from its round
+   pivot when a postcard is posted */
+.mailbox-flag {
+  position: absolute;
+  left: 22.82%;
+  top: 49.85%;
+  width: 12.28%;
+  height: auto;
+  transform-origin: 17.4% 36.8%;
+  user-select: none;
+  pointer-events: none;
+}
+
 .mailbox {
   display: block;
   height: 100%;
-  transform-origin: 50% 100%;   /* any movement pivots from the foot of the post */
   width: auto;
   max-width: none;
   user-select: none;
@@ -1746,7 +1777,7 @@ input:autofill {
 
 </section>
 <section class="zone zone-right" aria-label="Right panel">
-  <div class="mail-frame"><img class="mailbox" src="mailbox.webp" alt="Watercolour green mailbox with letters flying out and two small birds below" draggable="false"></div>
+  <div class="mail-frame"><div class="mailbox-art"><img class="mailbox" src="mailbox.webp" alt="Watercolour green mailbox with letters flying out and two small birds below" draggable="false"><img class="mailbox-flag" src="mailbox-flag.webp" alt="" draggable="false"></div></div>
 </section>
 </div>
 </div>
@@ -2498,6 +2529,11 @@ input:autofill {
           const a = ac(); if (!a) return;
           for (let k = 0; k < 4; k++) burst(a, { at: k * 0.04 + Math.random() * 0.03, dur: 0.06 + Math.random() * 0.05, f: 1800 + Math.random() * 1800, q: 0.9, vol: 0.018 + Math.random() * 0.012 });
         },
+        clack() {            // the metal flag snapping up
+          const a = ac(); if (!a) return;
+          burst(a, { dur: 0.04, f: 1400, q: 2, vol: 0.05, attack: 0.002 });
+          burst(a, { at: 0.03, dur: 0.06, f: 600, q: 1.5, vol: 0.03, attack: 0.002 });
+        },
         slide() {            // card turning on the table
           const a = ac(); if (!a) return;
           burst(a, { dur: 0.38, f: 650, to: 1500, q: 0.8, vol: 0.028, attack: 0.08 });
@@ -2788,6 +2824,16 @@ input:autofill {
       plant.classList.remove('sway'); void plant.offsetWidth; plant.classList.add('sway');
     });
     plant.addEventListener('animationend', () => plant.classList.remove('sway'));
+    // Now and then a breeze moves it on its own, while the shelf is in view
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    (function breeze() {
+      setTimeout(() => {
+        if (!reduceMotion && document.visibilityState === 'visible' && window.postcardsView && window.postcardsView.shelf()) {
+          plant.classList.remove('sway'); void plant.offsetWidth; plant.classList.add('sway');
+        }
+        breeze();
+      }, 20000 + Math.random() * 25000);
+    })();
   })();
 
   // Tools under the postcard: clickable, actions still to be decided
@@ -3269,6 +3315,47 @@ input:autofill {
     const card = document.getElementById('postcard');
     const scroller = document.getElementById('scroller');
     const mailboxImg = document.querySelector('.mailbox');
+    const mailboxArt = document.querySelector('.mailbox-art');
+    const mailboxFlag = document.querySelector('.mailbox-flag');
+
+    // Raise the flag (a card is in), hold it a few seconds, lower it again
+    function raiseFlag() {
+      if (reduce) return;
+      setTimeout(() => window.postcardsSfx && window.postcardsSfx.clack(), 260);
+      mailboxFlag.animate([
+        { transform: 'rotate(0deg)' },
+        { transform: 'rotate(-96deg)', offset: 0.09 },
+        { transform: 'rotate(-86deg)', offset: 0.13 },
+        { transform: 'rotate(-90deg)', offset: 0.16 },
+        { transform: 'rotate(-90deg)', offset: 0.86 },
+        { transform: 'rotate(0deg)' }
+      ], { duration: 3800, delay: 180, easing: 'ease-in-out' });
+    }
+
+    // Your very first postcard: a little celebration of tiny stamps from the slot
+    function firstPostcardConfetti() {
+      if (reduce) return;
+      const m = mailboxImg.getBoundingClientRect();
+      const x0 = m.left + SLOT.x * m.width, y0 = m.top + SLOT.y * m.height;
+      const STAMPS = ['yarrow', 'peppermint', 'rosemary', 'anemone', 'lotus', 'laurel'];
+      for (let i = 0; i < 16; i++) {
+        const el = document.createElement('img');
+        el.src = `stamps/stamp-${STAMPS[i % STAMPS.length]}.webp`;
+        el.alt = '';
+        el.className = 'stamp-confetti';
+        el.style.left = x0 + 'px';
+        el.style.top = y0 + 'px';
+        document.body.appendChild(el);
+        const ang = (-150 + Math.random() * 120) * Math.PI / 180, v = 90 + Math.random() * 120;
+        const dx = Math.cos(ang) * v, dy = Math.sin(ang) * v, spin = (Math.random() * 2 - 1) * 240;
+        el.animate([
+          { transform: 'translate(-50%, -50%) scale(0.4) rotate(0deg)', opacity: 0 },
+          { transform: `translate(calc(-50% + ${dx * 0.6}px), calc(-50% + ${dy * 0.6}px)) scale(1) rotate(${spin * 0.5}deg)`, opacity: 1, offset: 0.3 },
+          { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy + 140}px)) scale(0.9) rotate(${spin}deg)`, opacity: 0 }
+        ], { duration: 1500 + Math.random() * 600, delay: Math.random() * 120, easing: 'cubic-bezier(0.2, 0.7, 0.4, 1)', fill: 'forwards' })
+          .finished.then(() => el.remove());
+      }
+    }
     const note = document.getElementById('sentNote');
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let busy = false;
@@ -3483,10 +3570,10 @@ input:autofill {
       return { copy, r };
     }
 
-    function showNote(to, error) {
+    function showNote(to, error, first) {
       const m = mailboxImg.getBoundingClientRect();
       note.classList.toggle('error', !!error);
-      note.innerHTML = error ? '' : 'On its way to <span></span>';
+      note.innerHTML = error ? '' : (first ? 'Your first postcard is on its way to <span></span>' : 'On its way to <span></span>');
       if (error) note.textContent = error; else note.querySelector('span').textContent = to;
       note.hidden = false;
       note.style.left = '0px';
@@ -3666,17 +3753,25 @@ input:autofill {
           await dropIn(copy, b.y, visH);
           // a small "thunk" as the card lands inside: the box dips and rocks
           // slightly on its post, then settles
-          mailboxImg.animate([
+          mailboxArt.animate([
             { transform: 'none' },
             { transform: 'translateY(2px) rotate(0.7deg)', offset: 0.25 },
             { transform: 'translateY(0) rotate(-0.4deg)', offset: 0.55 },
             { transform: 'rotate(0.15deg)', offset: 0.8 },
             { transform: 'none' }
           ], { duration: 520, easing: 'ease-out' });
+          raiseFlag();
           copy.remove();
         }
         const result = await sending;
-        showNote(to, result.ok ? null : result.error);
+        // The very first postcard from this account (on this browser) gets a moment
+        let first = false;
+        if (result.ok) {
+          const key = 'postcards.firstSent.' + ((welcomeUser().id) || 'guest');
+          try { first = localStorage.getItem(key) !== '1'; localStorage.setItem(key, '1'); } catch (_) {}
+        }
+        showNote(to, result.ok ? null : result.error, first);
+        if (first) firstPostcardConfetti();
         if (result.ok) resetCard();             // sent: a fresh, empty card waits
         await wait(result.ok ? 2400 : 4200);
         hideNote();
