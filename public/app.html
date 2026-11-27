@@ -217,6 +217,29 @@ body {
 .sound-toggle[data-tip]:hover::after,
 .sound-toggle[data-tip]:focus-visible::after { transform: none; }
 
+/* A postmark stamped onto the card just before it's sent (flies with it) */
+.postcard { position: relative; }
+.send-postmark {
+  position: absolute;
+  top: 3%;
+  right: 4%;
+  width: 34%;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0;
+  transform: rotate(-8deg);
+}
+.send-postmark svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+/* A pressed flower settles onto the card */
+.decor .flower.settle { animation: flower-settle 0.45s ease-out; }
+@keyframes flower-settle {
+  0%   { transform: translate(-50%, -50%) rotate(var(--r, 0deg)) scale(1.14); }
+  45%  { transform: translate(-50%, -50%) rotate(calc(var(--r, 0deg) + 2deg)) scale(0.97); }
+  100% { transform: translate(-50%, -50%) rotate(var(--r, 0deg)) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .decor .flower.settle { animation: none; } }
+
 /* The little bird on the top shelf: hover (or tap) and it chirps */
 .bird {
   position: absolute;
@@ -2428,6 +2451,71 @@ input:autofill {
 
     // A soft two-note chime for a newly arrived postcard (silent when muted, or
     // before the page has been clicked once)
+    // Small sound effects for writing and sending: a postmark "chunk", a pen
+    // scratch, a papery rustle and a card sliding. All quiet, all made here (no
+    // files), all silent when muted or before the first click.
+    window.postcardsSfx = (function () {
+      let buf = null;
+      function ac() {
+        if (window.postcardsSound.muted) return null;
+        const a = audio();
+        return a && a.state === 'running' ? a : null;
+      }
+      function noise(a) {
+        if (!buf) {
+          buf = a.createBuffer(1, a.sampleRate, a.sampleRate);
+          const d = buf.getChannelData(0);
+          for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        }
+        const src = a.createBufferSource(); src.buffer = buf; return src;
+      }
+      function burst(a, { at = 0, dur, f, to, q = 1, vol, type = 'bandpass', attack = 0.005 }) {
+        const t = a.currentTime + 0.01 + at, src = noise(a), flt = a.createBiquadFilter(), g = a.createGain();
+        flt.type = type; flt.Q.value = q;
+        flt.frequency.setValueAtTime(f, t);
+        if (to) flt.frequency.exponentialRampToValueAtTime(to, t + dur);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(vol, t + attack);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        src.connect(flt).connect(g).connect(a.destination);
+        src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.05);
+      }
+      return {
+        chunk() {            // a rubber stamp meeting paper
+          const a = ac(); if (!a) return;
+          const t = a.currentTime + 0.01, o = a.createOscillator(), g = a.createGain();
+          o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(65, t + 0.12);
+          g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.11, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.17);
+          o.connect(g).connect(a.destination); o.start(t); o.stop(t + 0.2);
+          burst(a, { dur: 0.1, f: 300, q: 0.7, vol: 0.1, type: 'lowpass' });
+          burst(a, { dur: 0.05, f: 2600, q: 0.8, vol: 0.018 });
+        },
+        scratch() {          // one stroke of a pen nib
+          const a = ac(); if (!a) return;
+          burst(a, { dur: 0.035 + Math.random() * 0.03, f: 3200 + Math.random() * 2200, q: 1.3, vol: 0.011 + Math.random() * 0.007, attack: 0.004 });
+        },
+        rustle() {           // dry petals and paper
+          const a = ac(); if (!a) return;
+          for (let k = 0; k < 4; k++) burst(a, { at: k * 0.04 + Math.random() * 0.03, dur: 0.06 + Math.random() * 0.05, f: 1800 + Math.random() * 1800, q: 0.9, vol: 0.018 + Math.random() * 0.012 });
+        },
+        slide() {            // card turning on the table
+          const a = ac(); if (!a) return;
+          burst(a, { dur: 0.38, f: 650, to: 1500, q: 0.8, vol: 0.028, attack: 0.08 });
+        },
+      };
+    })();
+
+    // Pen scratch while writing by hand (not for the typewriter font)
+    let lastScratch = 0;
+    ['toName', 'message'].forEach(id => document.getElementById(id).addEventListener('input', e => {
+      if (document.body.classList.contains('font-typewriter')) return;
+      if (!/^insert(Text|CompositionText|ReplacementText)?$/.test(e.inputType || '')) return;
+      const now = performance.now();
+      if (now - lastScratch < 35) return;
+      lastScratch = now;
+      window.postcardsSfx.scratch();
+    }));
+
     window.postcardsChime = function () {
       if (window.postcardsSound.muted) return;
       const ac = audio();
@@ -2865,6 +2953,7 @@ input:autofill {
     };
 
     function place(layer, id, x, y, rot) {
+      if (window.postcardsSfx) window.postcardsSfx.rustle();
       const r = layer.getBoundingClientRect();
       const name = (FLOWERS.find(f => f[0] === id) || [id, id])[1];
       const img = document.createElement('span');
@@ -2876,6 +2965,8 @@ input:autofill {
       img.style.left = ((x - r.left) / r.width * 100) + '%';
       img.style.top = ((y - r.top) / r.height * 100) + '%';
       img.style.setProperty('--r', rot + 'deg');
+      img.classList.add('settle');
+      img.addEventListener('animationend', () => img.classList.remove('settle'), { once: true });
       layer.appendChild(img);
     }
     const randomTilt = () => Math.round((Math.random() * 2 - 1) * 14);
@@ -3285,7 +3376,7 @@ input:autofill {
         front.hidden = side !== 'front';
         back.hidden = side !== 'back';
         c.querySelectorAll('.empty, .replace, .photo-hint, .file-input').forEach(el => { el.hidden = true; });
-        c.querySelectorAll('.flower-remove').forEach(el => el.remove());
+        c.querySelectorAll('.flower-remove, .send-postmark').forEach(el => el.remove());
         // An SVG image with nothing in it (the stamp spot before a stamp is
         // chosen) makes the snapshot fail outright, so leave it out
         c.querySelectorAll('image').forEach(im => { if (!im.getAttribute('href') && !im.getAttribute('xlink:href')) im.remove(); });
@@ -3354,6 +3445,31 @@ input:autofill {
     }
 
     // A frozen copy of the card (with what's typed in it) to fly
+    // Stamp a postmark onto the card (with a "chunk") just before it's sent
+    async function postmarkCard() {
+      const when = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase();
+      const pm = document.createElement('div');
+      pm.className = 'send-postmark';
+      pm.setAttribute('aria-hidden', 'true');
+      pm.innerHTML = `<svg viewBox="0 0 84 52" fill="none">` +
+        `<defs><path id="spTop" d="M 40.3 26 A 15.7 15.7 0 0 1 71.7 26"/><path id="spLow" d="M 38 26 A 18 18 0 0 0 74 26"/></defs>` +
+        `<path d="M 2 18 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 M 2 23 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 M 2 28 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0 M 2 33 q 3.5 -2.6 7 0 t 7 0 t 7 0 t 7 0" stroke="#6f6468" stroke-width="1.1" stroke-linecap="round"/>` +
+        `<circle cx="56" cy="26" r="21" stroke="#6f6468" stroke-width="1.3"/><circle cx="56" cy="26" r="13.5" stroke="#6f6468" stroke-width="0.8"/>` +
+        `<text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.4" fill="#5e5458"><textPath href="#spTop" startOffset="50%" text-anchor="middle">PORT OCTAVIA</textPath></text>` +
+        `<text font-family="'Libre Baskerville', Georgia, serif" font-size="3.6" letter-spacing="0.4" fill="#5e5458"><textPath href="#spLow" startOffset="50%" text-anchor="middle">${when}</textPath></text></svg>`;
+      card.appendChild(pm);
+      setTimeout(() => window.postcardsSfx && window.postcardsSfx.chunk(), 170);
+      await pm.animate([
+        { opacity: 0, transform: 'scale(1.7) rotate(-16deg)' },
+        { opacity: 0.85, transform: 'scale(0.96) rotate(-8deg)', offset: 0.7 },
+        { opacity: 0.85, transform: 'scale(1) rotate(-8deg)' }
+      ], { duration: 260, easing: 'cubic-bezier(0.3, 0, 0.6, 1)', fill: 'forwards' }).finished;
+      pm.style.opacity = '0.85';                    // keep the final look for the flying copy
+      pm.style.transform = 'rotate(-8deg)';
+      await wait(380);                              // a beat to see it before take-off
+      return pm;
+    }
+
     function snapshot() {
       const r = card.getBoundingClientRect();
       const copy = card.cloneNode(true);
@@ -3536,7 +3652,9 @@ input:autofill {
           b = { x: m.left + SLOT.x * m.width, y: m.top + SLOT.y * m.height };
         }
         if (!reduce) {
+          const pm = await postmarkCard();
           const { copy, r } = snapshot();
+          pm.remove();                                 // the flying copy carries it now
           // opacity, not visibility: the placed stamp sets its own visibility,
           // which would keep it showing on an invisible card
           card.style.opacity = '0';
@@ -3637,6 +3755,7 @@ input:autofill {
 
   rotate.addEventListener('click', () => {
     if (rotating) return;
+    if (window.postcardsSfx) window.postcardsSfx.slide();
     const toLandscape = !postcard.classList.contains('landscape');
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduceMotion || !postcard.animate) { applyOrientation(toLandscape); return; }
